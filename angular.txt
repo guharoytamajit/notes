@@ -1,0 +1,226 @@
+
+setup:
+>npm install -g @angular/cli
+>ng new first-app
+>ng cd first-app
+>ng serve
+
+
+set yarn as package manager:
+>ng config -g cli.packageManager yarn
+===================================================================================
+
+generate date component:
+>ng generate component date
+
+date.component.ts:
+
+import { Component, OnInit } from '@angular/core';
+
+@Component({
+  selector: 'app-date',
+  
+template: `date:  {{date}}`,
+  
+styleUrls: ['./date.component.css']
+})
+
+export class DateComponent  {
+
+public date:Date;
+  
+constructor() {
+    
+setInterval(()=>{this.date=new Date();},1000);
+   
+}
+}
+
+
+make sure you have added <app-date></app-date> inside app.component.html
+===================================================================================
+interpolation and [] can both do broperty binding,but interpolation will not work with non string type for example
+
+<input disabled="{{false}}">  #does not work
+<input [disabled]="false">    #it works
+
+
+Interpolation and [] can work with variable,value or expression
+
+eg.  <input [value]="2+2"/>   #expression
+     <input [value]="msg"/>   #component variable ie.property of class
+     <input [disabled]="false"/>  #assigning value
+
+<input value="{{2+2}}">
+<input value="{{msg}}"/> 
+<input value="{{'ggg'}}"/ > # altough this is not very useful we can do the same using <input value='ggg'/ >
+
+===================================================================================
+Attribute vs Property
+Attribute=> the initial value.
+Property=current dom value
+
+For example:
+<input value="hello">
+here attribute value will be always equalto "hello"
+but property value can change if user changes it from form.
+===================================================================================
+class binding:
+
+<h2 [class]="myclass" >hello</h2>  #my class is the variable holding the class name as value
+
+Note if we have class attribute and class binding together then class binging will overwrite class attribute.
+<h2 class="special-text" [class]="myclass" >hello</h2>  #here class="special-text" will have no effect, so dont use them together.
+
+
+conditionnl apply a single class:
+<h2 [class.special-text]="special">hello</h2>  #here .special-text class is applied if special component property is true.special is a boolean variable.
+
+conditionnl apply multiple classes:
+<h2 [ngClass]="messageClasses">hello</h2>  #where messageClasses is a json component property,where keys are class name and values are true or false.we can make true/false dynamic by using 
+
+
+public messageClasses={
+"text-success":this.isSuccess,
+"text-special":this.isSpecial,
+}
+=======================================================================================
+style binding:
+<h2 [style.color]="'orange'" >hello</h2> #static binding
+Or
+<h2 [style.color]="myColor" >hello</h2>  #dynamic binding, here myColor is component property
+
+conditional style binding:
+<h2 [style.color]="hasError ? 'red':'green'">
+
+Apply multiple styles:
+<h2 [ngStyle]="titleStules">hello</h2>
+
+
+titleStules={
+color:"blue",
+fontStyle:"italic"
+}
+===============================================================================================
+event binding:
+Lets change component property in two different ways using event binding:
+<button (click)="onClick()">Button1</button>
+
+<button (click)="msg='hello world'">Button2</button>
+{{msg}}
+
+inside component add:
+  onClick(){
+    this.msg="world";
+  }
+
+===============================================================================================
+template reference: very similar to shoetcut of get emement by id.
+
+in template:
+<input #myInput type="text">
+<button (click)="logValue(myInput)">log</button>
+
+in component:
+logValue(input){
+console.log(input.value)
+}
+================================================================================
+If display property is true display first template else display 2nd template:
+<div *ngIf="display;then thenBlock;else elseBlock"></div>
+<ng-template #thenBlock>hello</ng-template>
+<ng-template #elseBlock>world</ng-template>
+================================================================================
+<div [ngSwitch]="myColor">
+<div *ngSwitchCase="'red'">you selected red</div>
+<div *ngSwitchCase="'blue'">you selected blue</div>
+<div *ngSwitchCase="'green'">you selected green</div>
+<div *ngswitchDefault>No match found</div>
+</div>
+================================================================================
+<div *ngFor="colour of colors;index as i">
+{{i}} {{color}}
+</div>
+
+like index there are few other implic variables like first,last,odd,even
+where myColor is a compont property,which can have values like red.
+=================================================================================
+
+parent child component interaction:
+
+app.component.html:
+{{message}}
+<app-child (childEvent)="message=$event" [parentData]="name"/></app-child>  #here $event is not Event object but value emitted from child component ie. childEvent.emit('hi parent')
+
+app.component.ts:
+
+public name="joe";
+public message="";
+
+
+child.component.ts:
+
+@Input() public parentData;
+@Output() public childEvent=new EventEmitter();
+fireEvent(){
+this.childEvent.emit('hi parent')
+} 
+
+child.component.ts:
+{{'hello' +name}}
+<button (click)="fireEvent()">sent to parent</button>
+
+========================================================
+Pipe:
+{{name | lowercase}}
+{{name | uppercase}}
+{{name | titlecase}}
+{{massage | slice:2:5}} #slice with provided from index to before index
+{{person | json}}
+
+{{5.678 |1.2-3}}  #5.678
+{{5.678 |3.4-5}}  #005.6780
+{{5.678 |3.1-2}}  #005.68  notice it is rounding here
+
+
+
+
+{{0.25 | percent}}
+{{0.25 | currency}}
+
+{{date | date:'short'}}
+{{date | date:'shortDate'}}
+{{date | date:'shortTime'}}
+{{0.25 | currency: 'GBP'}}
+========================
+Before injecting services add it as providers in app modele.
+@Injectable() decorator tells it may have dependencies
+
+======================
+httpclient:
+in module > imports add HttpClientModule from @angular/common/http
+
+inject httpclient inside service and use it:
+
+import 'rxjs/add/operator/catch';
+import 'rxjs/add/observable/throw'
+
+ constructor(private http:HttpClient){}
+ getEmployees(): Observable<IEmployee[]>{
+ return this.http
+            .get<IEmployee[]>("/assets/data/employee.json")
+            .catch(this.errorHandler);
+}
+errorHandler(error:HttpErrorResponse){
+ return Observable.throw(error.message || 'server error');
+}
+
+Inside component:
+
+ngOnInit(){
+this.employeeService.getEmployees().subscribe(data=> this.empList=data,
+                                              error=>this.errorMsg=error);
+}
+
+
+==================================

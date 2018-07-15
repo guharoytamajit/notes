@@ -1,0 +1,137 @@
+Docker is a computer program that performs operating-system-level virtualization also known as containerization.
+Docker allows you to package your application with all of its dependencies into  a standardized unit for software development.
+Docker is primarily developed for Linux, where it uses the resource isolation features of the Linux kernel.
+Unlike hypervisor virtualization, where one or more independent machines run virtually on physical hardware via an intermediation layer, 
+containers instead run in user space on top of an operating system’s kernel.
+Avoiding the overhead of starting and maintaining virtual machines which is very heavy and slow. 
+
+Advantages:
+Continuous Deployment and Testing:
+consistency across environments.Eliminate the “it works on my machine” problem once and for all.
+Isolation:
+Docker ensures your applications and resources are isolated.
+Security:
+Docker ensures that applications that are running on containers are completely segregated and isolated from each other, 
+granting you complete control over traffic flow and management. No Docker container can look into processes running inside another container.
+Multi-Cloud Platforms:
+Over last few years, all major cloud computing providers, including Amazon Web Services (AWS) and Google Compute Platform (GCP), 
+have embraced Docker’s availability and added individual support.
+
+
+
+Dockerfile----image------container
+.java---------.class-----object
+
+
+>docker -v #print version
+>docker run -it --name ubuntu1 ubuntu:14.04 /bin/bash  #start a container from ubuntu:14.04 image
+>docker run -d -it --name ubuntu2 ubuntu:14.04 /bin/bash  #start a container from ubuntu:14.04 image in  detached mode
+>docker --help
+>docker <cmd> --help
+>docker info  #sysyem info
+>docker ps  #list all running containers
+>docker ps -a  #list all containers
+>docker stop <hash|name> # stop a running container
+>docker stop $(docker ps -aq)  # stop all running containers
+>docker rm <hash|name>  #remove a container. You cannot remove a running container.
+>docker start <hash|name> #start one or more stopped containers
+>docker start -i <hash|name> # start container in interactive mode
+>docker attach <hash|name>    #attach to a running container try: docker attach --detach-keys ctrl-w <hash>
+>docker exec <hash|name> <command>  #execute a command on a container
+>docker restart <hash|name>  #restarts one or more containers
+>docker stats <hash|name> #displays containers resource usage statistics
+>	<hash|name> #displays running processes
+>docker port <hash|name> #displays port mapping
+>docker logs <hash|name> #displays log
+
+>docker build -t myimage:1 .
+>docker history myimage:1
+
+
+
+>docker search "search_text"  #search for image
+>docker images #list of images
+
+>docker pull <image>:<tag>  #pull an image from hub
+>docker rmi <image_name>  #remove one or more image
+
+============================
+FROM busybox:latest
+MAINTAINER Tamajit Guha Roy
+CMD ["date"]
+
+
+
+>docker build -t -f Dockerfile myimage:1 .
+>docker run --dit --name i1 myimage:1 /bin/sh
+>docker attach --detach-keys ctrl-w i1
+>docker diff i1
+>docker commit -m "2 files added" im5 myimage:2
+>docker history myimage:2
+=====push======================= 
+>docker tag myimage:2 guharoytamajit/myimage:2
+>docker login
+>docker push guharoytamajit/myimage:2
+================================
+docker export im5 > image.tar
+docker import image.tar  mynewimage:1
+===============================
+docker run --name mysql1 -v //c/Users/mysql:/var/lib/mysql -it -e MYSQL_ROOT_PASSWORD=admin -p 3333:3306  mysql:5.5
+
+docker run --name mysql1 -v //c/Users/mysql2:/var/lib/mysql -it -e MYSQL_ROOT_PASSWORD=admin -p 3333:3306  mysql:5.5
+
+===============================
+
+docker pull registry
+docker run -d -p 5000:5000 --name localregistry registry
+docker pull alpine
+docker pull localhost:5000/alpine
+docker tag alpine:latest localhost:5000/alpine
+docker push localhost:5000/alpine
+docker rmi localhost:5000/alpine
+docker pull localhost:5000/alpine
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+docker run -v /c/Users/temp:/volume -it --name spark1  -p 6066:6066  -p 7077:7077 -p 8080:8080 -p 8081:8081 singularities/spark:2.2
+
+
+docker create -v //c/Users/temp:/volume --name data hello-world
+winpty docker run -it --rm --volumes-from data   --name spark1  -p 6066:6066  -p 7077:7077 -p 8080:8080 -p 8081:8081 singularities/spark:2.2
+
+winpty docker run -it --rm -v //c/Users/temp:/volume  --name spark1  -p 6066:6066  -p 7077:7077 -p 8080:8080 -p 8081:8081 singularities/spark:2.2

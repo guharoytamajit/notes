@@ -1,0 +1,151 @@
+ROLE_ANONYMOUS => all user allowed
+ROLE_{Any custom name allowed} like ROLE_FOO
+order of intercept-url matters so keep pattern="/**" at the end.
+
+auto-config="true" is equivalent to:
+<http>
+    <form-login />
+    <http-basic />
+    <logout />
+</http>
+
+==================
+<form-login
+login-page="/login" #get request which will open form
+login-processing-url=""   #post request will will authenticate
+username-parameter=""  #name of username field in custom login form
+password-parameter=""  #name of password field in custom login form
+default-target-url=""  #url to goto after user successful login only if user have not hit any secured resource before login(otherwise goto user selected secure resource)
+always-use-default-target="true"  #always send logged in user to default-target-url
+authentication-failure-url="/login?error=true"  #now in our view layer we can check if error=true then display "invalid credentials" message
+
+/>
+
+
+
+<logout
+logout-url="/logout" #url for logging out
+logout-success-url="/login?logout=true"
+/>
+
+=========================
+Security Interceptors:Decides if access is grant to a particular resource
+1.FilterSecurityInterceptor: enforce access to HTTP resource. <http> tag in config
+2.MethodSecurityInterceptor: enforce access to method invocations.<global-method-security> tag in config
+============================================================
+
+Manually login:
+public void login(HttpServletRequest req, String user, String pass) { 
+    UsernamePasswordAuthenticationToken authReq
+      = new UsernamePasswordAuthenticationToken(user, pass);
+    Authentication auth = authManager.authenticate(authReq);
+     
+    SecurityContext sc = SecurityContextHolder.getContext();
+    sc.setAuthentication(auth);
+    HttpSession session = req.getSession(true);
+    session.setAttribute(SPRING_SECURITY_CONTEXT_KEY, sc);
+}
+=========================================================
+basic components:
+Authentication: wraps principle(user or system who is authenticating)
+UsernamePasswordAuthenticationToken: Implementation of Authentication,holds username ,password and grantedAuthority[].
+AuthenticationManager: Its implemantaion  process authentication request and creates Authentication object as shown in above example.
+  public Authentication  authenticate(Authentication auth).
+this authenticate() method uses UserDetailsService to fetch UserDetails, check if input credentials match that of UserDetails object.
+
+UserDetails: Think of this as an adapter between principal and your user in database. You can cast principal to Userdetails in most of the cases.
+UserDetailsService: UserDetails loadUserByUsername(String username) throws UserNotFoundException. It can be InMemoryUserDetailsManager,JdbcUserDetailsManager or otherimplementation.
+===========================================================
+<filter>
+        <filter-name>filterChainProxy</filter-name>
+        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>filterChainProxy</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+<filter-mapping>
+    <filter-name>ndcLogFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+=========================================================
+custom filterchain:
+First, the id of the FilterChainProxy bean is set to filterChainProxy. This id is also the filter name of the Spring’s DelegatingFilterProxy declared previously in the web.xml file. It is the default convention.
+
+<bean id="filterChainProxy" class="org.springframework.security.web.FilterChainProxy"> 
+<sec:filter-chain-map path-type="ant"> 
+<sec:filter-chain pattern="/webServices/**" filters=" securityContextPersistenceFilterForWebServices, WSAuthenticationFilter, exceptionTranslationFilter, filterSecurityInterceptor" /> 
+<sec:filter-chain pattern="/**" filters=" securityContextPersistentFilter, logoutFilter, authenticationProcessingFilter, anonymousFilter, exceptionTranslationFilter, filterSecurityInterceptor" /> 
+</sec:filter-chain-map> 
+</bean>
+
+Let’s examine the generic filter chain in depth.
+
+    securityContextPersistentFilter: this filter is used to store and retrieve the security context (user credentials, if any) between successive accesses to the application
+    logoutFilter: this filter handles the logout. It should be placed at the beginning of the filter chain so a click on the logout link (or button) will not go through the rest of the chain
+    authenticationProcessingFilter: this filter handles all the authentication process
+    anonymousFilter: this filter handles anonymous login and creates an Authentication object in the HTTP session for later use
+    exceptionTranslationFilter: this filter re-direct the user to an error page when Security exception is encountered
+    filterSecurityInterceptor: this filter is manaing the access management
+================================================================
+
+
+securityContextPersistentFilter delegates its responsibilities of storing and retrieving to a SecurityContextRepository  implementation.
+
+SecurityContextRepository:  Strategy used for persisting a SecurityContext between requests.
+Used by SecurityContextPersistenceFilter to obtain the context which should be used for the current thread of execution and to store the context once it has been 
+removed from thread-local storage and the request has completed. 
+
+HttpSessionSecurityContextRepository: A SecurityContextRepository implementation which stores the security context in the HttpSession between requests.
+The HttpSession will be queried to retrieve the SecurityContext in the loadContext method (using the key SPRING_SECURITY_CONTEXT_KEY by default). 
+If a valid SecurityContext cannot be obtained from the HttpSession for whatever reason, a fresh SecurityContext will be created by calling by 
+SecurityContextHolder.createEmptyContext() and this instance will be returned instead.
+
+<!-- Filter to store the Authentication object in the HTTP Session -->   
+<bean id="securityContextPersistentFilter"
+    class="org.springframework.security.web.context.SecurityContextPersistenceFilter">
+    <property name="securityContextRepository" ref="securityContextRepository" />
+</bean>
+     
+     
+<bean id="securityContextRepository"
+    class="org.springframework.security.web.context.HttpSessionSecurityContextRepository" />
+==================================================================
+The LogoutFilter is in charge of logging out the current user and invalidating the security context. The task of invalidating the HTTP session is again delegated to 
+another actor, the SecurityContextLogoutHandler. 
+
+<bean id="logoutFilter"
+    class="org.springframework.security.web.authentication.logout.LogoutFilter">
+    <constructor-arg value="/pages/Security/logout.html" />
+    <constructor-arg>
+        <list>
+            <bean class="org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler"/>
+        </list>
+    </constructor-arg>
+    <property name="filterProcessesUrl" value="/j_myApplication_logout"/>
+</bean>
+
+=================================================================================
+Remember me:
+1.token based
+This allows to login even after session is expired.s
+hash based token formula: base64(username+':'+expirationDate+':'+md5Hex(username+':'+expirationDate+':'+'password'+':'+key))
+this token is retained in remember-me cookie of browser.
+
+configuration:
+http..and().rememberMe().key('myKey').tokenValiditySeconds(10000)
+
+2.persistent
+persistent_logins table is created with 4 columns(username varchar,series varchar(pk),token varchar,last_used timestamp)
+
+
+configuration:
+http..and().rememberMe().key('myKey').tokenRepository(persistantTokenRepo()).tokenValiditySeconds(10000)
+
+@Bean
+PersistentTokenRepository persistantTokenRepo(){
+JdbcTokenRepositoryImpl db=new JdbcTokenRepositoryImpl();
+db.setDataSource(datasource);
+return db; 
+}
+

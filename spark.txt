@@ -1,0 +1,151 @@
+
+
+
+eg.  
+textFile()=>Hadoop RDD
+map()=>Mapped RDD
+filter()=>Filtered RDD
+reduceByKey()=>shuffle RDD
+
+
+RDD are partitioned,each partition holds a part of total record.
+partitions are unit of parallellism
+Hadoop RDD: when we read from hdfs there is 1 partition per hadoop block. 
+other types of RDD have their own way of defining partitioning
+
+
+
+
+Transformations just builds a DAG(logical execution plan) and dont do anything.
+
+Task will correspond to individual partitions of one of more RDDs with narrow dependencies.
+single task will operate on one hadoop input split.
+
+
+
+====Units of physical execution=============
+
+Jobs:Work required to compute RDD in runJob
+Stages:A wave of work within a job corresponding to one or more pipeline RDDs
+Task:A unit of work within a stage,corresponding to one RDD partition.
+Shuffle:the transfer of data between stages
+
+toDebugString() // prints execution plan
+==========================================================================
+Spark Programming is an open source general-purpose & lightning fast cluster computing platform.
+Moreover, it is designed in such a way that it integrates with all the Big data tools.
+Like spark can access any Hadoop data source, also can run on Hadoop clusters. Furthermore, Apache Spark extends Hadoop MapReduce to next level. 
+Apache Spark offers high-level APIs to users, such as Java, Scala, Pythonand R.
+
+Most importantly, on comparing Spark with Hadoop, it is 100 times faster than Big Data Hadoop and 10 times faster than accessing data from disk.
+
+
+
+Resilient Distributed Datasets (RDD) is a fundamental data structure of Spark. 
+It is an immutable distributed collection of objects.
+Each dataset in RDD is divided into logical partitions, which may be computed on different nodes of the cluster. 
+
+There are two types of operations, which Spark RDDs supports:
+i. Transformation Operations:
+It creates a new Spark RDD from the existing one.
+
+
+ii. Action Operations:
+Action returns final result to driver program or write it to the external data store.
+count(),collect(),reduce()
+
+
+Advantages:
+i.  In-memory computation
+ii. Lazy Evaluation :Only compute what is required.
+iii.Fault Tolerance:  we can re-compute the lost partition of RDD from the original one.
+iv. Immutability:It enables us to achieve consistency through immutability.
+V.  Persistence: No need to compute  same thing multiple times.
+vi. Partitioning:Each dataset in RDD is divided into logical partitions, which may be computed on different nodes of the cluster.
+viii. Location-Stickiness: To compute partitions, RDDs are capable of defining placement preference. DAGScheduler places the partitions in such a way that task is close to data as much as possible. 
+iX: Multiple language support.
+x:Supports multiple types of computing: batch,streaming,SQL,ML,graph processing.
+
+
+
+
+
+Apache Spark APIs – RDD, DataFrame, and DataSet:
+Spark RDD APIs – An RDD stands for Resilient Distributed Datasets. It is Read-only partition collection of records. RDD is the fundamental data structure of Spark. It allows a programmer to perform in-memory computations on large clusters in a fault-tolerant manner.
+
+Spark Dataframe APIs – Unlike an RDD, data organized into named columns. For example a table in a relational database.
+                       It is Immutable.
+                       Declarative approach tells what to do rather than how to do
+                       Enables spark to optimize task execution.
+
+Spark Dataset APIs-
+    extension of DataFrame API which provides type-safe, object-oriented programming interface. 
+    Internally both Datasets and Dataframes  are converted into RDD by spark.
+
+At higher level, two type of RDD transformations can be applied: narrow transformation (e.g. map(), filter() etc.) and wide transformation (e.g. reduceByKey()). Narrow transformation does not require the shuffling of data across a partition,
+ the narrow transformations will be grouped into single stage while in wide transformation the data is shuffled. Hence, Wide transformation results in stage boundaries.
+                       
+
+
+
+optimization:
+1.apply filter as soon as possible
+2.avoid suffling 
+2.use broadcast variable to avoid join if one table is small
+3.over partitioning not good if number of executers are less.use coalesce() 
+4.good to cache after suffling(for both rdd and datasets)
+5.Prefer serialization tool like KRYO over java serialization
+
+
+From spark 2  Datasets&dataframe apis are merged together now: Dataset<Row> = DataFrame
+
+dataset example
+optimization
+hadoop-integration
+spark-ui
+
+Dataset:
+1:encoders:translates between sparks internal binary format <=> java objects. can be created as Encoders.bean(Type.class)
+2.catalyst optimizer
+3.off heap store
+
+
+
+=======                            =======                                 =======                    ==========
+(hi,1)                             (hi,2)                                  (hi,2)                     (hi,[2,2])
+(hello,1)                          (hello,2)     
+(hi,1)                             (hi,2)                                  (hi,2)                     ==========
+(bye,1)      map:(x,y)=>{(x,y+1)}  (bye,2)    filter:(x,y)=>{x=="hello"}   (bye,2)   reducebykey      (bye,[2,2]) 
+=======      ===================>  =======   ============================> =======  ==============>   ==========
+(how,1)                            (how,2)                                 (how,2)                    (how,[2])
+(hello,1)                          (hello,2)
+(bye,1)                            (bye,2)                                 (bye,2)
+========                           =======                                 =======                    ==========
+
+
+
+===========================
+
+Spark stream:
+Incoming
+streams of data are converted into DStreams, which is internally created as a sequence of RDDs(micro batches).
+DStream in Spark Streaming is represented by a stream of data divided in small batches as known asmicro batches.
+This allows Spark to keep a unified programming paradigm for both batch and real-time streaming verticals.
+stream is actually divided into micro-batches.
+In Spark Streaming, a micro batch is created based on time instead of size, that is, events received in a certain time interval, usually in milliseconds, are grouped together into a batch.
+Only one acknowledgement is to be sent per batch of messages rather than per message.
+In failure scenarios, the whole batch needs to be replayed even if only one message within the batch has failed.
+
+DStream-based receivers (sockets, Kafka, Flume, Kinesis, and so on), require one thread(only for advanced sources) to execute the receiver while the other can be used for processing the DStream data.
+Hence try to set URL= local[*] if possible,and never set the master URL as local or local[1].
+
+All those sources that are directly available through StreamingContext, such as filesystem and socket streams are called basic sources. 
+while sources that require dependency linkages, as in the case of Kafka, Flume, and so on are called advanced sources.
+basic sources does not need receivers and hence an extra thread is not required for running receiver process
+
+filesystem stream:Some key points to remember while processing file stream data is that only files that have been moved after the Spark job have be launched in running state is considered, 
+also the file should not be changed once it has been moved to the streaming directory.
+
+
+
+https://github.com/PacktPublishing/Apache-Spark-2x-for-Java-Developers

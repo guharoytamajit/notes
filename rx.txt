@@ -1,0 +1,75 @@
+Observer:execute some code whenever it receives a value(or error/stream end signal)  from observable.Implements next(),error(),complete()
+observable:wapper around some datasource(stream of values 0..n),datasource may be sync or async. it invokes next(),error(),complete() of observer who has subscribe this observer.
+publisher:an object that can produce events,publisher are of two types, Observable and Flowable. The difference between these two is that Flowable is designed for handling backpressure, while Observable is not.Flux and mono are examples of publisher in reactor.
+subscription: with subscribe method we tell observable that someone(an observer) is listening to its value.subscribe() method on observable returns subscription object,this method takes observer as input.
+
+subscriber:Implements the Observer interface and extends the Subscription class.Not ony act as observer but also  provide Subscription-like capabilities such as unsubscribe.
+stream:
+Flowable :observable with back pressure enabled
+
+===============================example===================
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>JS Bin</title>
+</head>
+<body>
+  <script src="https://unpkg.com/@reactivex/rxjs@5.3.0/dist/global/Rx.js"></script>
+<button>Click me</button>
+  <script type="text/javascript">
+  var button = document.querySelector('button');
+Rx.Observable.fromEvent(button, 'click')
+	.subscribe(
+  	(value) => console.log(value.clientX)
+  );
+</script>
+</body>
+</html>
+==========================================================
+Note: 
+error() and complete() for click event are never called.
+
+code inside Observable maybe blocking or non blocking(sync or async),eg Thread.sleep() inside custom created Observable(by defining create() method) will make it blocking,it is our responsibility to make it async in custom obsvable uing create() method. Or We can use features like completable future to make is async.
+
+makesure to unsubscribe() a publisher when no longer needed to prevent memory leak.
+
+Observable also helps to abstract the complexities of threading,synchronization,concurrency
+
+java 8 streams pulls data whereas observable pushes data.
+
+Note that onNext(), onComplete(), and onError() from observable.create() do not necessarily push directly to the final Observer. They can also push to an operator serving as the next step in the chain
+
+ each Observable returned by an operator(like map,filter) is internally an Observer that receives, transforms, and relays emissions to the next Observer downstream. ie. each operator, such as map() and filter(), also implements Observer internally.
+===================================
+A Subject can act as both – a data producer and a data consumer.
+
+This implies two things.
+1. A subject can be subscribed to, just like an observable.
+2. A subject can subscribe to other observables.
+======================================
+
+Cold Observables:
+
+Cold Observables are much like a music CD that can be replayed to each listener, so each person can hear all the tracks at any time. In the same manner, 
+cold Observables will replay the emissions to each Observer, ensuring that all Observers get all the data. Most data-driven Observables are cold, and this 
+includes the Observable.just() and Observable.fromIterable() factories.
+Using operators such as map() and filter() against a cold Observable will still maintain the cold nature of the yielded Observables.
+Sources that emit finite datasets are usually cold.
+
+
+Hot Observables:
+A hot Observable is more like a radio station. It broadcasts the same emissions to all Observers at the same time. If an Observer subscribes to a hot Observable, 
+receives some emissions, and then another Observer comes in afterwards, that second Observer will have missed those emissions. Just like a radio station, if you 
+tune in too late, you will have missed that song.
+ Hot Observables often represent events rather than finite datasets. The events can carry data with them, but there is a time-sensitive component where late 
+observers can miss previously emitted data.
+
+
+ConnectableObservable:
+It will take any Observable, even if it is cold, and make it hot so that all emissions are played to all Observers at once. To do this conversion, you simply need 
+to call publish() on any Observable, and it will yield a ConnectableObservable. But subscribing will not start the emissions yet. You need to call its connect()
+method to start firing the emissions. This allows you to set up all your Observers beforehand.
+It can be used to prevent replay.
+

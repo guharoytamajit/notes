@@ -1,0 +1,35 @@
+conda create --name env1 python=2 flask
+conda env list #list of environments
+source activate env1
+source deactivate
+conda env remove --name env1
+
+
+nside different env pip list will give different results dependong upon packages installed
+
+pacKAGE:
+conda list #list packages
+conda search flusk
+conda install flusk
+conda update flusk
+
+
+
+##################
+jupyter notebook
+
+
+
+ctl+enter #execute shell
+shift+enter #execute and move to nxt shell
+esc #cmd mode
+enter #edit mode
+tab #code assistance
+shift+tab # documentation
+
+##################
+To open an env in jupyter notebook:
+>activate env1
+>python -m ipykernel install --user --name env1 --display-name "Python(env1)"
+
+then select your kernel
