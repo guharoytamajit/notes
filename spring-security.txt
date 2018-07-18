@@ -149,3 +149,187 @@ db.setDataSource(datasource);
 return db; 
 }
 
+==================================================================================================
+example:
+
+        <http auto-config="true" use-expressions="true"  create-session="ifRequired">
+
+		<intercept-url pattern="/admin**" access="hasRole('ROLE_ADMIN')" requires-channel="https" />
+                 <intercept-url pattern="/login*" access="permitAll"/>
+                 <intercept-url pattern="/**" access="isAuthenticated()"/>
+                <access-denied-handler error-page="/403" />
+		<form-login 
+		        login-page="/login" 
+		        default-target-url="/welcome" 
+			authentication-failure-url="/login?error" 
+			username-parameter="username"
+			password-parameter="password" />
+		<logout logout-success-url="/login?logout" delete-cookies="JSESSIONID" />
+		<!-- enable csrf protection -->
+		<csrf/>
+                <remember-me 
+                 token-validity-seconds="1209600"
+	         remember-me-parameter="remember-me" 
+	         data-source-ref="dataSource" />
+    <session-management invalid-session-url="/invalidSession.html"  session-fixation-protection="migrateSession">
+        <concurrency-control max-sessions="2" expired-url="/sessionExpired.html" />
+    </session-management>
+
+   <http-basic />
+   <custom-filter ref="digestFilter" after="BASIC_AUTH_FILTER" />
+	</http>
+	
+
+
+<beans:bean id="digestFilter" class=
+ "org.springframework.security.web.authentication.www.DigestAuthenticationFilter">
+   <beans:property name="userDetailsService" ref="userService" />
+   <beans:property name="authenticationEntryPoint" ref="digestEntryPoint" />
+</beans:bean>
+ 
+<beans:bean id="digestEntryPoint" class=
+ "org.springframework.security.web.authentication.www.DigestAuthenticationEntryPoint">
+   <beans:property name="realmName" value="Contacts Realm via Digest Authentication"/>
+   <beans:property name="key" value="acegi" />
+</beans:bean>
+
+
+
+
+==================================================================================================
+<authentication-manager>
+	  <authentication-provider>
+             
+	    <user-service>
+		<user name="mkyong" password="123456" authorities="ROLE_USER" />
+	    </user-service>
+	  </authentication-provider>
+	</authentication-manager>
+=========================================================================================
+
+	<authentication-manager>
+	  <authentication-provider>
+                <password-encoder ref="encoder" />
+		<jdbc-user-service data-source-ref="dataSource"
+		  users-by-username-query=
+		    "select username,password, enabled from users where username=?"
+		  authorities-by-username-query=
+		    "select username, role from user_roles where username =?  " />
+	  </authentication-provider>
+	</authentication-manager>
+
+
+
+ <beans:bean id="encoder" 
+	class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder">
+	<beans:constructor-arg name="strength" value="11" />
+  </beans:bean>
+=========================================================================================
+	<authentication-manager>
+		<authentication-provider user-service-ref="myUserDetailsService" >
+			<password-encoder hash="bcrypt" />    
+		</authentication-provider>
+	</authentication-manager>
+
+public class MyUserDetailsService implements UserDetailsService {
+
+	private UserDao userDao;
+
+	@Override
+	public UserDetails loadUserByUsername(final String username) 
+               throws UsernameNotFoundException {
+
+		com.mkyong.users.model.User user = userDao.findByUserName(username);
+		List<GrantedAuthority> authorities = buildUserAuthority(user.getUserRole());
+
+		return buildUserForAuthentication(user, authorities);
+		
+
+	}
+
+	// Converts com.mkyong.users.model.User user to
+	// org.springframework.security.core.userdetails.User
+	private User buildUserForAuthentication(com.mkyong.users.model.User user, 
+		List<GrantedAuthority> authorities) {
+		return new User(user.getUsername(), 
+			user.getPassword(), user.isEnabled(), 
+                        true, true, true, authorities);
+	}
+
+	private List<GrantedAuthority> buildUserAuthority(Set<UserRole> userRoles) {
+
+		Set<GrantedAuthority> setAuths = new HashSet<GrantedAuthority>();
+
+		// Build user's authorities
+		for (UserRole userRole : userRoles) {
+			setAuths.add(new SimpleGrantedAuthority(userRole.getRole()));
+		}
+
+		List<GrantedAuthority> Result = new ArrayList<GrantedAuthority>(setAuths);
+
+		return Result;
+	}
+}
+=============================================================================================
+   <authentication-manager>
+        <authentication-provider
+          ref="customAuthenticationProvider" />
+    </authentication-manager>
+
+@Component
+public class CustomAuthenticationProvider
+  implements AuthenticationProvider {
+ 
+    @Override
+    public Authentication authenticate(Authentication authentication) 
+      throws AuthenticationException {
+  
+        String name = authentication.getName();
+        String password = authentication.getCredentials().toString();
+         
+        if (shouldAuthenticateAgainstThirdPartySystem()) {
+  
+            // use the credentials
+            // and authenticate against the third-party system
+            return new UsernamePasswordAuthenticationToken(
+              name, password, new ArrayList<>());
+        } else {
+            return null;
+        }
+    }
+ 
+    @Override
+    public boolean supports(Class<?> authentication) {
+        return authentication.equals(
+          UsernamePasswordAuthenticationToken.class);
+    }
+}
+
+OR
+@Configuration
+@EnableWebSecurity
+@ComponentScan("org.baeldung.security")
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+  
+    @Autowired
+    private CustomAuthenticationProvider authProvider;
+ 
+    @Override
+    protected void configure(
+      AuthenticationManagerBuilder auth) throws Exception {
+  
+        auth.authenticationProvider(authProvider);
+    }
+ 
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.authorizeRequests().anyRequest().authenticated()
+            .and()
+            .httpBasic();
+    }
+}
+======================================================================================
+<global-method-security pre-post-annotations="enabled" jsr250-annotations="enabled"/>
+@PreAuthorize("hasRole('ROLE_USER')")
+@RolesAllowed('ROLE_USER')
+=======================================================================================
