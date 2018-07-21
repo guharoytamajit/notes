@@ -1,0 +1,56 @@
+spring.cloud.config.server.git.uri  
+spring.cloud.config.uri
+
+eureka.client.registerWithEureka
+eureka.client.fetchRegistry
+eureka.instance.hostname=peer1     #
+eureka.client.serviceUrl.defaultZone
+eureka.instance.instanceId:${spring.cloud.client.hostname}:${spring.application.name}:${spring.application.instance_id:${random.value}}
+
+=============================================================
+
+
+
+
+@HystrixCommand(fallbackMethod = "fallBackCall")
+
+=========================
+
+	@Autowired
+	private LoadBalancerClient loadBalancer;
+
+	@RequestMapping("/")
+	public String doStuff() {
+		ServiceInstance instance = loadBalancer.choose("server1");
+		URI storesUri = URI.create(String.format("http://%s:%s", instance.getHost(), instance.getPort()));
+		return (new RestTemplate()).getForObject(storesUri + "/info", String.class);
+	}
+
+{service-name}.ribbon.listOfServers=localhost:7777,localhost:8888,localhost:9999
+ribbon.eureka.enabled=false
+{service-name}.ribbon.eureka.enabled=false
+
+
+
+@Autowired
+IClientConfig
+
+IPing=PingUrl  #so that client can fing server before calling
+IRule= #defineloadbalancing strategy
+
+
+@RibbonClient(name="{service-name}",configuration=ABC.class)
+
+
+add @Loadbalanced to your RestTemplate and use
+
+=============================================================
+
+zuul.routes.somepath.url=http://localhost:7777
+zuul.routes.somepath.path=/mypath/**
+zuul.prefix=/api
+
+
+with eureka:
+zuul.routes.{servicename}.path=/mypath/**
+zuul.ignored-services
