@@ -121,7 +121,29 @@ Dataset:
 (hello,1)                          (hello,2)
 (bye,1)                            (bye,2)                                 (bye,2)
 ========                           =======                                 =======                    ==========
+===========================
+Partitions:
+Different partitions of same RDD can be executed in different executors to parallalize work
+More than one partition can be loaded on same executor memory.
+Spark partitions the RDD at the time of creation even if the user has not provided any partition count explicitly.
 
+The user can provide a partition count as well:
+JavaRDD<Integer> intRDD= jsc.parallelize(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), 3); // no of partitions =3
+
+No. of partitions of RDD can be verified using:
+intRDD.getNumPartitions()
+
+Repartitioning:
+JavaRDD<String> textFileRepartitioned = textFile.repartition(4);
+
+
+
+If the user does not specify the value of numPartitions, the value of the configuration parameter spark.default.parallelism decides the number of partitions.
+eg   ./bin/spark-submit --name "My app" --master local[4] --conf spark.eventLog.enabled=false --conf spark.default.parallelism=3 --conf "spark.executor.extraJavaOptions=-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"  myApp.jar
+
+configuration properties: https://spark.apache.org/docs/latest/configuration.html
+
+Transformations, like reduceByKey, groupByKey, aggregateByKey and so on, result in the shuffling of data, and data belonging to one key will be shuffled to the same executor.
 
 
 ===========================
@@ -129,14 +151,15 @@ Dataset:
 Spark stream:
 Incoming
 streams of data are converted into DStreams, which is internally created as a sequence of RDDs(micro batches).
-DStream in Spark Streaming is represented by a stream of data divided in small batches as known asmicro batches.
+DStream in Spark Streaming is represented by a stream of data divided in small batches as known as micro batches.
 This allows Spark to keep a unified programming paradigm for both batch and real-time streaming verticals.
 stream is actually divided into micro-batches.
 In Spark Streaming, a micro batch is created based on time instead of size, that is, events received in a certain time interval, usually in milliseconds, are grouped together into a batch.
 Only one acknowledgement is to be sent per batch of messages rather than per message.
 In failure scenarios, the whole batch needs to be replayed even if only one message within the batch has failed.
 
-DStream-based receivers (sockets, Kafka, Flume, Kinesis, and so on), require one thread(only for advanced sources) to execute the receiver while the other can be used for processing the DStream data.
+DStream-based receivers (sockets, Kafka, Flume, Kinesis, and so on), require one thread(only for advanced sources) to execute the receiver while the other can be used for processing the 
+DStream data.
 Hence try to set URL= local[*] if possible,and never set the master URL as local or local[1].
 
 All those sources that are directly available through StreamingContext, such as filesystem and socket streams are called basic sources. 

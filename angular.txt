@@ -2,7 +2,7 @@
 setup:
 >npm install -g @angular/cli
 >ng new first-app
->ng cd first-app
+>cd first-app
 >ng serve
 
 
@@ -101,6 +101,12 @@ titleStules={
 color:"blue",
 fontStyle:"italic"
 }
+===
+<p [ngStyle]="{backgroundColor:getColor()}"></p>
+
+Or
+
+<p [ngStyle]="{backgroundColor:color=='red'?'red':'green'}"></p>
 ===============================================================================================
 event binding:
 Lets change component property in two different ways using event binding:
@@ -115,7 +121,7 @@ inside component add:
   }
 
 ===============================================================================================
-template reference: very similar to shoetcut of get emement by id.
+template reference: very similar to shortcut of get emement by id.
 
 in template:
 <input #myInput type="text">
@@ -146,6 +152,35 @@ like index there are few other implic variables like first,last,odd,even
 where myColor is a compont property,which can have values like red.
 =================================================================================
 
+<input (input)="onInput($event)">
+
+here $event represent input element inside onInput() we can get value of input field as:
+
+onInput(event){
+console.log(event.target.value);
+}
+===============
+Another way to pass an element to function is by using local reference(using #)
+
+<input #myInput>
+<button (click)="myMethod(myInput)">submit</button>
+
+==============
+Another way of doing the same is by using @ViewChild
+
+Add component property:
+
+@ViewChild("myInput") myProperty:ElementRef;
+
+console.log(this.myProperty.nativeElement.value)  #we can access value like this
+In template:
+<input #myInput>
+
+
+We can pass data from form to component using local-reference or @ViewChild or [(ngModel)].
+ngModel will do 2 way binding with a component property where as in local-reference we have to pass the element as function parameter.When using @ViewChild we don't have to pass element as function  parameter.
+===================================================================================
+
 parent child component interaction:
 
 app.component.html:
@@ -171,6 +206,11 @@ child.component.ts:
 <button (click)="fireEvent()">sent to parent</button>
 
 ========================================================
+<ng-content></ng-content> can be used in the template to load the body of component tag
+
+
+
+============================================
 Pipe:
 {{name | lowercase}}
 {{name | uppercase}}
@@ -224,3 +264,71 @@ this.employeeService.getEmployees().subscribe(data=> this.empList=data,
 
 
 ==================================
+Interceptors:
+
+@Injectable()
+export class I1 implements HttpInterceptor {
+    intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+        const modified = req.clone({setHeaders: {'Custom-Header-1': '1'}});
+        return next.handle(modified);
+    }
+}
+
+@NgModule({
+    imports: [BrowserModule, HttpClientModule],
+    declarations: [AppComponent],
+    providers: [
+        {
+            provide: HTTP_INTERCEPTORS,
+            useClass: I1,
+            multi: true
+        }
+    ],
+    bootstrap: [AppComponent]
+})
+export class AppModule {}
+
+@Component({
+    selector: 'my-app',
+    template: `
+        <div><h3>Response</h3>{{response|async|json}}</div>
+        <button (click)="request()">Make request</button>`
+    ,
+})
+export class AppComponent {
+    response: Observable<any>;
+    constructor(private http: HttpClient) {}
+
+    request() {
+        const url = 'https://jsonplaceholder.typicode.com/posts/1';
+        this.response = this.http.get(url, {observe: 'body'});
+    }
+}
+=============================
+Routing:
+RouterModule.forRoot(routes)
+const routes:Routes=[
+{path:'user',component:UserComponent,children:[
+  {path:':id',component:UserDetailComponent}
+ ]},
+{path:"" redirectTo="/user" pathMatch=""},
+{path:'**',component:PageNotFoundCompinent}
+]
+<router-outlet></router-outlet> sould be present in app and user template, it is a placeholder that Angular dynamically fills based on the current router state
+r:Router;  r.navigate(['user','detail']) #by default not relative(absolute)
+r.navigate(['user','detail'],{relativeTo:this.activeRoute}) #to make it relative
+r.navigate(['user','detail'],{relativeTo:this.activeRoute,queryParams:{user:'tamajit'},fragment:'abc'}) #to make it relative
+r.navigate(['user','detail'],{relativeTo:this.activeRoute,queryParamsHandling:'merge'})//queryParamsHandling=merge ie. 'merge' previous routes queryParam with new.Similarly you can pass queryParamsHandling:'preserve' to preserve previous routes  queryParams
+ar:ActivatedRoute
+this.ar.snapshot.params['id']  #this changes will not reflect if from component and to components are same using routerLink(ose observable based approach instead)
+this.ar.params.subscribe((params:Params)=>{this.id=params['id']); // no need to unsubscribe them manually angular will do it for us
+similarly use this.ar.queryParams and this.ar.fragment  
+[routerLink]="['/user','detail']"
+routerLinkActive="class"
+[routerLinkOption]="{exact:true}"
+[queryParams]="{name:'tamajit'}"        //query parameters for routerLink 
+fragment="abc"                         //adds #abc at he end of url formed by routerLink 
+
+==================================
+HttpModule vs HttpClientModule:
+HttpClient supports generics,interceptor

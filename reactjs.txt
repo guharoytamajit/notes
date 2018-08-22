@@ -1,0 +1,69 @@
+npm install -g create-react-app
+create-react-app my-app
+cd my-app
+npm start
+===================
+
+
+jsx example: (we can use {} and add any js expression)
+
+<div classname="myclass" name={1+2}>{2+5}</div>
+
+few Attributes conversion in jsx:
+className  => class
+htmlFor => for
+===============
+JSX and corresponding js:
+
+<div a="c">hello</div>
+
+     
+
+
+"use strict";
+
+React.createElement(
+  "div",
+  { a: "c" },
+  "hello"
+);
+
+
+inside https://babeljs.io/repl/  you can try jsx and see generated js 
+===============
+Function can be used as component:
+
+import React, { Component } from 'react';
+
+
+function Hello(){
+  
+//any js logic
+return <h1>Hello World!!</h1>
+
+}
+
+
+class App extends Component 
+{
+  render() {
+    
+return (
+      <div ><Hello/>
+</div>
+    );
+  
+}
+}
+
+export default App;
+
+==================================
+Notes:
+for one line JSX ,no need to wrap using ()  ie. (<h1>Hello World!!</h1>
+)
+JSX returned should have only one root element.
+If we want to use prop in function component just pass it in input argument as function Hello(props).
+Both class(extending Component) and function can be used as component, in case of calss based component we can access props as this.props which is implictly passed. 
+Function cannot be used to create stateful component, in that case use class.
+use props.children to access tag body.
