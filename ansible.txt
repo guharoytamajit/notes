@@ -1,0 +1,69 @@
+apt-get install python-pip
+pip install ansible
+==============================
+Install in ubuntu 14.04:
+sudo apt-add-repository -y ppa:ansible/ansible
+sudo apt-get update
+sudo apt-get install -y ansible
+
+make sure you can access workers through ssh:
+>ssh-keygen
+>ssh-copy-id -i pi@192.168.0.102
+>ssh-copy-id -i pi@192.168.0.103
+=================================
+
+ansible all -i pi@192.168.0.102,pi@192.168.0.103 -m ping
+
+ansible all -i pi@192.168.0.102,pi@192.168.0.103 -m command --args <any command>
+ansible all -i pi@192.168.0.102,pi@192.168.0.103 -m command --args 'sudo apt-get install -y apache2'
+
+ansible-playbook lets us place Ansible configuration into files so we can reliably run the same set of commands over and over.
+
+=======================================
+we can skip entering hosts again and again by adding follwing inside /etc/ansible/hosts
+
+[web]
+pi@192.168.0.102
+pi@192.168.0.103
+
+[another]
+pi@192.168.0.102
+
+
+
+>ansible web  -m ping
+
+>ansible all --become  -m shell -a 'apt-get install -y nginx'
+>ansible web --become  -m shell -a 'apt-get remove -y  nginx'
+
+--become => sudo
+all => all groups
+web => all machines in web group inside /etc/ansible/hosts
+
+
+
+Ansible modules ensure indempotence - we can run the same Tasks over and over without affecting the final result.
+
+For installing software on Debian/Ubuntu servers, the "apt" module will run the same command, but ensure idempotence.
+>ansible all -become -m apt -a 'pkg=nginx state=installed update_cache=true'
+
+If above command fails the try it again after following two commands:
+
+>ansible all --become  -m shell -a 'apt-get clean'
+>ansible all --become  -m shell -a 'apt-get update'
+
+
+This will use the apt module to update the repository cache and install Nginx (if not installed).
+
+==================================================
+nginx.yml
+
+- hosts: local
+  tasks:
+   - name: Install Nginx
+     apt: pkg=nginx state=present update_cache=true
+
+
+>ansible-playbook --become nginx.yml
+
+This Task does exactly the same as our ad-hoc command

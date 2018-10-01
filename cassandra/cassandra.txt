@@ -1,0 +1,32 @@
+It is inspired by distribution model of dynamodb and storage model of bigtable.
+column oriented(key value):
+   Map<RowKey,SortedMap<ColumnKey,ColumnValue>>
+schemaless
+
+see=>cassandra_logical_structure.JPG in same folder
+
+Column: the smallest datamodel and storage unit consists of{Name(key in sortedmap, type: bytearray),Value(value in sortedmap , type: bytearray),Timestamp,TTL(optional)}
+Row :set of orderable collumns(columns are stored in sorted order). rowkey also called primarykey.
+     Row cannot be split across cluster and must be on the same node.
+
+ColumnFamily: set of Rows,it has a name.rowkeys must be unique and used to order rows inside column family. 
+
+keyspace:set of columnfamilies(CF),contains replica settings.
+====================
+No join,no foreign key.
+Do not normalize
+design tables based on query need,such that all records belong to same node
+supports multi value column(list,set,map)
+Does not support sequence(auto increment) because it is difficult to maintain sequence in p2p cluster, use UUID instead.
+concept of secondary index is there but not identical to RDBMS.
+Does not support ACID.
+supports AP of CAP,but tunable.
+=================
+provide SQL like language called cassandra query language(CQL).
+CQL v3 offers more close to SQL like syntax and has table instead of columnfamily, but this table is very different from RDBMS table. 
+cqlsh can be used to fire CQL queries(it is dependent on python,you can create python env for v2 using conda)
+  >conda create --name py2 python=2.7
+  >activate py2
+  >cqlsh
+
+

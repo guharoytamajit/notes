@@ -1,0 +1,73 @@
+Vert.x is a project affected by Node.js. Like Node.js, Vert.x is a server framework providing an event-based programming model. 
+When building a server application by using Vert.x, users can write code as a single thread application. That means that the multi-thread programming effect can be achieved without synchronization, lock, or volatility.
+
+Vert.x aims to make a variety of Vert.x-built server programs communicate well with each other. For this, Vert.x provides Event Bus. Therefore, MQ functions such as Point to Point or Pub/Sub can be used (to provide Event Bus function, Vert.x uses Hazelcastm, an In-Memory Data Grid).
+Vert.x processes all IOs by using Netty.
+
+An application may consist of one Verticle or several Verticles, which communicate through Event Bus.
+For Java, verticle is the class with a main method. Verticle can also include other scripts referred to by the main method.
+1 or more Verticle is executed within a Vert.x instance and the Vert.x instance is executed in its JVM instance.
+Each Verticle can have its own unique class loader. In this manner, direct interactions between Verticles, made through static members and global variables, can be prevented.
+A lot of Verticles can be simultaneously executed in several hosts on the network and the Vert.x instances can be clustered through Event Bus.
+The Verticle instance guarantees it is always executed on an identical thread.race condition or deadlock can be prevented.
+Vert.x instance internally manages the thread pool. Vert.x matches the number of thread pools to the number of CPU cores as closely as possible.
+Each thread executes Event Loop(Run Loop).If there is an event to process on the loop, Vert.x calls the corresponding handler (of course, additional work is necessary if the handler-processing period is too long or there is a blocking I/O). 
+
+Message passing is very useful. However, it is not always the best approach in all types of application concurrency situations.Cache is one of the most popular examples. If only one vertical has a certain cache, it is very inefficient. If other Verticles need the cache, each Verticle should manage the same cache data.
+Vert.x provides a method for global access. It is the Shared Map. Verticles share immutable data only.
+
+The default execution unit of Vert.x is Verticle and several Verticles can be simultaneously executed on one Vert.x instance. The Verticles are executed on the event-loop thread. 
+Several Vert.x instances can be executed on several hosts, as well as on one host on the network. At this time, the Verticles or modules communicate by using the event bus.
+To sum up, the vert.x application consists of combinations of Verticles or modules and communication among those is made by using Event Bus.
+
+Run Loop(Event loop), as you will guess from the name, is a method for checking whether there is a new event in the infinite loop, and calling an event handler when an event has been received.
+To use the Run Loop method, all I/Os should be managed as events.
+
+For example, imagine a general Web server application that creates a query for a database to respond to an HTTP request from a Web browser. 
+The CPU of the Web server is used when one thread analyzes the HTTP request to execute proper business logic, and creates a query statement. 
+However, the CPU is not used while the thread sends the query to the database and waits for a response. However, when the thread to be created 
+equals the number of HTTP requests (Thread per Connection), another thread may be processing a task requiring the web server CPU, while one 
+thread is waiting for response from the database. Finally, the web server CPU is used to process HTTP requests. As you know, the weakness of 
+Thread per Connection is the cost for context switching at the kernel level since many threads must be created. This can be called waste. 
+
+The asynchronous event handling method can overcome this weakness (figuratively speaking, 'asynchronous event handling' is the 'purpose' and 
+‘Run Loop’ is the 'means'). If ‘HTTP request itself’ and ‘receiving a response from the database’ are created as an event, and the Run Loop calls
+ the corresponding event handler whenever an event is received, the execution performance of the application can be enhanced by avoiding 
+unnecessary context switching. In this fashion, to utilize a CPU efficiently, the number of Run Loops required equals the number of cores 
+(i.e., thread should be created equaling the number of cores and each thread should run the Run Loop).
+
+However, there is another problem creating threads equaling the number of cores, which is preventing as much context switching as possible. 
+If a handler, using server resources, takes a long time to handle an event, other events received while the handler is being executed are not managed
+ in a timely manner. A popular example is file searching on the server disk. In this case, it is better to create a separate thread for searching files. 
+
+Therefore, to build a universal server framework with asynchronous event handling, the framework should have a function for managing a thread pool. 
+This is the aim of Vert.x. Thread pool management is the biggest difference between Vert.x and Node.js, except for polyglot. Vert.x creates Run Loops(Event Loops) 
+equaling the number of cores and provides thread pool-related function to handle tasks using server resources requiring long periods for event handling.
+
+Maximum number of Event Loop threads depends on number of CPUs, not on number of verticles deployed.multiple verticle can share same thread.
+
+Vert.x has three types of thread pools:
+
+1.Acceptor: A thread to accept a socket. One thread is created for one port.
+2.Event Loops: (same with Run Loop) equals the number of cores. When an event occurs, it executes a corresponding handler. When execution is performed, it repeats reading 
+another event.
+3.Background: Used when Event Loop executes a handler and an additional thread is required. Users can specify the number of threads in vertx.backgroundPoolSize, 
+an environmental variable. The default is 20. Using too many threads causes an increase in context switching costs, so be cautious.
+
+Make verticle use all event loop threads:
+DeploymentOptions deploymentOptions = new DeploymentOptions().setInstances(vertxOptions.getEventLoopPoolSize());
+vertx.deployVerticle(() -> new MyServerVerticle(), deploymentOptions);
+
+
+Vert.x uses Hazelcast, an In-Memory Data Grid (IMDG). Hazelcast API is not directly revealed to users but is used in Vert.x. When Vert.x is started, 
+Hazelcast is started as an embedded element.
+Hazelcast is a type of distributed storage. When storage is embedded and used in a server framework, we can obtain expected effects from a distributed environment.
+The most popular case is session data processing. Vert.x calls it Shared Data. It allows multiple Vert.x instances to share the same data.
+
+
+Event Loops can be described as follows in a detailed way. Event Loops use Netty NioWorkder as it is. All handlers specified by verticles run on Event Loops. 
+Each verticle instance has its specified NioWorker. As such, it is guaranteed that a verticle instance is always executed on an identical thread. Therefore, 
+verticles can be written in a thread-safe manner.
+
+use code shared in following to debug threads on vertx:
+https://medium.com/@alexey.soshin/understanding-vert-x-event-loop-46373115fb3e

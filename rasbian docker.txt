@@ -1,0 +1,43 @@
+Install raspbian:
+format sd card using sd formatter
+extract noobs content on sd card
+start and install raspbian
+
+
+Enable ssh:
+sudo raspi-config
+>interface option>ssh>enable and save
+
+Now you can connect to this machine using putty, ip address can be obtained using ifconfig.
+
+ 
+Install docker:
+>curl -sSL https://get.docker.com | sh
+
+>sudo docker ps
+
+>sudo docker swarm init --advertise-addr 192.168.0.103
+output:  docker swarm join --token SWMTKN-1-3lvuqv7lu4yeyrlgt9d6a8xs524i2vu657u6qbu1wgscc82vkj-0ihqg1ymbkw3fwr3sqguj9dg3 192.168.0.103:2377
+
+>docker swarm leave #to leave a cluster
+
+>docker node rm <hostname> #removes down node from docher node ls
+
+>docker swarm join-token manager  #gives the command to join as manager
+
+>docker swarm join-token worker  #gives the command to join as worker
+
+>docker node promate <hostname>  #promote a worker node to master
+
+>sudo docker swarm init  --force-new-cluster --advertise-addr 192.168.0.103
+
+If majority of manager node(>= 50%) goes down then cluster will fail
+
+docker service create --replicaS 4  -p 8080:80 --name nginx nginx #must be run on manager node
+docker service create --node global my-monitoring-service  #global service,each node has a single instance of this
+docker service ls
+docker service tasks <service name>
+docker service update --replicas=4 nginx 
+docker service ls
+docker service ps <service id from service ls command>
+ 

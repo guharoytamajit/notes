@@ -9,9 +9,6 @@ eureka.instance.instanceId:${spring.cloud.client.hostname}:${spring.application.
 
 =============================================================
 
-
-
-
 @HystrixCommand(fallbackMethod = "fallBackCall")
 
 =========================

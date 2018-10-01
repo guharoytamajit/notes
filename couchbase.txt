@@ -1,0 +1,28 @@
+membase + couchdb
+
+cluster based supports persistance,partitions,replication
+document oriented nosql
+
+can be accessed using webui,cli,rest.
+
+vbucket(virtual bucket)=>partition
+bucket=>database
+record=>document
+
+vbucket is part of bucket
+
+
+the overall keyspace is partitioned into 1024 logical storage unit called vbuckets.
+vbuckets are distributed across machines within cluster.
+details of vbucket are maintained in a map, which is shared among all servers and also client library.
+basic unit of storage is a json document which is associated with a key.
+uses KETAMA algo to get hash value of a doc id(key)
+each key is hashed to a vbucket
+When machines are added and removed in the cluster.  The administrator can request a redistribution of vBucket so that data are evenly spread across physical machines.
+high availability is achieved through data replication at vbucket level.
+if replication factor=2 we will have 1024*2=2048 vbuckets.
+========================
+Evolution of couchbase:
+1.memcached created
+2.memcached =>membase (a distributed and persisted key-value store)
+3.couchbase=couchbase+membase. json support ,map-reduce indexes, elastic search integration and cross data center replication.
