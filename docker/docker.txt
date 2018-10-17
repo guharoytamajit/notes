@@ -25,6 +25,7 @@ Dockerfile----image------container
 
 >docker -v #print version
 >docker run -it --name ubuntu1 ubuntu:14.04 /bin/bash  #start a container from ubuntu:14.04 image
+ to detach ctrl-p + ctrl-q
 >docker run -d -it --name ubuntu2 ubuntu:14.04 /bin/bash  #start a container from ubuntu:14.04 image in  detached mode
 >docker --help
 >docker <cmd> --help
@@ -40,7 +41,7 @@ Dockerfile----image------container
 >docker exec <hash|name> <command>  #execute a command on a container
 >docker restart <hash|name>  #restarts one or more containers
 >docker stats <hash|name> #displays containers resource usage statistics
->	<hash|name> #displays running processes
+>docker top <hash|name> #displays running processes
 >docker port <hash|name> #displays port mapping
 >docker logs <hash|name> #displays log
 
@@ -62,7 +63,7 @@ CMD ["date"]
 
 
 
->docker build -t -f Dockerfile myimage:1 .
+>docker build -t myimage:1 -f Dockerfile  .
 >docker run --dit --name i1 myimage:1 /bin/sh
 >docker attach --detach-keys ctrl-w i1
 >docker diff i1

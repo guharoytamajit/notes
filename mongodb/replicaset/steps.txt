@@ -1,0 +1,4 @@
+rs.initiate()
+rs.add("tamajroy:8003")
+rs.addArb("tamajroy:8001")
+rs.status()

@@ -1,0 +1,34 @@
+docker network ls #list all networks
+docker network inspect <networkname> 
+
+
+If we start a container by debault it will boin network named bridge
+>docker run -it -d ubuntu:14.04 /bin/bash
+>docker network ls
+
+>docker network inspect bridge  #it will also show containers in this network
+
+>docker network create –-driver <drivername> <networkname>
+
+
+
+To attach a container to a network
+>docker network create --driver bridge new_nw
+>docker run –it –-network new_nw ubuntu:latest /bin/bash
+
+
+The most common network types(driver) being:  bridge,  overlay, and  macvlan.
+Bridge Networks:
+ It is limited to containers within a single host running the Docker engine. 
+ The bridge driver creates a private network internal to the host so containers on this network can communicate.
+ External access is granted by exposing ports to containers.
+
+  docker network create -d bridge my-bridge-net
+
+Overlay Networks:
+  In Docker, an overlay network driver is used for multi-host network communication. 
+  VXLAN solves common portability limitations by extending layer 2 subnets across layer 3 network boundaries, hence containers can run on foreign IP subnets.
+  To create an overlay network named my-overlay-net, you’ll also need the --subnet parameter to specify the network block that Docker will use to assign IP addresses to the containers:
+
+  docker network create -d overlay --subnet=192.168.10.0/24 my-overlay-net
+

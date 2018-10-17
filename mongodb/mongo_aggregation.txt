@@ -1,0 +1,275 @@
+[
+  { _id: 147, title: "War and Peace", ISBN: 9780307266934 },
+  { _id: 148, title: "Anna Karenina", ISBN: 9781593080273 },
+  { _id: 149, title: "Pride and Prejudice", ISBN: 9783526419358 },
+]
+
+>mongoimport --db test1 --collection books --jsonArray --file "data.txt"
+
+> db.books.aggregate([{ $project: {ISBN: 1 } } ]);
+{ "_id" : 147, "ISBN" : 9780307266934 }
+{ "_id" : 148, "ISBN" : 9781593080273 }
+{ "_id" : 149, "ISBN" : 9783526419358 }
+
+
+> db.books.aggregate([{ $project: {_id: 0 ,title:1} } ]);
+{ "title" : "War and Peace" }
+{ "title" : "Anna Karenina" }
+{ "title" : "Pride and Prejudice" }
+
+> db.books.aggregate([{ $project: {_id: 0,reference: "$ISBN" } } ]);
+{ "reference" : 9780307266934 }
+{ "reference" : 9781593080273 }
+{ "reference" : 9783526419358 }
+
+
+
+> db.emp.find();
+{ "_id" : 1, "first_name" : "Sela", "email" : "sdines0@sphinn.com", "gender" : "Female", "salary" : 37502 }
+{ "_id" : 2, "first_name" : "Maribeth", "email" : "mbachura1@istockphoto.com", "gender" : "Female", "salary" : 27182 }
+{ "_id" : 3, "first_name" : "Fanya", "email" : "fgoodbairn2@yelp.com", "gender" : "Female", "salary" : 37064 }
+{ "_id" : 4, "first_name" : "Baudoin", "email" : "bmcduall3@hatena.ne.jp", "gender" : "Male", "salary" : 16721 }
+{ "_id" : 5, "first_name" : "Iseabal", "email" : "ikenrick4@amazon.com", "gender" : "Female", "salary" : 43529 }
+{ "_id" : 6, "first_name" : "Vivie", "email" : "vtriplett5@shareasale.com", "gender" : "Female", "salary" : 40589 }
+{ "_id" : 7, "first_name" : "Baron", "email" : "braiker6@dropbox.com", "gender" : "Male", "salary" : 12762 }
+{ "_id" : 8, "first_name" : "Darnell", "email" : "dtumilson7@mozilla.com", "gender" : "Male", "salary" : 26226 }
+{ "_id" : 9, "first_name" : "Hamil", "email" : "hsedgebeer8@icio.us", "gender" : "Male", "salary" : 39176 }
+{ "_id" : 10, "first_name" : "Lucas", "email" : "lguerro9@eepurl.com", "gender" : "Male", "salary" : 41050 }
+{ "_id" : 11, "first_name" : "Eamon", "email" : "ebengala@earthlink.net", "gender" : "Male", "salary" : 36124 }
+{ "_id" : 12, "first_name" : "Cicily", "email" : "csloyanb@intel.com", "gender" : "Female", "salary" : 7274 }
+{ "_id" : 13, "first_name" : "Dode", "email" : "dklewic@google.fr", "gender" : "Female", "salary" : 17777 }
+{ "_id" : 14, "first_name" : "Carlo", "email" : "ccrombleholmed@ehow.com", "gender" : "Male", "salary" : 10920 }
+{ "_id" : 15, "first_name" : "Etti", "email" : "ejillitte@pcworld.com", "gender" : "Female", "salary" : 48637 }
+{ "_id" : 16, "first_name" : "Emlen", "email" : "esprullf@thetimes.co.uk", "gender" : "Male", "salary" : 5284 }
+{ "_id" : 18, "first_name" : "Ahmed", "email" : "afrewerh@ox.ac.uk", "gender" : "Male", "salary" : 21081 }
+{ "_id" : 17, "first_name" : "Ossie", "email" : "ojinksg@unblog.fr", "gender" : "Male", "salary" : 8579 }
+{ "_id" : 19, "first_name" : "Curt", "email" : "cyurivtsevi@spiegel.de", "gender" : "Male", "salary" : 29607 }
+{ "_id" : 20, "first_name" : "Abbie", "email" : "akasselj@princeton.edu", "gender" : "Male", "salary" : 24216 }
+
+
+//number of male and female
+> db.emp.aggregate([{ $group: {_id:"$gender",count: { $sum: 1 }} }]);
+{ "_id" : "Female", "count" : 8 }
+{ "_id" : "Male", "count" : 12 }
+
+//total salary of male and female
+> db.emp.aggregate([{ $group: {_id:"$gender",count: { $sum: "$salary" }} }]);
+{ "_id" : "Female", "count" : 259554 }
+{ "_id" : "Male", "count" : 271746 }
+
+//average salary for male and female
+> db.emp.aggregate([{ $group: {_id:"$gender",count: { $avg: "$salary" }} }]);
+{ "_id" : "Female", "count" : 32444.25 }
+{ "_id" : "Male", "count" : 22645.5 }
+
+//max and min salary for male and female
+> db.emp.aggregate([{ $group: {_id:"$gender",maximum: { $max: "$salary" },minumum:{$min:"$salary"}} }]);
+{ "_id" : "Female", "maximum" : 48637, "minumum" : 7274 }
+{ "_id" : "Male", "maximum" : 41050, "minumum" : 5284 }
+
+
+//where gender="Male"
+> db.emp.aggregate([{ $match : { gender : "Male" } }]);
+{ "_id" : 4, "first_name" : "Baudoin", "email" : "bmcduall3@hatena.ne.jp", "gender" : "Male", "salary" : 16721 }
+{ "_id" : 7, "first_name" : "Baron", "email" : "braiker6@dropbox.com", "gender" : "Male", "salary" : 12762 }
+{ "_id" : 8, "first_name" : "Darnell", "email" : "dtumilson7@mozilla.com", "gender" : "Male", "salary" : 26226 }
+{ "_id" : 9, "first_name" : "Hamil", "email" : "hsedgebeer8@icio.us", "gender" : "Male", "salary" : 39176 }
+{ "_id" : 10, "first_name" : "Lucas", "email" : "lguerro9@eepurl.com", "gender" : "Male", "salary" : 41050 }
+{ "_id" : 11, "first_name" : "Eamon", "email" : "ebengala@earthlink.net", "gender" : "Male", "salary" : 36124 }
+{ "_id" : 14, "first_name" : "Carlo", "email" : "ccrombleholmed@ehow.com", "gender" : "Male", "salary" : 10920 }
+{ "_id" : 16, "first_name" : "Emlen", "email" : "esprullf@thetimes.co.uk", "gender" : "Male", "salary" : 5284 }
+{ "_id" : 18, "first_name" : "Ahmed", "email" : "afrewerh@ox.ac.uk", "gender" : "Male", "salary" : 21081 }
+{ "_id" : 17, "first_name" : "Ossie", "email" : "ojinksg@unblog.fr", "gender" : "Male", "salary" : 8579 }
+{ "_id" : 19, "first_name" : "Curt", "email" : "cyurivtsevi@spiegel.de", "gender" : "Male", "salary" : 29607 }
+{ "_id" : 20, "first_name" : "Abbie", "email" : "akasselj@princeton.edu", "gender" : "Male", "salary" : 24216 }
+
+//where gender="Male" and salary > 20000 sort by salary
+>  db.emp.aggregate([{ $match : { gender : "Male" ,salary :{$gt: 20000}} },{$sort:{salary:1}}]);
+{ "_id" : 18, "first_name" : "Ahmed", "email" : "afrewerh@ox.ac.uk", "gender" : "Male", "salary" : 21081 }
+{ "_id" : 20, "first_name" : "Abbie", "email" : "akasselj@princeton.edu", "gender" : "Male", "salary" : 24216 }
+{ "_id" : 8, "first_name" : "Darnell", "email" : "dtumilson7@mozilla.com", "gender" : "Male", "salary" : 26226 }
+{ "_id" : 19, "first_name" : "Curt", "email" : "cyurivtsevi@spiegel.de", "gender" : "Male", "salary" : 29607 }
+{ "_id" : 11, "first_name" : "Eamon", "email" : "ebengala@earthlink.net", "gender" : "Male", "salary" : 36124 }
+{ "_id" : 9, "first_name" : "Hamil", "email" : "hsedgebeer8@icio.us", "gender" : "Male", "salary" : 39176 }
+{ "_id" : 10, "first_name" : "Lucas", "email" : "lguerro9@eepurl.com", "gender" : "Male", "salary" : 41050 }
+
+
+//where gender="Male" or salary > 44000
+> db.emp.aggregate([{ $match :{$or:[ { gender : "Male"} ,{salary :{$gt: 44000}} ]}}]);
+{ "_id" : 4, "first_name" : "Baudoin", "email" : "bmcduall3@hatena.ne.jp", "gender" : "Male", "salary" : 16721 }
+{ "_id" : 7, "first_name" : "Baron", "email" : "braiker6@dropbox.com", "gender" : "Male", "salary" : 12762 }
+{ "_id" : 8, "first_name" : "Darnell", "email" : "dtumilson7@mozilla.com", "gender" : "Male", "salary" : 26226 }
+{ "_id" : 9, "first_name" : "Hamil", "email" : "hsedgebeer8@icio.us", "gender" : "Male", "salary" : 39176 }
+{ "_id" : 10, "first_name" : "Lucas", "email" : "lguerro9@eepurl.com", "gender" : "Male", "salary" : 41050 }
+{ "_id" : 11, "first_name" : "Eamon", "email" : "ebengala@earthlink.net", "gender" : "Male", "salary" : 36124 }
+{ "_id" : 14, "first_name" : "Carlo", "email" : "ccrombleholmed@ehow.com", "gender" : "Male", "salary" : 10920 }
+{ "_id" : 15, "first_name" : "Etti", "email" : "ejillitte@pcworld.com", "gender" : "Female", "salary" : 48637 }
+{ "_id" : 16, "first_name" : "Emlen", "email" : "esprullf@thetimes.co.uk", "gender" : "Male", "salary" : 5284 }
+{ "_id" : 18, "first_name" : "Ahmed", "email" : "afrewerh@ox.ac.uk", "gender" : "Male", "salary" : 21081 }
+{ "_id" : 17, "first_name" : "Ossie", "email" : "ojinksg@unblog.fr", "gender" : "Male", "salary" : 8579 }
+{ "_id" : 19, "first_name" : "Curt", "email" : "cyurivtsevi@spiegel.de", "gender" : "Male", "salary" : 29607 }
+{ "_id" : 20, "first_name" : "Abbie", "email" : "akasselj@princeton.edu", "gender" : "Male", "salary" : 24216 }
+
+
+Different expressions used by Aggregate function
+Expression	Description
+$sum	Summates the defined values from all the documents in a collection
+$avg	Calculates the average values from all the documents in a collection
+$min	Return the minimum of all values of documents in a collection
+$max	Return the maximum of all values of documents in a collection
+$addToSet	Inserts values to an array but no duplicates in the resulting document
+$push	Inserts values to an array in the resulting document
+$first	Returns the first document from the source document
+$last	Returns the last document from the source document
+
+=============================================================================================
+> db.reviews.aggregate([
+  { $match : {
+    date: { $gte: new Date("2012-07-11") }
+  } },
+  { $group: {
+    _id: "$bookId",
+    avgScore: { $avg: "$score" }
+  } }
+]);
+
+
+> SELECT book_id, AVG(score)
+  FROM review
+  WHERE review.date > "2012-07-11"
+  GROUP BY review.book_id ;
+=============================================================================================
+> db.reviews.aggregate([
+  { $group: {
+    _id: "$bookId",
+    avgScore: { $avg: "$score" }
+  } },
+  { $match : {
+    avgScore: { $gt: 3 }
+  } }
+]);
+
+> SELECT book_id, AVG(score) AS avg_score
+  FROM review
+  GROUP BY review.book_id
+  HAVING avg_score > 3;
+=============================================================================================  
+
+[
+  {
+    _id: 12351254,
+    title: "Space Is Getting Closer",
+    tags: ["science", "space", "iss"]
+  },
+  {
+    _id: 22956492,
+    title: "Computer Solves Rubiks Cube",
+    tags: ["computing", "science"]
+  }
+]
+
+> db.articles.aggregate([   { $unwind: "$tags" } ]);
+{ "_id" : 12351254, "title" : "Space Is Getting Closer", "tags" : "science" }
+{ "_id" : 12351254, "title" : "Space Is Getting Closer", "tags" : "space" }
+{ "_id" : 12351254, "title" : "Space Is Getting Closer", "tags" : "iss" }
+{ "_id" : 22956492, "title" : "Computer Solves Rubiks Cube", "tags" : "computing" }
+{ "_id" : 22956492, "title" : "Computer Solves Rubiks Cube", "tags" : "science" }
+
+
+//how many times each articles is tagged
+> db.articles.aggregate([{ $unwind: "$tags" },{ $group: {_id: "$tags", nbArticles:{ $sum: 1 }}}]);
+{ "_id" : "iss", "nbArticles" : 1 }
+{ "_id" : "science", "nbArticles" : 2 }
+{ "_id" : "space", "nbArticles" : 1 }
+{ "_id" : "computing", "nbArticles" : 1 
+
+//tags which are used more than once
+> db.articles.aggregate([{ $unwind: "$tags" },{ $group: {_id: "$tags", nbArticles:{ $sum: 1 }}},{$match:{nbArticles:{$gt:1}}}]);
+{ "_id" : "science", "nbArticles" : 2 }
+
+//generate tags to articles mapping
+> db.articles.aggregate([{ $unwind: "$tags" },{ $group: { _id: "$tags", articles: { $addToSet: "$_id" } } } ]);
+{ "_id" : "iss", "articles" : [ 12351254 ] }
+{ "_id" : "science", "articles" : [ 22956492, 12351254 ] }
+{ "_id" : "space", "articles" : [ 12351254 ] }
+{ "_id" : "computing", "articles" : [ 22956492 ] }
+
+===============================================================================
+JOIN:
+
+db.employee.insert([{name:"alex",code: 1}, {name:"jim",code: 20}, {name:"jack",code: 30}, {name:"jill",code: 30}])
+db.country.insert([{code: 1, name: "United States"}, {code: 20, name: "Egypt"}, {code: 30, name: "Greece"}])
+
+
+> db.employee.aggregate([ { $lookup: {from: "country", localField: "code", foreignField: "code", as: "countryName"} }]);
+{ "_id" : ObjectId("5bbdcedbd04f4a62a7d389a3"), "name" : "alex", "code" : 1, "countryName" : [ { "_id" : ObjectId("5bbdcee5d04f4a62a7d389a7"), "code" : 1, "name" : "United States"
+} ] }
+{ "_id" : ObjectId("5bbdcedbd04f4a62a7d389a4"), "name" : "jim", "code" : 20, "countryName" : [ { "_id" : ObjectId("5bbdcee5d04f4a62a7d389a8"), "code" : 20, "name" : "Egypt" } ] }
+{ "_id" : ObjectId("5bbdcedbd04f4a62a7d389a5"), "name" : "jack", "code" : 30, "countryName" : [ { "_id" : ObjectId("5bbdcee5d04f4a62a7d389a9"), "code" : 30, "name" : "Greece" } ] }
+
+{ "_id" : ObjectId("5bbdcedbd04f4a62a7d389a6"), "name" : "jill", "code" : 30, "countryName" : [ { "_id" : ObjectId("5bbdcee5d04f4a62a7d389a9"), "code" : 30, "name" : "Greece" } ] }
+
+
+> db.employee.aggregate([ { $lookup: {from: "country", localField: "code", foreignField: "code", as: "countryName"} }, 
+                          { $project: {"code":1, "countryName.name":1, "_id":0} } ]);
+{ "code" : 1, "countryName" : [ { "name" : "United States" } ] }
+{ "code" : 20, "countryName" : [ { "name" : "Egypt" } ] }
+{ "code" : 30, "countryName" : [ { "name" : "Greece" } ] }
+{ "code" : 30, "countryName" : [ { "name" : "Greece" } ] }
+
+
+> db.employee.aggregate([ { $lookup: {from: "country", localField: "code", foreignField: "code", as: "countryName"} },
+                          { $unwind: "$countryName"}]);
+{ "_id" : ObjectId("5bbdcedbd04f4a62a7d389a3"), "name" : "alex", "code" : 1, "countryName" : { "_id" : ObjectId("5bbdcee5d04f4a62a7d389a7"), "code" : 1, "name" : "United States" } }
+{ "_id" : ObjectId("5bbdcedbd04f4a62a7d389a4"), "name" : "jim", "code" : 20, "countryName" : { "_id" : ObjectId("5bbdcee5d04f4a62a7d389a8"), "code" : 20, "name" : "Egypt" } }
+{ "_id" : ObjectId("5bbdcedbd04f4a62a7d389a5"), "name" : "jack", "code" : 30, "countryName" : { "_id" : ObjectId("5bbdcee5d04f4a62a7d389a9"), "code" : 30, "name" : "Greece" } }
+{ "_id" : ObjectId("5bbdcedbd04f4a62a7d389a6"), "name" : "jill", "code" : 30, "countryName" : { "_id" : ObjectId("5bbdcee5d04f4a62a7d389a9"), "code" : 30, "name" : "Greece" } }
+
+
+> db.employee.aggregate([ { $lookup: {from: "country", localField: "code", foreignField: "code", as: "countryName"} }, 
+                          { $unwind: "$countryName"},
+                          { $project: {"code":1, "countryName.name":1, "_id":0} } ]);
+{ "code" : 1, "countryName" : { "name" : "United States" } }
+{ "code" : 20, "countryName" : { "name" : "Egypt" } }
+{ "code" : 30, "countryName" : { "name" : "Greece" } }
+{ "code" : 30, "countryName" : { "name" : "Greece" } }
+
+
+> db.employee.aggregate([ { $lookup: {from: "country", localField: "code", foreignField: "code", as: "countryName"} }, 
+                          { $unwind: "$countryName"},
+                          { $project: {"code":1, "name": "$countryName.name", "_id":0} } ]);
+
+{ "code" : 1, "name" : "United States" }
+{ "code" : 20, "name" : "Egypt" }
+{ "code" : 30, "name" : "Greece" }
+{ "code" : 30, "name" : "Greece" }
+
+
+
+=====================================================================================================
+Many To Many Joins:
+
+>db.Person.insert({ID: 1, LastName: "Clifton", FirstName: "Marc"})
+>db.Person.insert({ID: 2, LastName: "Wagers", FirstName: "Kelli"})
+
+>db.Phone.insert({ID: 1, Number: "518-555-1212"})
+>db.Phone.insert({ID: 2, Number: "518-123-4567"})
+
+>db.PersonPhone.insert({ID: 1, PersonID: 1, PhoneID: 1})
+>db.PersonPhone.insert({ID: 2, PersonID: 2, PhoneID: 1})
+>db.PersonPhone.insert({ID: 3, PersonID: 2, PhoneID: 2})
+
+
+>db.PersonPhone.aggregate([
+{ $lookup: { from: "Person", localField: "PersonID", foreignField: "ID", as: "PersonName" } }, 
+{ $lookup: { from: "Phone", localField: "PhoneID", foreignField: "ID", as: "PersonPhone" } }, 
+{ $unwind: "$PersonName"},
+{ $unwind: "$PersonPhone"},
+{$project: {"LastName":"$PersonName.LastName", "FirstName":"$PersonName.FirstName", "PhoneNumber":"$PersonPhone.Number", _id:0}} ])
+
+{ "LastName" : "Clifton", "FirstName" : "Marc", "PhoneNumber" : "518-555-1212" }
+{ "LastName" : "Wagers", "FirstName" : "Kelli", "PhoneNumber" : "518-555-1212" }
+{ "LastName" : "Wagers", "FirstName" : "Kelli", "PhoneNumber" : "518-123-4567" }
+======================================================================================================
+
+

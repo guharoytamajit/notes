@@ -13,6 +13,7 @@ conda search flusk
 conda install flusk
 conda update flusk
 
+conda install -c conda-forge tensorflow
 
 
 ##################
