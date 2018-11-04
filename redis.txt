@@ -1,0 +1,175 @@
+start server
+>redis-server </path/to/redis.config>
+
+start client
+>redis-cli <-h hostname -p port>
+> auth our_password # this is only required if your redis is password protected
+>ping  # see if connection is working
+>exit #exit connection
+
+
+command reference :: https://redis.io/commands
+
+>SET name tamajit
+>GET name
+>DEL name
+
+key is the way to store and get value,there is no concept of secondary key
+
+keyspace in redis is like database in mysql and  package in java
+
+>select keyspace_name  #select a database or keyspace, like "use database" command in mysql 
+>keys *  #list of keys
+>flushdb #delete all keys in database
+any object in redis upto 512MB, but shorter the better performance
+>MSET key1 value1 key2 value2 .....   #multiple key-value declare
+>MGET key1 key2 ..
+>GETSET key1 2# get old value of key1 and set new value of key1
+>DEL key1 key2 ...
+
+
+TTL(we can associate a TTL with a key)
+when a variable is created by default its TTL is -1 or infinity
+>expire name 4 # setting TTL, here key name will expire after 4 seconds
+>ttl name  #time in seconds after which even key will be removed
+>PERSIST name # make TTL infinite ie.-1
+
+
+Complex values:
+Hash
+List
+Set
+
+Hash commands:
+>HSET mymap key1 value1
+>HGET mymap key1
+
+>HMSET mymap key2 value2 key3 value3
+>HMGET mymap key1 key2
+
+>HDEL mymap key1  #delete a map entry
+>HKEYS mymap  #list all keys of a map
+>HKEYS mymap  #list all values of a map
+>HGETALL mymap #list all key-value of a map
+
+
+List:
+very fast push/pop but slower indexed. like linked list
+>LPUSH mylist value  #left add,we can do multiadd >LPUSH mylist 1 2 3 4 5
+>LPOP mylist         
+>RPUSH mylist value  #right add
+>RPOP mylist
+>LLEN   #list length
+>LRANGE mylist start_index stop_insex #sub list,index starts with 0
+>LTRIM mylist value stop #remove
+
+>LSET mylist index new_value #update a list index with a new value eg.LSET list 1 22
+>LINSERT #insert a value eg.LINSERT list after 22 4 , here 22 is content not index
+>LINDEX list index  #get value by index eg.lindex list 1
+>LREM #tbd
+
+Set:
+no duplicate,no order
+>SADD myset 5 #add 5 to set
+>SISMEMBER myset 5 #contains check
+>SMEMBER myset #read all elements
+>SUNION myset key2 ...
+>SINTR myset key2 ...
+>SDIFF myset key2
+>scard myset # size of set
+>SREM myset 5 #remove given element from list
+>SPOP myset #pops or removes a random element from set
+>srandmember myset 2# returns 2 random elements from set
+
+sorted Set:
+>zadd set 1 one 2 two 3 three  #set has 3 elements => one,two and three with priority 1,2,3
+>zcard set #size of set
+>zrem set one two three #remove one,two and three from set
+
+>Type key
+>DUMP key # displays original string stored by redis
+>RESTORE original_string # inverse of DEMP command
+>OBJECT refcount key# number of references
+>OBJECT encoding key
+>OBJECT idletime key
+
+
+>EXISTS key #1 means key exists
+>KEYS he?l* #list all keys matching pattern
+>RENAME old new #rename key
+>SCAN #TBD
+
+Atomic increment:when inc or dec fired my multiple client then also consistincy remains
+>INCR counter
+>DECR counter
+>INCRBY counter 2
+>DECRBY counter 2
+>INCRBYFLOAT x 1.5
+>DECRBYFLOAT x 1.5
+
+>SET msg hello
+>APPEND msg " world" #if key doesnot exist it will create one
+>GET msg #hello world
+
+>GETRANGE key start_index to_index #substring
+
+
+We can set redis configuration at runtime:
+>CONFIG GET <property>
+>CONFIG SET <property> <value> #eg CONFIG SET   requirepass pass
+
+Note: all properties cannot be changed at runtime eg. server port
+
+Authentication:
+activate following property to enable password protection:
+requirepass <password> #this can also be set at runtime using >CONFIG SET requirepass <password>
+Now every redis-cli has to acthenticate itself using >Auth <passwoed>
+
+>INFO #shows different redis parameters
+>MONITOR #activate monitoring,here all activities to redis-server from different redis-cli will be logged
+
+redis.config:
+logfile stdout
+loglevel verbose
+port 6379
+requirepass password
+
+
+redis database supports two types of persistance:
+1.RDB(snapshot): 
+# Save the DB on disk:
+#
+#   save <seconds> <changes>
+#
+#   Will save the DB if both the given number of seconds and the given
+#   number of write operations against the DB occurred.
+#
+#   In the example below the behaviour will be to save:
+#   after 900 sec (15 min) if at least 1 key changed
+#   after 300 sec (5 min) if at least 10 keys changed
+#   after 60 sec if at least 10000 keys changed
+#
+#   Note: you can disable saving at all commenting all the "save" lines.
+
+save 900 1
+save 300 10
+save 60 10000
+
+At runtime we can force synchronous or async save using >SAVE or >BGSAVE
+
+2.AOF(not snapshot but sequence of changes )
+can be enabled by setting "appendonly yes" in redis.conf 
+
+
+
+Clustering:
+Redis supports master slave architecture.
+Replication:
+All writes goes to master db(then replicated to slave), whereas read requests can be served by both master and slave.
+one redis-server can become slave of another server using slaveof command
+m1>redis-server --port 7777
+m2>redis-server --port  8888
+m2>slaveof localhost 7777 # now m1 is master m2 is slave
+
+Sharding:
+Two options range partitioning and hash partitioning

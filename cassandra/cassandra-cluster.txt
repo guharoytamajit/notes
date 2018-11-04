@@ -1,0 +1,29 @@
+Reference: http://gokhanatil.com/2018/02/build-a-cassandra-cluster-on-docker.html
+
+
+
+>docker run --name cas1 -p 9042:9042 -e CASSANDRA_CLUSTER_NAME=MyCluster -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch -e CASSANDRA_DC=datacenter1 -d cassandra:3.11
+>docker inspect --format='{{ .NetworkSettings.IPAddress }}' cas1
+
+>docker run --name cas2 -e CASSANDRA_SEEDS="$(docker inspect --format='{{ .NetworkSettings.IPAddress }}' cas1)" -e CASSANDRA_CLUSTER_NAME=MyCluster -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch -e CASSANDRA_DC=datacenter1 -d cassandra:3.11
+
+>docker run --name cas3 -e CASSANDRA_SEEDS="$(docker inspect --format='{{ .NetworkSettings.IPAddress }}' cas1)" -e CASSANDRA_CLUSTER_NAME=MyCluster -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch -e CASSANDRA_DC=datacenter2 -d cassandra:3.11
+
+>docker exec -ti cas1 nodetool status
+
+If your new nodes didn’t show up in the list, they probably crashed before they joined the cluster. In this case, you may restart the missing nodes. For example, 
+if cas3 (the last node) didn’t joined to the cluster and it’s down, you can run “docker start cas3” command to start it. It’ll try to join the cluster automatically.
+
+The status column of each node should show UN (node is UP and its state is Normal). If you see “UJ” that means your node is joining, just wait for a while and check it again. 
+
+Now Let’s create a keyspace (database) which will be replicated to datacenter1 and datacenter2, and a table in this newly created keyspace. I’ll use NetworkTopologyStrategy for 
+replicating data. Each datacenter will store one copy of data.
+
+>docker exec -ti cas1 cqlsh
+
+CREATE KEYSPACE mykeyspace WITH replication = {'class' : 'NetworkTopologyStrategy','datacenter1' : 1,'datacenter2' : 1};
+CREATE TABLE mykeyspace.mytable (id int primary key,name text);
+
+
+>docker exec -ti cas1 nodetool status mykeyspace
+

@@ -1,0 +1,119 @@
+components:
+1.connection pool:users have connection to the database,which lives in a process thread,this connection executes statement on behalf of the user.
+
+2.parser: converts SQL statements to internal commands
+
+3.optimizer: Defines how the query(commands after parser) is executed in most effective way .
+
+4.Cache/Buffer:hold data in memory
+
+process hierarchy:
+1.Supervisor process
+2.mysqld ie. the main process
+3.each connection consumes a thread
+
+
+storage engine:
+1.defines how data is saved
+2.provides file structure,indexes and storage management
+
+examples:InnoDB(default since mysql8),MyISAM(old default),NDB,Federated,Memory,Custom etc.
+
+
+InnoDB(storage engine):
+three parts:caching,transaction system,storage
+provides ACID compliant transaction features
+
+InnoDB transaction logs:
+Are typically only written
+Read only when there is a crash
+Are rewritten over and over again
+
+=================================================================================================
+Manual installation:
+1.extract the zip file we have downloaded
+2.Add a data Folder and Create a Configuration File(my.ini) in home directory.
+On MySQL version 5.6 and earlier, all of the data files are stored by default 
+in a data folder, which is already included in the zip file that we downloaded.
+
+However, starting from MySQL version 5.7, that folder has been removed and now, 
+we are free to choose the name and the location of the folder.
+
+
+3.Inside my.ini under [mysqld] section, add the following parameters(most of them are optional and has defaults):
+
+
+[mysqld]
+basedir = "/mysql-5.7.17"
+datadir = "/mysql-5.7.17/data"
+port = 3306
+server_id = 1
+log_error = "mysql_error.log"
+pid_file = "mysql.pid"
+socket = "/mysql-5.7.17/mysql.sock"
+
+# Optional - Default Configuration
+max_allowed_packet = 8M
+key_buffer_size=16M
+
+# Where do all the plugins live
+plugin_dir = "/mysql-5.7.17/lib/plugin/"
+
+
+4.Initialization For The First Time:
+
+mysqld --initialize
+or
+mysqld --initialize-insecure
+
+The Difference is: mysqld --initialize will create a random password that written to the log file, in this example mysql_log.log file located in the data folder.
+
+While for mysqld --initialize-insecure, there is no password to be set, Nevertheless, we can still create a password later.
+
+By default, the process will create a user to login with root as the username, we can define another username by adding --user option, e.g. mysqld --initialize-insecure --user=agusph
+
+5.Now connect to mysql server:
+>mysql -u root -p
+
+6.turn off server:
+
+mysqladmin -u root shutdown
+
+7. restart server:
+>mysqld
+===============================================================================================
+Or just do:
+>mysqld --initialize --user=mysql  --datadir=../mydb 
+===============================================================================================
+
+
+test:
+===server1.cfg=====
+port=3307
+datadir=data1
+socket=data1/mysql.sock
+pid=data1/mysql.pid 
+
+#create database
+mysql_install_db  --datadir=data1
+note:mysql_install_db is present in mysql_home/script make sure it is added to path
+
+#Starting mysql server
+mysqld_safe  –-defaults-file=server1.cnf&
+
+#connect
+mysql -S /var/run/mysqld/mysqld2.sock
+or
+mysql -h 127.0.0.1 -P 3307
+
+
+
+==================
+cd <mysql_home>
+mkdir data1                           #create data directory
+mysqld --initialize  --datadir=data1  #create database
+mysqld  --defaults-file=server1.cnf&
+
+====================
+working:
+mysqld --initialize --user=mysql  --datadir=data1
