@@ -1,0 +1,382 @@
+Kafka Practical By Goutam CHowdhury
+======================================================
+
+Download and Setup (You can ignore if you have already done)
+---------------------------------------
+1. Create a folder  "C:\Kafka"
+2. Download "https://drive.google.com/drive/folders/1XIsxL5dZKyAgDnauTEeslgaH3xwerl4F?usp=sharing to "C:\Kafka"
+
+1.Copy the kafka_2.11-0.11.0.1.tgz file from C:\Kafka\jar to C:\Kafka
+2. Using 7-Zip unzip the kafka_2.11-0.11.0.1.tgz like "7-zip"-->Extract to kafka_2.11-0.11.0.1\"
+3. Delete C:\Kafka\kafka_2.11-0.11.0.1.tgz
+4. Go to "C:\Kafka\kafka_2.11-0.11.0.1" , and verify beow folders
+	a.bin	b.config c.libs d.site-docs e.LICENSE f.NOTICE
+
+Create a kafka cluster with single Node/server/broker
+------------------------------------------------------
+1. Verify JDK and its version
+	a. Go to  "Command Line window"
+	b. echo %JAVA_HOME%  ==> should be like this "C:\Program Files\Java\jdk1.8.0_161"
+	c. echo %path%       ==> should be like this "C:\Program Files\Java\jdk1.8.0_161\bin;...<more path>"
+	d. java -version     ==> should be like this "java version "1.8.0_161""
+	e. javac -version    ==> should be like this "javac 1.8.0_161"
+
+ 
+1. Run zookeeper
+	a. Open "C:\Kafka\kafka_2.11-0.11.0.1\config\zookeeper.properties"
+	b. Change "dataDir=/tmp/zookeeper" to "dataDir=ZKDATA"
+	c. Verify other properties "clientPort=2181" and "maxClientCnxns=0"
+	d. Please delete "C:\Kafka\kafka_2.11-0.11.0.1\config\zookeeper.properties.bak" file
+	d. Go To  Command Line window
+	e. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+	f. CMD: "start bin\windows\zookeeper-server-start config\zookeeper.properties"
+	g. It will start zookeeper in another window and will get below log [in case of successful start]
+	[2018-08-17 10:40:42,256] INFO binding to port 0.0.0.0/0.0.0.0:2181 (org.apache.zookeeper.server.NIOServerCnxnFactory)
+	h. Issue : "'bin' is not recognized as an internal or external command," ==> please use forward slash("\") instead of backward slash ("/")
+	i. Connect to zookeeper shell and check created node
+		i. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+		ii. CMD>> start bin\windows\zookeeper-shell.bat localhost:2181
+		iii. Will start a new window with below o/p
+
+		WATCHER::
+		WatchedEvent state:SyncConnected type:None path:null
+		<type below command>
+		ls /
+
+
+2. Run a Single Node/server/broker
+	a.  Rename "C:\Kafka\kafka_2.11-0.11.0.1\config\server.properties" to "C:\Kafka\kafka_2.11-0.11.0.1\config\server1.properties"
+	b.  Open  "C:\Kafka\kafka_2.11-0.11.0.1\config\server1.properties" 
+	c.  Change below properties
+		i.  "broker.id=0" to  "broker.id=1"
+		ii. "#delete.topic.enable=true" to "delete.topic.enable=true" [Just uncomment]
+		ii. "#listeners=PLAINTEXT://:9092" to  "listeners=PLAINTEXT://:9091" [ It will be commented , uncomment and do the change]
+		iii. "log.dirs=/tmp/kafka-logs" to "log.dirs=KData/log1" [ Partition belongs to brker.id=1, will be created in this folder]
+	d.  Verify other properties specially "zookeeper.connect=localhost:2181"
+	d. Go To  Command Line window
+	e. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+	f. CMD: "start bin\windows\kafka-server-start config\server1.properties"
+	g. It will start a kafka broker in another window and will get below log [in case of successful start]
+	[2018-08-17 11:42:40,675] INFO [Kafka Server 1], started (kafka.server.KafkaServer)
+	i. Connect to zookeeper shel and check created node [ or we can use previously opened Zookeeper CLI]
+		i. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+		ii. CMD>> start bin\windows\zookeeper-shell.bat localhost:2181
+		iii. Will start a new window with below o/p
+
+		WATCHER::
+		WatchedEvent state:SyncConnected type:None path:null
+		<type below commands>
+		ls /
+		ls /cluster
+		get /cluster/id
+		get /controller
+		ls /brokers
+		ls /brokers/ids
+		get /brokers/ids/1
+
+
+3. Create a topic one partition and one replication with one broker running [error case]
+	a. Go To  Command Line window
+	b. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+	c. CMD>> bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic testA
+	d. Result>>Created topic "testA".
+	e. Check list of topic available in the cluster
+		i. CMD>>  
+		ii. O/P>> testA
+	f. Describe a particular topic
+		i. CMD>> bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic testA
+		ii. O/P>> 
+		Topic:testA     PartitionCount:1        ReplicationFactor:1     Configs:
+			Topic: testA    Partition: 0    Leader: 1       Replicas: 1     Isr: 1
+	g. Check largest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -1
+		ii.O/P>>  testA:0:0
+	h. Check smallest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -2
+		ii.O/P>>  testA:0:0
+	g. Check "C:\Kafka\kafka_2.11-0.11.0.1\KData\log1" --> New folder willbe created "testA-0"
+	h. Check with zookeeper CLI
+		i. CMD>> ls /brokers/topics/testA/partitions/0
+		ii CMD>> get  /brokers/topics/testA/partitions/0/state
+	
+
+4. Create a console producer and produce messages into topic testA
+	a. Go To  Command Line window
+	b. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+	c.CMD>> start bin\windows\kafka-console-producer.bat  --broker-list localhost:9091 --topic testA
+	d. Type some messages, each enter will send a message to topic testA
+		i. Hi Kafka
+		ii. I am new to you
+		ii. I want to know you
+	e. Check "C:\Kafka\kafka_2.11-0.11.0.1\KData\log1\testA-0"
+		i. 00000000000000000000.index [ For offset search ]
+		ii. 00000000000000000000 [Messages are stored here ]
+		iii. 00000000000000000000.timeindex [ For time stamp search]
+	f. Check largest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -1
+		ii.O/P>>  testA:0:3
+	g. Check smallest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -2
+		ii.O/P>>  testA:0:0
+	i. Check smallest and largest togesther
+		i. CMD>> bin\windows\kafka-run-class.bat kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic testA --time -1 --offsets 2
+		ii.O/P>> testA:0:3,0
+
+5. Check the log file to see how messages are stored in it
+        a. Go To  Command Line window
+	b. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+        c. CMD>> bin\windows\kafka-run-class.bat kafka.tools.DumpLogSegments --deep-iteration --print-data-log --files C:\Kafka\kafka_2.11-0.11.0.1\KData\log1\testA-0\00000000000000000000.log
+	d. O/P
+	Starting offset: 0
+	offset: 0 position: 0 CreateTime: 1534494502379 isvalid: true keysize: -1 valuesize: 8 magic: 2 compresscodec: NONE producerId: -1 sequence: -1 isTransactional: false headerKeys: [] payload: Hi Kafka
+	offset: 1 position: 76 CreateTime: 1534494512400 isvalid: true keysize: -1 valuesize: 15 magic: 2 compresscodec: NONE producerId: -1 sequence: -1 isTransactional: false headerKeys: [] payload: I am new to you
+	offset: 2 position: 159 CreateTime: 1534494521526 isvalid: true keysize: -1 valuesize: 18 magic: 2 compresscodec: NONE producerId: -1 sequence: -1 isTransactional: false headerKeys: [] payload: I wantto know you
+
+6. Create a OLD console consumer and consume messages from topic testA
+	a. Go To  Command Line window
+	b. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+	c. CMD>> start bin\windows\kafka-console-consumer.bat --zookeeper localhost:2181 --topic testA --from-beginning
+	d. As its a old consumer it will show some warnings like below
+	"Using the ConsoleConsumer with old consumer is deprecated and will be removed in a future major release. Consider using the new consumer by passing [bootstrap-server] instead of [zookeeper]."
+	e. O/P 
+		Hi Kafka
+		I am new to you
+		I want to know you
+
+	f. Check "C:\Kafka\kafka_2.11-0.11.0.1\KData\log1\testA-0" ==> No changes
+	g. Check with zookeeper CLI [ New node created called consumers]
+		i.  CMD>> ls /consumers						O/P>>[console-consumer-99767]
+		ii. CMD>> ls /consumers/console-consumer-99767			O/P>> [ids, owners, offsets]
+		iii.CMD>> ls /consumers/console-consumer-99767/ids		O/P>>[console-consumer-99767_pcadmin-PC-1534496297629-132716b4]
+		iv. CMD>> get /consumers/console-consumer-99767/ids/console-consumer-99767_pcadmin-PC-1534496297629-132716b4
+		    O/P>>{"version":1,"subscription":{"testA":1},"pattern":"white_list","timestamp":"1534496297781"} CMD>> get  /brokers/topics/testA/partitions/0/state
+		v.  CMD>> get /consumers/console-consumer-99767/offsets/testA/0
+		    O/P>> 3
+
+
+	 h. Check with command line 
+		i.   Go To  Command Line window
+		ii.  Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+		iii. CMD>>bin\windows\kafka-consumer-groups.bat --zookeeper localhost:2181 --list
+		iv.   O/P>> Note: This will only show information about consumers that use ZooKeeper (not those using the Java consumer API).
+			console-consumer-99767
+		v.   CMD>>bin\windows\kafka-consumer-groups.bat --zookeeper localhost:2181 --describe --group console-consumer-99767
+		vi.   O/P>> Note: This will only show information about consumers that use ZooKeeper (not those using the Java consumer API).
+			TOPIC       PARTITION  CURRENT-OFFSET  LOG-END-OFFSET    LAG        CONSUMER-ID
+
+			testA          0          3               3               0          console-consumer-99767_pcadmin-PC-1534496297629-132716b4
+
+		vii. CMD>> bin\windows\kafka-consumer-offset-checker.bat --zookeeper=localhost:2181 --topic=testA --group=console-consumer-99767
+		viii. O/P
+		Group				Topic           Pid	Offset       logSize    Lag        Owner
+		console-consumer-99767		testA            0	  3             3        0      console-consumer-99767_pcadmin-PC-1534496297629-132716b4-0
+
+
+7.  Create a NEW console consumer and consume messages from topic testA
+	a. Go To  Command Line window
+	b. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+	c. CMD>> start bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9091 --topic testA --from-beginning
+	d. O/P [No warning - as this is new consumer ]
+		Hi Kafka
+		I am new to you
+		I want to know you
+
+	f. Check "C:\Kafka\kafka_2.11-0.11.0.1\KData\log1" ==> __consumer_offsets-0 to __consumer_offsets-49 total 50 topic
+	g. Don't try with windows: Check offset value from _consumer_offsets topic for new consumer 
+	bin\windows\kafka-console-consumer.bat --consumer.config config/consumer.properties --from-beginning --topic __consumer_offsets --zookeeper localhost:2181 --formatter "kafka.coordinator.GroupMetadataManager\$OffsetsMessageFormatter"
+
+	g. Check with zookeeper CLI [ New node created called consumers]
+		i.  CMD>> ls /consumers	>> No new Consumers will get added
+		
+        h. Check list of NEW consumer group 
+		i. CMD>>bin\windows\kafka-consumer-groups.bat --new-consumer --bootstrap-server localhost:9091 --list
+		ii.O/P>>console-consumer-31914
+
+	 h. Check with command line 
+		i.  Go To  Command Line window
+		ii. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+		iii. CMD>>bin\windows\kafka-consumer-groups.bat --new-consumer --bootstrap-server localhost:9091 --describe --group=console-consumer-31914
+		iv. O/P
+		Note: This will only show information about consumers that use the Java consumer API (non-ZooKeeper-based consumers).
+
+		TOPIC    PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG    CONSUMER-ID						HOST		CLIENT-ID
+                                                              
+		testA      0          3               3               0    consumer-1-5dd90b09-edac-45df-9f51-106c0ca51023   /192.168.56.1       consumer-1
+
+8. Produce messages from Application [Fire and Forget]
+	a. Open Eclipse
+	b. Import the project
+	c. Run com.gc.kafka.producer.FireAndForget
+	d. Type bellow messages in the console
+		i. Hello Kafka
+		ii. I am here again
+         e. Check console consumer
+	 f. Terminate "com.gc.kafka.producer.FireAndForget" 
+	 g. Check largest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -1
+		ii.O/P>>  testA:0:5
+	h. Check smallest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -2
+		ii.O/P>>  testA:0:0
+	i. you can also check log dump  CMD>> bin\windows\kafka-run-class.sh kafka.tools.DumpLogSegments --deep-iteration --print-data-log --files C:\Kafka\kafka_2.11-0.11.0.1\KData\log1\testA-0\00000000000000000000.log
+9. Produce messages from Application [Synchronous]
+	a. Run com.gc.kafka.producer.Synchronous
+	b. Type bellow messages in the console
+		i. Hello Kafka 
+		ii. I am here again With Syncronous
+         c. Check console consumer
+	 d. Terminate "com.gc.kafka.producer.Synchronous" 
+	 e. Check largest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -1
+		ii.O/P>>  testA:0:7
+	 f. Check smallest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -2
+		ii.O/P>>  testA:0:0
+	 g. you can also check log dump  CMD>> bin\windows\kafka-run-class.sh kafka.tools.DumpLogSegments --deep-iteration --print-data-log --files C:\Kafka\kafka_2.11-0.11.0.1\KData\log1\testA-0\00000000000000000000.log
+
+10. Produce messages from Application [Asynchronous]
+	a. Run com.gc.kafka.producer.Asynchronous
+	b. Type bellow messages in the console
+		i. Hello Kafka 
+		ii. I am here again With Asynchronous
+        c. Check console consumer
+	d. Terminate "com.gc.kafka.producer.Asynchronous" 
+	e. Check largest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -1
+		ii.O/P>>  testA:0:9
+	f. Check smallest offset in the topic
+		i. CMD>>  bin\windows\kafka-run-class.bat  kafka.tools.GetOffsetShell --broker-list localhost:9091 --topic  testA --time -2
+		ii.O/P>>  testA:0:0
+	g. you can also check log dump  CMD>> bin\windows\kafka-run-class.sh kafka.tools.DumpLogSegments --deep-iteration --print-data-log --files C:\Kafka\kafka_2.11-0.11.0.1\KData\log1\testA-0\00000000000000000000.log
+
+10. Consume messages from Application [Single Consumer]
+	a. Run com.gc.kafka.consumer.SingleConsumer
+	b. CMD>>bin\windows\kafka-consumer-groups.bat --new-consumer --bootstrap-server localhost:9091 --list
+
+	c.O/P	console-consumer-31914
+		console-consumer-72391
+		testA
+	d. CMD>> bin\windows\kafka-consumer-groups.bat --new-consumer --bootstrap-server localhost:9091 --describe --group=testA
+	e. O/P >> 
+
+	TOPIC    PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG      CONSUMER-ID					    HOST                           CLIENT-ID
+        testA      0          10              10              0       consumer-1-cc733b66-e428-4a9a-ab84-1195c5a42506   /192.168.56.1                      consumer-1
+
+10. Consume messages from Application [Multiple Consumer]
+	a. Run com.gc.kafka.consumer.MultipleConsumers
+	b. CMD>>bin\windows\kafka-consumer-groups.bat --new-consumer --bootstrap-server localhost:9091 --list
+
+	c.O/P	
+		console-consumer-31914
+		Multiple-Consumers
+		console-consumer-72391
+		testA
+	d. CMD>> bin\windows\kafka-consumer-groups.bat --new-consumer --bootstrap-server localhost:9091 --describe --group=Multiple-Consumers
+	e. O/P >> 
+
+	TOPIC  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG        CONSUMER-ID					   HOST          CLIENT-ID
+        testA   0          12              12              0          consumer-1-3fa3b571-123e-4fbd-b3b2-8ae75bdd6bed   /192.168.56.1    consumer-1
+	-       -          -               -               -          consumer-2-7e0ea4b5-66c3-4d1d-9e36-a91e2c3df981   /192.168.56.1    consumer-2
+
+
+12. Alter Topic. Add one more partition to existing topic
+13. Delete topic 
+bin\windows\kafka-topics.bat --zookeeper localhost:2181 --delete --topic  
+
+14. Create a topic one partition and two replications with one broker running [error case]
+	a. Go To  Command Line window
+	b. Go to "c:\Kafka\kafka_2.11-0.11.0.1>" in CMD
+	c. CMD>> bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic testB
+	d. Result>>Error while executing topic command : replication factor: 2 larger than available brokers: 1
+	   As we have only one broker , so cant create two replications
+
+15. Add a new broker
+16. Create a new topic with two partitions and two replications "testB"
+17. View all locations
+18. List topic
+19. Describe topic
+20. Produce messages to new topic
+21. Custom partition
+	a. Simple
+	b. Partition inside record
+	c. Custom partitioner
+21. verify and view all locations
+22. Check offsets
+23. New consumer using console
+24. Application consumer
+	a. single
+	b. multiple
+25. All commits
+
+26. Stop a broker1
+27. check topic "testB"
+28. Again start broker1
+29. Check topic "testB"
+30. Add a new broker 3
+31. Stop broker1
+32. Check broker
+
+
+
+Kafka Connect>>
+c:\Kafka\kafka_2.11-0.11.0.1>
+
+start bin\windows\connect-standalone.bat config\connect-standalone.properties config\connect-file-source.properties
+start bin\windows\connect-standalone.bat config\connect-standalone.properties config\connect-file-sink.properties
+
+c:\Kafka\kafka_2.11-0.11.0.1>start bin\windows\kafka-console-consumer  --zookeeper localhost:2181 --from-beginning --topic connect-test
+
+
+Kafka Stream "Word Count"
+============================================================= 
+Create external topics
+-------------------------------
+bin\windows\kafka-topics.bat --list --zookeeper localhost:2181 
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic word-count-input
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic word-count-output
+
+Start the application
+---------------------
+com.gc.kafka.stream.WordCountApp
+
+Produce messages
+-----------------
+start bin\windows\kafka-console-producer.bat  --broker-list localhost:9091 --topic word-count-input 
+
+External topics
+--------------------
+start bin\windows\kafka-console-consumer.bat --zookeeper localhost:2181 --topic word-count-input --from-beginning
+start bin\windows\kafka-console-consumer.bat --zookeeper localhost:2181 --topic word-count-output --from-beginning --formatter kafka.tools.DefaultMessageFormatter --property print.key=true --property print.value=true --property key.deserializer=org.apache.kafka.common.serialization.StringDeserializer --property value.deserializer=org.apache.kafka.common.serialization.LongDeserializer
+
+Internal Topic
+-------------------
+start bin\windows\kafka-console-consumer.bat --zookeeper localhost:2181 --topic wordcount-application-Counts-repartition --from-beginning --formatter kafka.tools.DefaultMessageFormatter --property print.key=true --property print.value=true --property key.deserializer=org.apache.kafka.common.serialization.StringDeserializer --property value.deserializer=org.apache.kafka.common.serialization.LongDeserializer
+start bin\windows\kafka-console-consumer.bat --zookeeper localhost:2181 --topic wordcount-application-Counts-changelog --from-beginning --formatter kafka.tools.DefaultMessageFormatter --property print.key=true --property print.value=true --property key.deserializer=org.apache.kafka.common.serialization.StringDeserializer --property value.deserializer=org.apache.kafka.common.serialization.LongDeserializer
+
+
+
+
+Kafka Stream  Exactly Once 
+===============================================================
+
+Create external topics
+-------------------------
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic bank-transactions
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic bank-balance-exactly-once
+
+Produce messages using application
+---------------------------------------
+com.gc.kafka.stream.exactlyonce.BankTransactionsProducer
+
+Run Stream App
+---------------------------
+com.gc.kafka.stream.exactlyonce.BankBalanceExactlyOnceApp
+
+Consumer messages from destination topics
+----------------------------------------------
+start bin\windows\kafka-console-consumer.bat --zookeeper localhost:2181 --topic bank-balance-exactly-once --from-beginning --formatter kafka.tools.DefaultMessageFormatter --property print.key=true --property print.value=true --property key.deserializer=org.apache.kafka.common.serialization.StringDeserializer --property value.deserializer=org.apache.kafka.common.serialization.StringDeserializer
+
+
+
+
+

@@ -1,0 +1,54 @@
+
+Cassandra does not support joins, group by, OR clause, aggregations, etc. So you have to store your data in such a way that it should be completely retrievable.
+
+Non-Goals(Not required):
+1.Minimize the Number of Writes:
+Writes in Cassandra aren't free, but they're awfully cheap. Cassandra is optimized for high write throughput, and almost all writes are equally efficient [1]. 
+If you can perform extra writes to improve the efficiency of your read queries, it's almost always a good tradeoff. Reads tend to be more expensive and are much 
+more difficult to tune.
+
+2.Minimize Data Duplication
+Denormalization and duplication of data is a fact of life with Cassandra. Don't be afraid of it. Disk space is generally the cheapest resource (compared to CPU, 
+memory, disk IOPs, or network), and Cassandra is architected around that fact. In order to get the most efficient reads, you often need to duplicate data.
+
+Besides, Cassandra doesn't have JOINs, and you don't really want to use those in a distributed fashion.
+
+==================================================================================================================================================================
+Basic Goals:
+These are the two high-level goals for your data model:
+
+1.Spread data evenly around the cluster:
+You want every node in the cluster to have roughly the same amount of data. Cassandra makes this easy, but it's not a given. Rows are spread around the cluster 
+based on a hash of the partition key, which is the first element of the PRIMARY KEY. 
+
+2.Minimize the number of partitions read while querying data:
+Partitions are groups of rows that share the same partition key. When you issue a read query, you want to read rows from as few partitions as possible.
+
+Why is this important? Each partition may reside on a different node. The coordinator will generally need to issue separate commands to separate nodes for each
+partition you request. This adds a lot of overhead and increases the variation in latency. Furthermore, even on a single node, it's more expensive to read from 
+multiple partitions than from a single one due to the way rows are stored.
+
+These two goals(point 1 and 2) often conflict, so you'll need to try to balance them.
+===================================================================================================================================================================
+
+
+Model Around Your Queries:
+Step 1: Determine What Queries to Support:
+Grouping by an attribute
+Ordering by an attribute
+Filtering on which column
+Enforcing uniqueness in the result set
+etc ...
+
+Step 2: Try to create a table where you can satisfy your query by reading (roughly) one partition:
+In practice, this generally means you will use roughly one table per query pattern. If you need to support multiple query patterns, you usually need more than one 
+table.Remember, data duplication is okay. Many of your tables may repeat the same data.
+===================================================================================================================================================================
+Notes:
+1.We may not want partition key unique,otherwise each record will create a new partition.Now with n number of rows "select * from table" will do n different partition read.
+2.selecting partitioning key is like selection a good group by column which Spread data evenly around the cluster and Minimize the number of partitions read while querying data.
+3.only partition key together with clustering key has to be unique.
+4.Inside a partition key, clustering key column is sorted.
+====================================================================================================================================================================
+https://www.datastax.com/dev/blog/basic-rules-of-cassandra-data-modeling
+https://www.baeldung.com/cassandra-data-modeling

@@ -123,6 +123,9 @@ $first	Returns the first document from the source document
 $last	Returns the last document from the source document
 
 =============================================================================================
+Note: $match before $group =>where clause
+      $match after $group =>having clause
+
 > db.reviews.aggregate([
   { $match : {
     date: { $gte: new Date("2012-07-11") }

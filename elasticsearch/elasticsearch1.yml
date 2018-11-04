@@ -1,0 +1,21 @@
+#give your cluster a name.
+cluster.name: my-cluster
+ 
+#give your nodes a name (change node number from node to node).
+node.name: "es-node-1"
+ 
+#define node 1 as master-eligible:
+node.master: true
+ 
+#define nodes 2 and 3 as data nodes:
+node.data: true
+ 
+#enter the private IP and port of your node:
+network.host: localhost
+http.port: 9201
+ 
+#detail the private IPs of your nodes:
+discovery.zen.ping.unicast.hosts: ["localhost:9201", "localhost:9202","localhost:9203"]
+
+path.data: data/data1
+path.logs: log/log1

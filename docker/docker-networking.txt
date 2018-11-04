@@ -2,7 +2,7 @@ docker network ls #list all networks
 docker network inspect <networkname> 
 
 
-If we start a container by debault it will boin network named bridge
+If we start a container by default it will join network named bridge
 >docker run -it -d ubuntu:14.04 /bin/bash
 >docker network ls
 

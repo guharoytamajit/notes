@@ -91,6 +91,122 @@ docker tag alpine:latest localhost:5000/alpine
 docker push localhost:5000/alpine
 docker rmi localhost:5000/alpine
 docker pull localhost:5000/alpine
+
+==================================
+Docker Restart policy:
+By default if a container is stoped it is not restarted.
+restart options:
+1.no(default):never restart
+2.on-failure: restart a container if the exit code indicates error(eg.exit 1) but not if the exit code indicates success(eg.exit 0). You can also specify a maximum number of times Docker 
+will automatically restart the container.
+3.unless-stopped: always restart unless stopped eg. sudo docker stop testing_restarts
+4.always: always restart regardless of error code.
+
+both unless-stopped and always will restart container on docker reboot
+
+Note:
+exit 0 =>exit with success
+exit 1 =>exit with success
+
+
+example:
+-----crash.sh(this script will exit after 30 seconds)---------
+#/bin/bash
+sleep 30
+exit 1
+#exit with failure as exit code is 1
+----Dockerfile-------
+FROM alpine:3.7
+ADD crash.sh /
+CMD /bin/bash /crash.sh
+---------------------
+>sudo docker build -t testing_restarts ./
+>sudo docker run -d --name testing_restarts testing_restarts
+>sudo docker ps -a
+O/P you will see your container will stop after 30 seconds and never starts
+------------------------
+
+
+example2:
+>sudo docker run -d --name testing_restarts --restart always testing_restarts
+>sudo docker ps -a
+O/P you will see even if container stops after 30 secs it will restart again always
+
+
+example3:
+>sudo docker run -d --name testing_restarts --restart on-failure:5 testing_restarts
+>sudo docker ps -a
+O/P you will see even if container stops after 30 secs it will restart for 5 more times(as max tries are set to five --restart on-failure:5 ).Then finally it will stop.
+
+example4:
+-----crash.sh(this script will exit after 30 seconds)---------
+#/bin/bash
+sleep 30
+exit 0
+#exit with success as exit code is 0
+---------------------------------------------------------
+>>sudo docker build -t testing_restarts ./   #rebuilt is must after crash.sh changed
+>sudo docker run -d --name testing_restarts --restart on-failure:5 testing_restarts
+>sudo docker ps -a
+O/P you will see  container stops after 30 secs it will not restart as it exit with success code (exit 0)
+
+
+Selecting the Best Restart Policy:
+A Redis instance, for example, may be a critical component in your environment which should have an always or unless-stopped policy. On the other hand, a batch-processing 
+application may need to be restarted until the process successfully completes. In this case, it would make sense to use the on-failures policy.
+
+Either way, with Docker’s restart policy you can now rest assured that next time a Docker host mysteriously reboots at 3 a.m., your containers will be restarted.
+=======================================================================================================================
+Ulimit:
+Ulimit controls the maximum number of system resources that can be allocated to running processes. There is a number of settings. Their current values can be viewed 
+by typing: 
+>ulimit -a 
+
+Very often the default settings are not the best ones for production setups. Applications such as cassandra or elasticsearch require changing the defaults for open files 
+or max memory size.
+
+Soft limit is the effective value right now for that user. The user can increase the soft limit on their own in times of needing more resources, but cannot set the soft limit 
+higher than the hard limit.
+
+example: docker run -i -t --rm myapp:2.0 --ulimit nofile=128:256 --ulimit nproc=32:64   #<soft-limit>:<hard-limit>
+
+From version 1.6.0 of Docker, you can set default ulimit values for all containers by specifying --default-ulimit options in the docker configuration file /etc/sysconfig/docker 
+by appending the options to the OPTIONS line as follows:
+OPTIONS="--ulimit nofile=1280:2560 --ulimit nproc=256:512"
+===========================================================================================================================
+ONBUILD instruction(create base image)
+
+This is useful if you are building an image which will be used as a base to build other images.
+ONBUILD commands are not executed while building the image.It is executed when building child image(ie. while building an image where base image is our image)
+
+example:
+-----Dockerfile  for maven:3.3-jdk-8-onbuild------------------------
+FROM maven:3-jdk-8
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+#following commands will only execute while building any image which extends this image
+ONBUILD ADD . /usr/src/app 
+ONBUILD RUN mvn install
+------------------------------------------------------------------
+-----Dockerfile for myapp------------------------
+FROM maven:3.3-jdk-8-onbuild
+CMD ["java","-jar","/usr/src/app/target/demo-1.0-SNAPSHOT-jar-with-dependencies.jar"]
+------------------------------------------------------------------
+
+following two commands:
+ONBUILD ADD . /usr/src/app
+ONBUILD RUN mvn install
+ 
+ will not be executed while building maven:3.3-jdk-8-onbuild, But it will be execute while building myapp.
+ 
+ >docker build -t myapp .
+
+ 
+ WARNING :Never use ONBUILD together with squash (Refer:https://medium.com/@cnadeau_/docker-build-squash-vs-onbuild-28c7cfaccc1f)
+
+
+
+
  
 
 

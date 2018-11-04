@@ -1,0 +1,41 @@
+start "8001" mongod --dbpath data01 --port 8001 --replSet rs1 
+start "8002" mongod --dbpath data02 --port 8002 --replSet rs1 
+start "8003" mongod --dbpath data03 --port 8003 --replSet rs1 --nojournal
+
+mongo --port 8001
+rs.initiate()
+rs.add("localhost:8002")
+rs.addArb("localhost:8003")
+rs.status()
+
+start "8011" mongod --dbpath data11 --port 8011 --replSet rs2 
+start "8012" mongod --dbpath data12 --port 8012 --replSet rs2 
+start "8013" mongod --dbpath data13 --port 8013 --replSet rs2 --nojournal
+
+mongo --port 8011
+rs.initiate()
+rs.add("localhost:8012")
+rs.addArb("localhost:8013")
+rs.status()
+
+start "8021" mongod --dbpath data21 --port 8021 --configsvr 
+start "8022" mongod --dbpath data22 --port 8022 --configsvr 
+start "8023" mongod --dbpath data23 --port 8023 --configsvr 
+
+
+mongos --configdb localhost:8021,localhost:8022,localhost:8023 --port 8031
+mongo --port 8031
+#you need to add each replicasets
+sh.addShard("rs1/localhost:8001") #rs_name/host:port
+sh.addShard("rs2/localhost:8011")
+use mydb
+sh.enableSharding("mydb")
+
+
+
+db.mycollection.ensureIndex({request_ip:1,_id:1})
+sh.shardCollection("mydb.mycollection",{request_ip:1,_id:1})  #2nd argument({request_ip:1,_id:1}) is the shard-key
+#insert record
+db.mycollection.getShardDistribution()  #shows how g
+
+

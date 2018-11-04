@@ -1,0 +1,1 @@
+elasticsearch -Des.config=elasticsearch1.yml
