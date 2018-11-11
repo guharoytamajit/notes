@@ -1,0 +1,329 @@
+start server
+>redis-server </path/to/redis.config>
+
+start client
+>redis-cli <-h hostname -p port>
+> auth our_password # this is only required if your redis is password protected
+>ping  # see if connection is working
+>exit #exit connection
+
+
+command reference :: https://redis.io/commands
+
+>SET name tamajit
+>GET name
+>DEL name
+
+key is the way to store and get value,there is no concept of secondary key
+
+keyspace in redis is like database in mysql and  package in java
+
+>select keyspace_name  #select a database or keyspace, like "use database" command in mysql 
+>keys *  #list of keys
+>flushdb #delete all keys in database
+any object in redis upto 512MB, but shorter the better performance
+>MSET key1 value1 key2 value2 .....   #multiple key-value declare
+>MGET key1 key2 ..
+<<<<<<< HEAD
+>GETSET key1 2   # get old value of key1 and set new value of key1
+=======
+>GETSET key1 2# get old value of key1 and set new value of key1
+>>>>>>> b9bbeee5d35f0fc57f4e39955c7b8e2ebe5dbae1
+>DEL key1 key2 ...
+
+
+TTL(we can associate a TTL with a key)
+when a variable is created by default its TTL is -1 or infinity
+>expire name 4 # setting TTL, here key name will expire after 4 seconds
+>ttl name  #time in seconds after which even key will be removed
+>PERSIST name # make TTL infinite ie.-1
+
+
+<<<<<<< HEAD
+>FLASHALL #clear db
+
+=======
+>>>>>>> b9bbeee5d35f0fc57f4e39955c7b8e2ebe5dbae1
+Complex values:
+Hash
+List
+Set
+
+Hash commands:
+>HSET mymap key1 value1
+>HGET mymap key1
+
+>HMSET mymap key2 value2 key3 value3
+>HMGET mymap key1 key2
+
+>HDEL mymap key1  #delete a map entry
+>HKEYS mymap  #list all keys of a map
+>HKEYS mymap  #list all values of a map
+>HGETALL mymap #list all key-value of a map
+
+
+List:
+very fast push/pop but slower indexed. like linked list
+>LPUSH mylist value  #left add,we can do multiadd >LPUSH mylist 1 2 3 4 5
+>LPOP mylist         
+>RPUSH mylist value  #right add
+>RPOP mylist
+>LLEN   #list length
+>LRANGE mylist start_index stop_insex #sub list,index starts with 0
+>LTRIM mylist value stop #remove
+
+>LSET mylist index new_value #update a list index with a new value eg.LSET list 1 22
+>LINSERT #insert a value eg.LINSERT list after 22 4 , here 22 is content not index
+>LINDEX list index  #get value by index eg.lindex list 1
+>LREM #tbd
+
+Set:
+no duplicate,no order
+>SADD myset 5 #add 5 to set
+>SISMEMBER myset 5 #contains check
+>SMEMBER myset #read all elements
+<<<<<<< HEAD
+>SUNION myset myset2 ..
+>SINTR myset myset2 ...
+>SDIFF myset myset2
+=======
+>SUNION myset key2 ...
+>SINTR myset key2 ...
+>SDIFF myset key2
+>>>>>>> b9bbeee5d35f0fc57f4e39955c7b8e2ebe5dbae1
+>scard myset # size of set
+>SREM myset 5 #remove given element from list
+>SPOP myset #pops or removes a random element from set
+>srandmember myset 2# returns 2 random elements from set
+
+sorted Set:
+>zadd set 1 one 2 two 3 three  #set has 3 elements => one,two and three with priority 1,2,3
+>zcard set #size of set
+>zrem set one two three #remove one,two and three from set
+
+<<<<<<< HEAD
+Pub-SUB:
+cli1>SUBSCRIBE channel
+cli2>PSUBSCRIBE channel*  #pattern subscribe
+cli3>PUBLISH channel mymessage
+
+=======
+>>>>>>> b9bbeee5d35f0fc57f4e39955c7b8e2ebe5dbae1
+>Type key
+>DUMP key # displays original string stored by redis
+>RESTORE original_string # inverse of DEMP command
+>OBJECT refcount key# number of references
+>OBJECT encoding key
+>OBJECT idletime key
+
+
+>EXISTS key #1 means key exists
+>KEYS he?l* #list all keys matching pattern
+>RENAME old new #rename key
+>SCAN #TBD
+
+Atomic increment:when inc or dec fired my multiple client then also consistincy remains
+>INCR counter
+>DECR counter
+>INCRBY counter 2
+>DECRBY counter 2
+>INCRBYFLOAT x 1.5
+>DECRBYFLOAT x 1.5
+
+>SET msg hello
+>APPEND msg " world" #if key doesnot exist it will create one
+>GET msg #hello world
+
+>GETRANGE key start_index to_index #substring
+
+
+We can set redis configuration at runtime:
+>CONFIG GET <property>
+>CONFIG SET <property> <value> #eg CONFIG SET   requirepass pass
+
+Note: all properties cannot be changed at runtime eg. server port
+
+Authentication:
+activate following property to enable password protection:
+requirepass <password> #this can also be set at runtime using >CONFIG SET requirepass <password>
+<<<<<<< HEAD
+Now every redis-cli has to acthenticate itself using >Auth <password>
+=======
+Now every redis-cli has to acthenticate itself using >Auth <passwoed>
+>>>>>>> b9bbeee5d35f0fc57f4e39955c7b8e2ebe5dbae1
+
+>INFO #shows different redis parameters
+>MONITOR #activate monitoring,here all activities to redis-server from different redis-cli will be logged
+
+redis.config:
+logfile stdout
+loglevel verbose
+port 6379
+requirepass password
+
+
+redis database supports two types of persistance:
+1.RDB(snapshot): 
+# Save the DB on disk:
+#
+#   save <seconds> <changes>
+#
+#   Will save the DB if both the given number of seconds and the given
+#   number of write operations against the DB occurred.
+#
+#   In the example below the behaviour will be to save:
+#   after 900 sec (15 min) if at least 1 key changed
+#   after 300 sec (5 min) if at least 10 keys changed
+#   after 60 sec if at least 10000 keys changed
+#
+#   Note: you can disable saving at all commenting all the "save" lines.
+
+save 900 1
+save 300 10
+save 60 10000
+
+At runtime we can force synchronous or async save using >SAVE or >BGSAVE
+
+<<<<<<< HEAD
+This will create a dump.rdb file in your Redis directory
+
+2.AOF(not snapshot but sequence of changes )
+can be enabled by setting "appendonly yes" in redis.conf 
+=========================================================================================================================
+Transaction:
+Redis transactions allow the execution of a group of commands in a single step. Following are the two properties of Transactions.
+    1.All commands in a transaction are sequentially executed as a single isolated operation. It is not possible that a request issued by another client is served 
+	in the middle of the execution of a Redis transaction.
+    2.Redis transaction is also atomic. Atomic means either all of the commands or none are processed.
+	
+Redis transaction is initiated by command MULTI and then you need to pass a list of commands that should be executed in the transaction, after which the entire transaction 
+is executed by EXEC command.
+>MULTI 
+>SET tutorial redis
+>INCR visitors
+>EXEC 	
+
+A single Redis instance always provides data consistency (in the sense of the CAP theorem, not in the sense of ACID).
+
+How are the ACID properties to be implemented?
+They are not supposed to be implemented since Redis is not a transactional database. There is no rollback mechanism with Redis. However, in term of ACID properties:
+
+    Atomicity and consistency can be guaranteed for a group of commands with a server-side Lua script
+    Isolation is always guaranteed at command level, and can also be guaranteed for a group of command using a MULTI/EXEC block or a Lua script
+    Durability can be guaranteed when AOF is activated (with systematic fsync)
+
+=========================================================================================================================
+Benchmark:
+redis-benchmark [option] [option value] 
+No 	Option 	Description 	                                          Default Value
+1 	-h 	Specifies server host name 	                                   127.0.0.1
+2 	-p 	Specifies server port 	                                       6379
+3 	-s 	Specifies server socket 	
+4 	-c 	Specifies the number of parallel connections 	               50
+5 	-n 	Specifies the total number of requests 	                       10000
+6 	-d 	Specifies data size of SET/GET value in bytes 	               2
+7 	-k 	1=keep alive, 0=reconnect 	                                   1
+8 	-r 	Use random keys for SET/GET/INCR, random values for SADD 	
+9 	-p 	Pipeline <numreq> requests 	                                   1
+10 	-h 	Specifies server host name 	
+11 	-q 	Forces Quiet to Redis. Just shows query/sec values 	
+12 	--csv 	Output in CSV format 	
+13 	-l 	Generates loop, Run the tests forever 	
+14 	-t 	Only runs the comma-separated list of tests 	
+15 	-I 	Idle mode. Just opens N idle connections and wait
+
+examples:
+>redis-benchmark -n 100000 
+>redis-benchmark -h 127.0.0.1 -p 6379 -t set,lpush -n 100000 -q  
+
+
+=========================================================================================================================
+=======
+2.AOF(not snapshot but sequence of changes )
+can be enabled by setting "appendonly yes" in redis.conf 
+
+
+
+>>>>>>> b9bbeee5d35f0fc57f4e39955c7b8e2ebe5dbae1
+Clustering:
+Redis supports master slave architecture.
+Replication:
+All writes goes to master db(then replicated to slave), whereas read requests can be served by both master and slave.
+one redis-server can become slave of another server using slaveof command
+<<<<<<< HEAD
+m1>redis-server --port 7777 (--dbfilename db1.rdb)
+m2>redis-server --port  8888 (--dbfilename db2.rdb)
+m2>slaveof localhost 7777 # now m1 is master m2 is slave
+
+Now if we and any key-value in master,we can also read the same from slave.
+But you cannot add anything from slave, trying to do so will give error.It is now readonly.
+
+To unregister slave:
+m2>slaveof no one
+
+
+Sharding:
+Two options range partitioning and hash partitioning
+
+From implementation standpoint, there are several possible implementations for data sharding (partitioning), depending on architecture on the application:
+
+1.client side partitioning 
+The clients directly select the right instance to write or read a given key.
+2.proxy assisted partitioning
+The clients send requests to a proxy that supports Redis protocol, instead of sending requests directly to the right Redis instances. The proxy will make sure 
+to forward the requests to the right Redis instances accordingly to the configured partitioning scheme, and will send the replies back to the clients 
+(the most known implementation is Twemproxy from Twitter, https://github.com/twitter/twemproxy).
+3.query routing
+The clients send the query to a random Redis instance and the instance will make sure to forward the query to the right one. The hybrid form of query routing 
+assumes that client gets redirected to the right instance (but the query is not directly forwarded from one Redis instance to another) 
+
+
+Sharding using Twemproxy (type2):
+
+download from:
+ http://twemproxy.googlecode.com/files/nutcracker-0.3.0.tar.gz
+ 
+Start redis servers: 
+>redis-server --port 6380
+>redis-server --port 6381
+>redis-server --port 6382
+ 
+ ----------nutcracker-sharded.yml--------------
+ sharded:
+    listen: 127.0.0.1:22122    #The listening address and port for proxy server
+    hash: fnv1a_64             #The name of the hash function. Possible values are:one_at_a_time,md5,crc16,crc32,crc32a,fnv1_64,fnv1a_64,fnv1_32,fnv1a_32,hsieh,murmur,Jenkins
+    distribution: ketama       #The key distribution mode (see please http://en.wikipedia.org/wiki/Consistent_hashing). Possible values are:ketama,modula,random
+    auto_eject_hosts: true     #A boolean value that controls if server should be ejected temporarily when it fails consecutively server_failure_limit times(default false). 
+    redis: true                #A boolean value that controls if a server pool speaks Redis or Memcached protocol
+    server_retry_timeout: 2000 #The timeout value in milliseconds to wait for before retrying on a temporarily ejected server,when auto_eject_host is set to true.Defaults 30000ms.
+    server_failure_limit: 2    #The number of consecutive failures on a server that would lead to it being temporarily ejected when auto_eject_host is set to true.Defaults to 2.
+    servers:
+       - 127.0.0.1:6380:1      # ip:port:weight
+       - 127.0.0.1:6381:1
+       - 127.0.0.1:6382:1
+	   
+Start twemproxy:	   
+>nutcracker -c nutcracker-sharded.yml
+	   
+	   
+our proxy at 127.0.0.1:22122 will distribute requests across 2 redis servers.
+The sharded server pool uses ketama consistent hashing for key distribution with the key hasher set to fnv1a_64.	
+Now all clients should talk through  127.0.0.1:22122
+>redis-cli -p 22122
+Now if we set keys from here they will go to different redis servers, we can confirm it by individual logging on different redis-servers.
+
+NOTE:
+The last note of caution: though twemproxy (nutcracker) does support Redis protocol, not all commands are supported.
+
+
+
+Redis Cluster(Stable from v3):
+https://www.javacodegeeks.com/2015/09/redis-clustering.html
+=======
+m1>redis-server --port 7777
+m2>redis-server --port  8888
+m2>slaveof localhost 7777 # now m1 is master m2 is slave
+
+Sharding:
+Two options range partitioning and hash partitioning
+>>>>>>> b9bbeee5d35f0fc57f4e39955c7b8e2ebe5dbae1
