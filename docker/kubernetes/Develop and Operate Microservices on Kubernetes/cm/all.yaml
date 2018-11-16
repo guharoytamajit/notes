@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+data:
+  someVariable: some value
+  someOtherVariable: "true"
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: app
+    image: alpine
+    command: ["sleep", "3600"]
+    env:
+    - name: SOME_VARIABLE
+      valueFrom:
+        configMapKeyRef:
+          name: my-configmap
+          key: someVariable
+  

@@ -1,0 +1,588 @@
+>minikube start --vm-driver virtualbox --cpus 3 --memory 3072 --kubernetes-version="v1.9.4"
+
+>minikube status
+
+>minikube stop
+
+>minikube start
+
+>minikube delete
+
+>eval $(minikube docker-env) #now your shell can talk to minikube
+
+=============Pod===========
+$ cat pod/pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+spec:
+  containers:
+  - name: service
+    image: nginx
+    ports:
+      - containerPort: 80
+    env:
+      - name: SOME_ENV_VAR
+        value: Hello World
+
+		
+$ kubectl create -f pod/pod.yaml #create 
+
+$kubectl get pods                #view created pod
+test-pod                    1/1       Running            0          57s
+
+>kubectl exec -it  test-pod sh  #connect to shell inside pod container
+test-pod>env #list of environment variables you will also see SOME_ENV_VAR=Hello World which is defined inside pod description
+>kubectl logs <pod_name> #displays log
+> kubectl exec  mongodb-7565d46f5-dwjcf ps #get all process running inside mongo pod
+>kubectl describe pod mongodb-7565d46f5-dwjcf #show details about the given pod
+
+>kubectl delete -f pod/pod.yaml
+>kubectl delete <pod_name>
+===========Replicaset================================
+Each object in kubernets can have arbitrary number of labels in following rs label is  app: my-service.
+Labels can be used to query and filter objects.
+
+$ cat rs/replicaset.yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: my-service
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-service
+  template:
+    metadata:
+      labels:
+        app: my-service
+    spec:
+      containers:
+      - name: service
+        image: nginx
+>kubectl create -f rs/replicaset.yaml	
+
+>kubectl get rs,pod --show-labels
+NAME            DESIRED   CURRENT   READY     AGE       LABELS
+rs/my-service   3         3         3         4m        app=my-service
+
+NAME                  READY     STATUS    RESTARTS   AGE       LABELS
+po/my-service-hrnr4   1/1       Running   0          4m        app=my-service
+po/my-service-jr2rn   1/1       Running   0          4m        app=my-service
+po/my-service-krwhp   1/1       Running   0          4m        app=my-service
+
+>kubectl scale  rs/my-service --replicas=10 #create 10 pods
+
+If any pod is deleted(or even label is changes) rs will create one,it will try to maintainer desired No. of replicas.
+rs used selectors to search for matching labels and makes sure required number of replicas are there.
+	
+>kubectl delete rs -l app=my-service #delete rs by label
+
+========Service============================================
+Pods have IP address routable within cluster but no external connectivity.
+Pods are short lived,Address may change frequently.
+No DNS fro pod IPs, no load balancing
+
+Services:
+Set of pods by label
+One stable IP and DNS name for group of pods(eg. 172.20.0.10 and my-service.services.cluster.local)
+Round-robin load balancer
+Automatically add/remove pods(managed by replicasets)
+
+Service Types:
+1.Cluster Ip
+  stable internal IP,stable internal DNS
+  Not accessible from outside cluster
+
+2.Nodeport
+     As clusterIP but accessible from outside cluster
+	 Every Node gets a public TCP port forwarding to the service
+	 
+3.loadbalancer
+   As Nodeport but additionally	 
+   A loadbalancer is created to allow external incoming traffic(Must be supported by cloud provider)
+   
+Loadbalancer service type is ofter the best choice
+
+
+>cat service/service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service #service name and DNS name
+spec:
+  type: ClusterIP
+  selector:
+    app: my-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80 #will be accessible from this port from outside cluster
+	  
+Note:service name is also the DNS name which can be used by other services to connect to this service.
+
+>kubectl create -f service/service.yaml
+
+>kubectl get svc
+NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)          AGE
+kubernetes   ClusterIP   10.0.0.1     <none>        443/TCP          5d
+my-service   NodePort    10.0.0.230   <none>        80:30009/TCP     10s
+
+
+>IP=minikube ip
+>curl $IP:30009
+=======Ingress================
+Services:
+ Do raw TCP/UDP forwarding
+ Do not know about application protocols like http
+ 
+Ingress:
+ Defines request routing for HTTP requests to services
+ Works at application level
+ Supports path and host based routing,caching,authentication and more.
+ TLS offloading feature
+ Ingress are virtual,they require a ingress controller that accepts HTTP connections and forward the request(Like reverse proxy)
+ eg. nginx,cloud providers often provide their own ingress controller
+
+>cat ingress/ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: my-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - host: your-app.example
+    http:
+      paths:
+      - path: /home
+        backend:
+          serviceName: my-service
+          servicePort: 80
+      - path: /shop
+        backend:
+          serviceName: my-other-service
+          servicePort: 80
+
+/home will be forwarded to my-service at 80 port		  
+
+
+>kubectl create -f ingress/ingress.yaml
+>minikube addons list #you can see ingress plugin enabled
+In ingress not enabled then enable it
+>minikube addons enable ingress
+>minikube ip #ip address ob ingress controller
+>sudo vi /etc/host#here you can add ip to hostname mapping
+192.168.99.100 your-app.example
+
+===================Deployment====================
+Limitations of RS:
+New containers are created with image and existing are not updated
+
+Deployment:
+RS and more(manages multiple RS)
+Enables changing image version  
+Rolling update:
+ Deployments manage multiple versions of RS
+ On update a new RS is created and gradually scaled up
+ Old RS is gradually scaled down
+
+>cat deploy/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  labels:
+    app: my-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-service
+  template:
+    metadata:
+      labels:
+        app: my-service
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.13.11
+
+Note:Configuration looks almost same as RS
+
+>kubectl create -f deploy/deployment.yaml
+
+>kubectl edit deployment my-deployment#changes made here will be applied. if you change image version rolling update will start, 
+#This actually creates a RS which can be confirmed by get RS
+>kubectl get deploy,rs,pod
+>kubectl rollout undo  deploy/mydeployment# undo last update in case of error in new image version.
+
+========stateful services====================
+Stateless Pods:
+Stateless
+data is stored and retrieved from external storage		
+ 
+Persistent Volume(PV):
+ can be provided as a filesystem to kubernetes pods
+ lifecycle is independent of pods
+ can be accessed by only one or multiple pods depending on storage engine used
+
+Storage technology:
+1.Network Block device,like hard disk(eg. AWS Elastic block storage(cloud),AzureDisk(cloud),GCE persistent disk(cloud),Ceph or Rados(self hosted),iscsi(self hosted))
+   Fastr
+   Fixed size
+   Can (usually) be used by only one pod at a time
+2.Network File system unlike regular hard disk(eg. AWS Elastic File System(cloud),Azure Files(cloud),cephFS(self hosted),NFS(self hosted),GlusterFS(self hosted))   
+   Slower than block devices
+   can be used by multiple pods at a time
+   
+==========Persistent volume(PV) & Persistent Volume claim(PVC)======================
+PV:refers to specific network block or file system
+PVC: Claims a PV  for use in one or more pods 
+
+PV and PVC are kept seperate because they are often created by different persons.
+PV managed by Cluster Operator who knows about storage architecture(not application architecture)
+PVC managed by Application Operator who knows about application architecture.
+
+>cat pv/persistentvolume.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-volume
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce  #read write to one pod at a time,ReadWriteMany=>many pod at once
+  hostPath:          #Volume type. other options like awsElasticBlockStorage also present which has different sub options
+    path: /data/my-volume
+	
+Note:Never use hostpath volume type in cluster environment.Instead use other volumes like awsElasticBlockStorage	
+
+>cat pv/persistentvolumeclaim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-volume-claim
+spec:
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 5Gi  #required resources
+  accessModes:
+    - ReadWriteOnce  #access mode
+	
+>cat pv/pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-database
+spec:
+  containers:
+    - name: database
+      image: mysql:5.7
+      env:
+        - name: MYSQL_USER
+          value: example
+        - name: MYSQL_PASSWORD
+          value: secret
+        - name: MYSQL_DATABASE
+          value: example
+        - name: MYSQL_ROOT_PASSWORD
+          value: supersecret
+      volumeMounts:
+        - mountPath: /var/lib/mysql  #volume will be accessible in this path
+          name: data                 #volume name
+  volumes:                    
+    - name: data                     
+      persistentVolumeClaim:
+        claimName: my-volume-claim   #PVC name
+	
+>kubectl create -f pv/persistentvolume.yaml
+>kubectl create -f pv/persistentvolumeclaim.yaml
+>kubectl create -f pv/pod.yaml
+
+>kubectl get pv,pvc,pod
+
+Now even if pod restarts it will use the same PVC and no data will be lost.
+
+======Automatic volume provisioning using Storage Class(SC)===================
+It is tidious to manually create PV for each PVCs,automatic volume provison can solve this.
+Cluster operator instead of creating PV each time he can create SC.
+Now when Application operator creates PVC it will refer SC(instead of PV)
+Volume Provisioner(a kubernetes component):
+   When new PVC is created Volume Provisioner uses information defined in SC to create PV and bind is with the new PVC
+
+View Available storage classes:
+>kubectl get sc
+NAME                 PROVISIONER
+standard (default)   k8s.io/minikube-hostpath
+  
+
+Sample PVC using SC:
+   
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-volume-claim
+spec:
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+
+============StatefulSets===============
+creating and managing  individual pods with PV and PVC is not easy(no resiliency or scalibility).So we need solutions like rs which is stateful.
+
+StatefulSets:
+ high level controller just like deployment or rs.
+ persistent volume and  automatic provisioning  
+ Manages pods and volumes
+
+Headless service:
+ Each statefulsets needs a special type of service called Headless service
+ Resolve StatefulSet via DNS
+ Resolve individual member stateful pods via DNS
+ No IP load balancing,DNS only
+
+>cat statefulsets/headless-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-db-service
+spec:
+  ports:
+  - port: 27017
+    name: mongodb
+  clusterIP: None  # No IP loadbalancing, only DNS
+  selector:
+    app: my-database
+ 
+>cat statefulsets/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-database
+spec:
+  replicas: 3
+  serviceName: my-db-service  #headless service
+  selector:
+    matchLabels:
+      app: my-database
+  template:
+    metadata:
+      labels:
+        app: my-database
+    spec:
+      containers:
+      - name: db
+        image: mongo:3.7.9
+        ports:
+        - containerPort: 27017
+          name: mongodb
+        volumeMounts:
+        - name: data
+          mountPath: /data       #mount volume to this location for each pods in statefulset
+  volumeClaimTemplates:          #this will assign PVC to pods 
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: standard   #volume provisioner will create individual persistent volume(PV) for each pods in statefulset
+      resources:
+        requests:
+          storage: 10Gi
+		  
+
+>kubectl get pod
+NAME                             READY     STATUS    RESTARTS   AGE
+my-database-0                    1/1       Running   0          41m
+my-database-1                    1/1       Running   0          39m
+my-database-2                    1/1       Running   0          39m
+
+>kubectl get pvc
+NAME                 STATUS    VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+data-my-database-0   Bound     pvc-b184fc92-e95d-11e8-9c80-080027ac5009   10Gi       RWO            standard       43m
+data-my-database-1   Bound     pvc-0c58ee37-e95e-11e8-9c80-080027ac5009   10Gi       RWO            standard       41m
+data-my-database-2   Bound     pvc-11a7ba04-e95e-11e8-9c80-080027ac5009   10Gi       RWO            standard       41m
+
+data-my-database-0 PVC for my-database-0  so on...
+PVC naming convention:  data-{pod-name}
+
+if my-database-0 pod is restarted it will still use data-my-database-0 PVC.
+
+
+
+Create a  container for testing headless service
+>kubectl run --rm -it --image alpine test
+alpine-container> nslookup my-db-service
+Name:      my-db-service
+Address 1: 172.17.0.10 my-database-0.my-db-service.default.svc.cluster.local
+Address 2: 172.17.0.11 my-database-1.my-db-service.default.svc.cluster.local
+Address 3: 172.17.0.12 my-database-2.my-db-service.default.svc.cluster.local
+
+Note headless service is very different from regular service:
+  In above output we can see a service is not resolved to a clusterIP(like regular service), but resolved to IP of individual pods of statefulset.
+  we can even use host names like my-database-0.my-db-service.default.svc.cluster.local to individually access pods in statefulset
+  we can use these pod IPs or hostname as bootstrap server in kafka,cassandra etc
+
+So Statefulset pods have stable identity and DNS addressable(unlike RS pods) 
+stable identity:
+  They are numbered in sequence starting from 0(RS pods are numbered with random hash )
+  pods will start and stop one after another in sequence order(in RS all pods are started or stopped at once on order)  
+  Each pod is linked to PVC automatically(in RS pods-PVC link dine manually for each pods)
+  
+==========ConfigMap===========================
+key value pairs
+value has to be always string
+can be used in multiple pods at the same time
+If configmap properties changes after pod is started changes will not be reflected.You need to restart pod to get new changes.
+
+>cat cm/all.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+data:
+  someVariable: some value
+  someOtherVariable: "true"
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: app
+    image: alpine
+    command: ["sleep", "3600"]
+    env:
+    - name: SOME_VARIABLE
+      valueFrom:
+        configMapKeyRef:
+          name: my-configmap
+          key: someVariable
+
+>kubectl get cm #list configMaps
+NAME           DATA      AGE
+my-configmap   2         8m
+		  
+>kubectl exec  my-pod env #print environment variables of created pod
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=my-pod
+SOME_VARIABLE=some value
+...
+
+Mounting Configmap as volume:
+  A very common way to share application config files to pods
+  Readonly
+  changes in configMap are reflected in pods automatically (without pod restart) 
+  
+> cd InjectingConfigurationFiles/
+>kubectl create configmap test-config --from-file=config #create configmap from all files present inside config directory(ie. config.ini  database.ini)
+>cat pod.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-new-pod
+spec:
+  containers:
+  - name: app
+    image: alpine
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: config
+      mountPath: /etc/config
+  volumes:
+  - name: config
+    configMap:
+      name: test-config
+
+>kubectl create -f pod.yml #config.ini and database.ini files will be loaded inside /etc/config
+> kubectl exec -it my-new-pod sh #connect to my-new-pod
+my-new-pod>cat /etc/config/config.ini   #ve can veryfu content of config.ini
+
+>kubectl edit cm test-config #this way we can edit  configMap,here we can change any value of config.ini property.
+my-new-pod>cat /etc/config/config.ini  #here we are verifying if the changes made in previous step is reflected.
+
+====Secret================
+similar to ConfigMap
+Encryption possible
+Strict access control possible
+
+#kubectl create secret generic my-secret --from-file=./secrets/config  #  we cn provide raw values like  --from-literal=key1='supersecret' --from-literal=key2='topsecret'
+>kubectl get secret my-secret
+NAME        TYPE      DATA      AGE
+my-secret   Opaque    1         16m
+
+Note:as shown in above output --from-file was generating one DATA. 
+
+>echo -n 'tamajit' | base64
+dGFtYWppdA==
+
+>echo -n 'p@ssw0rd' | base64
+cEBzc3cwcmQ=
+
+>kubectl create secret generic my-secret --from-literal=username='tamajit' --from-literal=password='p@ssw0rd'
+
+
+
+>kubectl edit secret my-secret #view secret configuration in detail
+Note:the secret will be encoded using base64, you can decode it online using base64 decoder.
+
+>cat secrets/pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-secret-pod
+spec:
+  containers:
+  - name: app
+    image: alpine
+    command: ["sleep", "3600"]
+    env:
+    - name: SOME_VARIABLE
+      valueFrom:
+        secretKeyRef:
+          name: my-secret
+          key: password
+
+
+>kubectl create -f secrets/pod.yaml
+
+>kubectl exec my-secret-pod env
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=my-secret-pod
+SOME_VARIABLE=p@ssw0rd
+...
+
+
+
+We  can use secret with the volume,similar to the we we use configmap with volume we just have to replace "configMap" with "secret" as shown below:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-new-pod
+spec:
+  containers:
+  - name: app
+    image: alpine
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: config
+      mountPath: /etc/config
+  volumes:
+  - name: config
+    configMap:         #replace "configMap" with "secret"
+      name: test-config
+===========
+ 
