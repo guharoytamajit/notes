@@ -1,0 +1,68 @@
+group 'jameslee'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+
+sourceCompatibility = 1.8
+
+idea {
+    project {
+        jdkName = '1.8'
+        languageLevel = '1.8'
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile group: 'org.apache.spark', name: 'spark-core_2.10', version: '2.1.0'
+    compile group: 'org.apache.spark', name: 'spark-sql_2.10', version: '2.1.0'
+    compile group: 'org.apache.spark', name: 'spark-streaming_2.10', version: '2.1.0'
+   /* compile group: 'org.apache.hadoop', name: 'hadoop-mapreduce-client-core', version: '2.9.0'*/
+    compile group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.9.0'
+    compile group: 'org.apache.spark', name: 'spark-streaming-kafka-0-10_2.10', version: '2.1.1'
+    compile group: 'org.scala-lang', name: 'scala-xml', version: '2.10.0-M4'
+ //   compile group: 'org.scala-lang.modules', name: 'scala-xml_2.11', version: '1.0.0'
+}
+
+
+jar {
+    zip64 true
+    archiveName = "wc.jar"
+    from {
+        configurations.compile.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    manifest {
+        attributes 'Main-Class': 'tamajit.DatasetWordCount'
+    }
+
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
+
+}
+
+apply plugin: 'maven'
+
+task createPom << {
+    pom {
+        project {
+            groupId 'org.example'
+            artifactId 'test'
+            version '1.0.0'
+
+            inceptionYear '2008'
+            licenses {
+                license {
+                    name 'The Apache Software License, Version 2.0'
+                    url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    distribution 'repo'
+                }
+            }
+        }
+    }.writeTo("pom.xml")
+}

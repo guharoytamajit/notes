@@ -1,0 +1,92 @@
+To read more than one file:
+  sc.textFile("absolutepathOfTheFile1,absolutepathOfTheFile2");
+
+To read all the files in a directory:
+  sc.textFile("absolutepathOfTheDir/*");
+
+To read all the files in multiple directories:
+  sc.textFile("absolutepathOfTheDir1/*,absolutepathOfTheDir2/*");
+
+provide the minimum number of partitions:
+  sc.textFile(String path,int minPartitions)
+The minPartitons parameters help to calculate the number of splits the file is distributed into.
+The Spark textFile method internally uses FileInputFormat[1] of Hadoop to calculate the input splits.
+
+
+
+The formula used to calculate input splits:
+  Math.max(minSize, Math.min(goalSize, blockSize));
+Where minSize = mapred.min.split.size or mapreduce.input.fileinputformat.split.minsize:
+goalSize = totalSize / (numSplits == 0 ? 1 : numSplits); (total size is total size of input data)
+blockSize is the block size of the file, which is considered to be 32 MB (hadoop fs.local.block.size) in the
+case of local filesystems and 64 MB/128 MB (dfs.blocksize) in the case of HDFS.
+
+
+
+==================================================================
+
+
+There is some performance gain if we choose mapPartitions() over map() in general, as it gives an iterator of the elements on the RDD for 
+each partition.Later, in other sections, wherever we have the option to work on map() we must also consider the suitability of mapPartitions() 
+in such scenarios as a thumb rule. Any pre-build stage, such as creating a database connection, opening a socket port, or maybe creating a web 
+session has some overhead associated with it, and also the same object can be reused. Hence, in all such scenarios, mapPartitions() will work much 
+better than map().Following operation is fine as long as creating Java objects in the map() function for each row is not an expensive process.
+
+
+
+JavaRDD<String> textFile = jsc.textFile( "Path of the file" );
+JavaRDD<Person> people = textFile.map(line -> {
+String[] parts = line.split("~");
+Person person = new Person();
+person.setName(parts [0]);
+person.setAge(Integer.parseInt( parts [1].trim()));
+person.setOccupation(parts [2]);
+return person ;
+});
+people.foreach(p -> System.out.println(p));
+============================================================
+coalesce vs repartition
+
+Repartition transformation can also be used to reduce the number of partitions of an RDD. However,
+repartition requires a full shuffle of data. coalesce, on the other hand, avoids full shuffle.
+For example, an RDD has x number of partitions and the user performs coalesce to decrease the number
+of partitions to (x-n), then only data of n partitions (x-(x-n)) will be shuffled. This minimizes the data
+movement amongst nodes.
+The coalesce transformation can be performed as follows:
+pairRDD.coalesce(2)
+===========================================================
+combineByKey vs AggregateByKey
+Below is the syntax with simple explanation:
+
+combineByKey(arg1, arg2, arg3) :
+It will take three functions and here is the usage of these functions,
+1st Argument : specify the what to do with value of the key when the first time key appears in partition. 
+2nd Argument : specify what to do with value of the key if the same key appears inside same partition
+3rd Argument : specify what to do with the values of key across  other partitions
+
+	pairRDD.combineByKey(v1 -> {
+	if(v1.startsWith("A")){
+	return 1;
+	}
+	else{
+	return 0;
+	}
+	}, (v1, v2) -> {
+	if(v2.startsWith("A")){
+	v1+=1;
+	}
+	return v1;
+	}, (v1, v2) -> v1+v2);
+
+AggregateByKey(arg1,arg2):
+
+
+This will take the two functions:
+1st Argument : specify what to do with value of the key if the same key appears inside same partition
+2nd Argument : specify what to do with the values of same key across all other partitions
+
+    val initialCount = 0;
+    val addToCounts = (n: Int, v: String) => n + 1
+    val sumPartitionCounts = (p1: Int, p2: Int) => p1 + p2
+    val countByKey = kv.aggregateByKey(initialCount)(addToCounts, sumPartitionCounts)
+========================================================

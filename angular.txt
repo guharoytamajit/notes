@@ -270,6 +270,9 @@ Interceptors:
 export class I1 implements HttpInterceptor {
     intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
         const modified = req.clone({setHeaders: {'Custom-Header-1': '1'}});
+	//we can also modify request as following 
+	//req.clone({headers: req.headers.set(' ',' ')});
+	//req.clone({params: req.params.set(' ',' ')});
         return next.handle(modified);
     }
 }
@@ -279,7 +282,7 @@ export class I1 implements HttpInterceptor {
     declarations: [AppComponent],
     providers: [
         {
-            provide: HTTP_INTERCEPTORS,
+            provide: HTTP_INTERCEPTORS,        //if we register multiple interceptors they will be called in order 
             useClass: I1,
             multi: true
         }
@@ -306,29 +309,588 @@ export class AppComponent {
 }
 =============================
 Routing:
-RouterModule.forRoot(routes)
+
+in app.module.ts:
+import {Routes,RouterModule} from '@angular/router'
 const routes:Routes=[
-{path:'user',component:UserComponent,children:[
-  {path:':id',component:UserDetailComponent}
+{path:'user',component:UserComponent,canActivate:[AuthGuard] ,children:[    //no need to add / in path it will be taken implicitly
+  {path:':id',component:UserDetailComponent}       //id is just a parameter(placehoder) as it starts with ':', this route will match for /user/2 or /user/something etc. Value of this id can be obtained by using ActivatedRoute ,shown later.
  ]},
 {path:"" redirectTo="/user" pathMatch=""},
 {path:'**',component:PageNotFoundCompinent}
 ]
-<router-outlet></router-outlet> sould be present in app and user template, it is a placeholder that Angular dynamically fills based on the current router state
-r:Router;  r.navigate(['user','detail']) #by default not relative(absolute)
-r.navigate(['user','detail'],{relativeTo:this.activeRoute}) #to make it relative
-r.navigate(['user','detail'],{relativeTo:this.activeRoute,queryParams:{user:'tamajit'},fragment:'abc'}) #to make it relative
-r.navigate(['user','detail'],{relativeTo:this.activeRoute,queryParamsHandling:'merge'})//queryParamsHandling=merge ie. 'merge' previous routes queryParam with new.Similarly you can pass queryParamsHandling:'preserve' to preserve previous routes  queryParams
-ar:ActivatedRoute
-this.ar.snapshot.params['id']  #this changes will not reflect if from component and to components are same using routerLink(ose observable based approach instead)
-this.ar.params.subscribe((params:Params)=>{this.id=params['id']); // no need to unsubscribe them manually angular will do it for us
-similarly use this.ar.queryParams and this.ar.fragment  
+
+
+then add following inside imports of app.module.ts:
+RouterModule.forRoot(routes)
+-------------
+Load route by link:
+
+<router-outlet></router-outlet> //sould be present in app template and user template, it is a placeholder that Angular dynamically fills based on the current router state
+<ul>
+<li routerLinkActive="active" [routerLinkActiveOptions]="{exact : true}"><a routerLink="/" >Home</a></li>  //[routerLinkActiveOptions]="{exact : true}" makes sure this link is not highlighted on partial match
+<li routerLinkActive="active"><a routerLink="/user">User</a> </li>                                         //Routerlink prevents default and prevent full page load,more like ajax, here if we dont start with '/' it will take relative path with respect to current path.
+<li routerLinkActive="active"><a [routerLink]="['/user','1']">User Detail</a></li>                         // here generated router link will be /user/1 (only have to add  '/' in first element)
+</ul>
+
+summary:
 [routerLink]="['/user','detail']"
 routerLinkActive="class"
 [routerLinkOption]="{exact:true}"
 [queryParams]="{name:'tamajit'}"        //query parameters for routerLink 
-fragment="abc"                         //adds #abc at he end of url formed by routerLink 
+fragment="abc"                          //adds #abc at he end of url formed by routerLink 
+
+------------
+Dynamic route:
+For example you can route on button click by calling a function on component,that function will do routing.
+
+ActivatedRoute object can be used to get current route information.
+Router can be used to route to different routes
+
+import {Router,ActivatedRoute} from '@angular/router'
+
+constructor(private r:Router,private ar:ActivatedRoute){}
+
+this.r.navigate(['user','detail']) #by default not relative(absolute path is default)
+this.r.navigate(['user','detail'],{relativeTo:this.ar}) #to make it relative
+this.r.navigate(['user','detail'],{relativeTo:this.ar,queryParams:{user:'tamajit'},fragment:'abc'})  #abc at he end of url formed by routerLink 
+this.r.navigate(['user','detail'],{relativeTo:this.ar,queryParamsHandling:'merge'})//queryParamsHandling=merge ie. 'merge' previous routes queryParam with new.Similarly you can pass queryParamsHandling:'preserve' to preserve previous routes  queryParams
+
+ngOnInit(){
+this.identity= this.ar.snapshot.params['id']  #this changes will not reflect if from component and to components are same using routerLink(use observable based approach instead)
+//now id of user can be displayed in user detail view by binding this.identity variable to view.
+}
+
+Note:
+this.ar.snapshot.params['id']  approach may not work if we are routing from current component to the same component, in that case you can use subscribe technique as shown below: 
+
+this.ar.params.subscribe((params:Params)=>{this.id=params['id']); // no need to unsubscribe them manually angular will do it for us
+similarly use this.ar.queryParams and this.ar.fragment  
+---------------------
+
+import {CanActivate,ActivatedRouteSnapshot,RouterStateSnapshot,Router} from '@angular/router'
+import {Observable} from 'rxjs/Obsrvable';
+@Injectable()
+export class AuthGuard implements CanActivate{
+constructor(private authService:FakeAuthService,private router:Router ){}
+
+canActivate(route: ActivatedRouteSnapshot,state: RouterStateSnapshot): Observable<boolean> | promise<boolean> | booean{
+this.authservice.isAuthenticated()
+     .then((authenticated:boolean)=>{
+	if(authenticated){ return true}
+	else{this.router.navigate(['/']);} 
+      });
+}
+}
+
+
+
+
+export class FakeAuthService{
+loggedIn=false;
+
+isAuthenticated(){
+const promise=new Promise(
+(resolve,reject)=>{
+setTimeout(()=>resolve(this.loggedIn), 1000);
+}
+);
+return promise;
+}
+
+login(){this.loggedIn=true;}
+logout(){this.loggedIn=false;}
+}
+
+
+add AuthGuard and FakeAuthService as providers in app.module.ts
+
+AuthGuard has to be registered in all routes where we want to apply, Guard in parebt route will automatically apply to child routes.
+
+const routes:Routes=[
+{path:'user',component:UserComponent,canActivate:[AuthGuard] ,children:[    
+  {path:':id',component:UserDetailComponent}     
+ ]},
+{path:"" redirectTo="/user" pathMatch=""},
+{path:'**',component:PageNotFoundCompinent}
+]
+--------------
+candeactivate TODO
 
 ==================================
 HttpModule vs HttpClientModule:
 HttpClient supports generics,interceptor
+================================
+Forms:
+1.Template Driven Forms
+ -heavy on template(unit testing is not possible )
+2.Reactive Forms
+ -heavy on component class(better for more complex forms)
+
+
+Lets add bootstrap css at index.html 
+
+We have to import FormsModule in app.module.ts imports array
+
+import {FormsModule } from '@angular/forms';
+Now angular will automatically add ngForm directive to any form tag
+
+----------
+<form #userForm="ngForm">
+{{ userForm.value | json}}
+
+{{ userModel.value | json}}
+
+Name:<input #myname type="text" required [(ngModel)]="userModel.name" name="username" >
+{{myname.className}}
+Email:<input type="email" [(ngModel)]="userModel.email" name="email">
+Phone:<input type="text" [(ngModel)]="userModel.phone" name="phone" >
+<select [(ngModel)]="userModel.topic" name="topic">
+<option selected>I am interested in</option>
+<option *ngFor="let topic of topics">{{topic}}</option>
+</select> 
+Time:
+<input type="radio" name="timePreference" value="morning" [(ngModel)]="userModel.timePreference" > Morning
+<input type="radio" name="timePreference" value="evening" [(ngModel)]="userModel.timePreference" > Evening
+<input type="checkbox" [(ngModel)]="userModel.subscribe" name="subscribe" />Subscribe 
+<div ngModelGroup>
+Address:
+</div ngModelGroup="address">
+Street<input type="text" [(ngModel)]="userModel.address.street" name="street" >
+City<input type="text" [(ngModel)]="userModel.address.city" name="city" >
+</div>
+<button type="submit">Submit</button>
+</form>
+----------
+Notes:
+Three directives are common ngForm,ngModel,ngModelGroup
+#userForm="ngForm" here we are taking a reference to ngForm directive itself,directive gives us access to values
+{{ userForm.value | json}} will  only display input controls which has ngModel attribute( with or without [()] )
+If ngModel is used within a form tag either the name attribute must be set or the form control must be defined as 'standalone'
+ngModelGroup directive can be used for hierarchical model. here street and city  can be referred by address.street and address.city
+
+
+----------
+component:
+export class AppComponent{
+
+topics=['angular','react','vue'];
+userModel = new User('Rob','rob@gmail.com',65762374632,'','morning',true )
+
+}
+-----------
+export class User{
+constructor(
+	public name: string,
+	public email: string,
+	public phone: string,
+	public topic: string,
+	public timePreference: string,
+	public subscribe: boolean
+       ){}
+}
+==============
+Angular will automatically add 3 classes on input controls depending on its state.
+ng-touched =>the control has been visited (or ng-untouched)
+ng-dirty=> control's value has been changed(or ng-prestine)
+ng-valid=> control has a valid value(or ng-invalid)
+
+we can view those classes in form like:
+Name:<input #myname type="text" required [(ngModel)]="userModel.name" name="username" >
+{{myname.className}}
+
+We can also create areference to nGModel and use:
+Name:<input #myname="ngModel" type="text" required [(ngModel)]="userModel.name" name="username" >
+{{myname.touched}}
+{{myname.valid}}
+{{myname.dirty}}
+{{myname.invalid}}
+so on..
+============
+Applying CSS on form and  Validation:
+We can use attribute required,pattern to constrain validation ,if they are not satisfied then angular will mark it ng-invalid.
+We can also do validation using code in out component see Example3 where validation logic is inside validateTopic()
+-----------------
+Example1:
+
+Name:<input #myname type="text" required  [class.is-invalid]="myname.invalid && myname.touched" [(ngModel)]="userModel.name" name="username" >
+      <small class="text-danger" *ngIf="myname.invalid && myname.touched" >Invalid username</small>
+Here we are adding is-valid css class if the input control is touched and invalid . we are also conditionally displaying error message.
+------------------
+Example2:
+
+Phone:<input type="text" #myphone="ngModel"   [class.is-invalid]="myphone.invalid && myphone.touched" required pattern="^\d{10}$" [(ngModel)]="userModel.phone" name="phone" >
+<div *ngIf="myphone.errors && (myphone.invalid || myphone.touched)">
+   <small class="text-danger" *ngIf="phone.errors.required" >Phone is required</small>
+   <small class="text-danger" *ngIf="phone.errors.pattern" >Phone must be 10 digit long</small>
+</div>
+If phone number is not 10 digit decimal and touched add ng-invalid class
+------------------
+Example3:
+
+<select (blur)="validateTopic(topic.value)" (change)="validateTopic(topic.value)" required  #topic="ngModel" [class.is-invalid]="topicHasError && topic.touched" [(ngModel)]="userModel.topic" name="topic">
+<option selected value="interestedIn">I am interested in</option>
+<option *ngFor="let topic of topics">{{topic}}</option>
+</select> 
+<small class="text-danger" *ngIf="!topicHasError || topic.untouched">Please enter a valid topic</small>
+
+component:
+export class AppComponent{
+topicHasError=true;
+topics=['angular','react','vue'];
+userModel = new User('Rob','rob@gmail.com',65762374632,'','morning',true )
+validateTopic(value){
+  if(value=='interestedIn'){ //this is the value when we select "I am interested in" option
+  this.topicHasError=true;
+  }else{
+  this.topicHasError=false;
+  }
+ }
+}
+-----------------
+Angular also adds class like valid,touched,prestine in form like it does in input controls, we can access them using reference of ngForm
+
+<form #userForm="ngForm">
+{{ userForm.form.valid }}
+{{ userForm.form.touched }}
+{{ userForm.form.dirty }}
+...
+<button [disabled]="userForm.form.invalid || topicHasError" type="submit">Submit</button>
+</form>
+=====================
+<form #userForm="ngForm" novalidate (ngSubmit)="onSubmit()">
+
+novalidate=> will prevent prevent browser validation from kicking in when we click submit
+onSubmit() =>this method in component  will send form data in JSON in server
+
+
+on appcomponent add:
+
+constructor(private _enrollmentService:EnrollmentService){}
+
+onSubmit(){
+console.log(this.userModel);
+this._enrollmentService.enroll(this.userModel)//this will internally use HttpClient to make POST request
+		       .subscribe(
+			data => console.log('success!',data),
+                        error => console.log('error!',error)
+                          );
+}
+============================
+
+Reactive Forms:
+-no 2 way binding
+-logis reside on component
+-dynamic form fields
+-dynamic validation
+-unit testing
+
+input controls will be defined as FormControl class
+form => FormGroup
+composite field  eg. address => FormGroup
+
+add reactiveFormsModule in app.module.ts imports  
+import {ReactiveFormsModule } from '@angular/forms'
+
+<form [formGroup]="registrationForm">
+{{registrationForm.value | json}}
+Username:<input formControlName="usrName" type="text">
+Password:<input formControlName="password" type="password">
+Confirm Password:<input formControlName="confirmPassword" type="password">
+
+Address:
+<div formGroup="address">
+City<input type="text" formControlName="city"  >
+Street<input type="text" formControlName="street"  >
+</div>
+</form>
+
+
+import {FormGroup,FormControl} from '@angular/forms'
+@Component(...)
+export class Appcomponent{
+registrationForm= new FormGroup({
+ userName: new FormControl('default name'),
+ password: new FormControl(''),
+ confirmPassword: new FormControl(''),
+ address:new FormControl({
+	city: new FormGroup(''),
+	street: new FormGroup(''),
+ })
+});
+
+populateWithRandomValues(){ 
+this.registrationForm.setValue({  //Note: use this.registrationForm.patchValue() instead when we are not updating add fields(registrationForm.setValue gives error if all fields are not passed)
+userName:'Tamajit',
+password:'',
+confirmPassword:'',
+address:{
+	city:'City',
+	state:'state' 
+ }
+});
+
+}
+
+}
+
+Note:
+FormGroup name in component is mapped to [formGroup] in template.
+FormControls in component is mapped to formControlName attribute in input controls in template
+
+------------------
+FormBuilder: short hand for using FormGroup,FormControl.Following appcomponent is equivalent of above  appcomponent .
+
+inside AppComponent:
+
+import {FormBuilder} from '@angular/forms'
+
+constructor(private fb:FormBuilder){}
+
+registrationForm= this.fb.group({
+	userName: ['default name'], //every arrays 1st element is its default value.
+	password: [''],
+	confirmPassword: [''],
+	address: this.fb.group({
+        	city:[''],
+		street:['']
+        })
+});
+====================================
+ReactiveForm form validation:
+
+
+
+import {FormBuilder,Validators} from '@angular/forms'
+@Component(...)
+export class Appcomponent{
+constructor(private fb:FormBuilder){}
+
+registrationForm= this.fb.group({
+	userName: ['default name',[Validators.required,Validators.minlength(3)]], //0th index=>default value,1st index=> validation
+	password: [''],
+	confirmPassword: [''],
+	address: this.fb.group({
+        	city:[''],
+		street:['']
+        })
+});
+
+}
+
+
+<form [formGroup]="registrationForm">
+{{registrationForm.value | json}}
+Username:<input [class.is-invalid]="registrationForm.get('userName').invalid  && registrationForm.get('userName').touched" formControlName="usrName" type="text">
+<div *ngIf="registrationForm.get('userName').invalid || registrationForm.get('userName').touched">
+<small *ngIf="registrationForm.get('userName').errors?.required">Username is required</small>
+<small *ngIf="registrationForm.get('userName').errors?.minlength">Username should be atleast 3 characters</small>
+</div>
+Password:<input formControlName="password" type="password">
+Confirm Password:<input formControlName="confirmPassword" type="password">
+Address:
+<div formGroup="address">
+City<input type="text" formControlName="city"  >
+Street<input type="text" formControlName="street"  >
+</div>
+</form>
+------------
+custom validator with reactive forms:
+
+
+create a file username.validator.ts:
+import {AngularControl} from '@angular/forms'
+
+
+export function forbiddenNameValidator(control: AbstractControl) : {[key: string]: any} | null{
+ const forbidden= /admin/.test(control.value) //is username contains string admin
+ return forbidden ?{'forbiddenName':{value:control.value}} : null;
+}
+
+export function forbiddenNameValidatorWithParam(input :Regex):ValidatorFn{
+return (control: AbstractControl) : {[key: string]: any} | null => {
+ const forbidden= input.test(control.value) //is username contains string admin
+ return forbidden ?{'forbiddenName':{value:control.value}} : null;
+};
+}
+
+
+Now add this validator in AppComponent:
+import { forbiddenNameValidator} from './username.validator'
+import { forbiddenNameValidatorWithParam } from './username.validator'
+
+userName: ['default name',[Validators.required,Validators.minlength(3),forbiddenNameValidator,forbiddenNameValidatorWithParam(/password/) ]] 
+
+
+
+In template do following changes:
+Username:<input [class.is-invalid]="registrationForm.get('userName').invalid  && registrationForm.get('userName').touched" formControlName="usrName" type="text">
+<div *ngIf="registrationForm.get('userName').invalid || registrationForm.get('userName').touched">
+<small *ngIf="registrationForm.get('userName').errors?.required">Username is required</small>
+<small *ngIf="registrationForm.get('userName').errors?.minlength">Username should be atleast 3 characters</small>
+<small *ngIf="registrationForm.get('userName').errors?.forbiddenName">{{registrationForm.get('userName').errors?.forbiddenName.value}} Username not allowed</small>
+</div>
+
+
+=====================
+Cross field validations eg. if password is equal to confirm password
+
+For cross field validation we need to declare validator in form level (not input control level) as we need access to multiple input controls. 
+
+password.validator.ts
+
+export function PasswordValidator(control: AbstractControl) : {[key: string]: any} | null{
+ const password= control.get('password'); 
+ const confirmPassword= control.get('confirmPassword');
+return password && confirmPassword && password.value != confirmPassword.value ?{'mismatch':true} :null;
+}
+
+
+app component:
+import {FormBuilder,Validators} from '@angular/forms'
+@Component(...)
+export class Appcomponent{
+constructor(private fb:FormBuilder){}
+
+registrationForm= this.fb.group({
+	userName: ['default name',[Validators.required,Validators.minlength(3)]], //0th index=>default value,1st index=> validation
+	password: [''],
+	confirmPassword: [''],
+	address: this.fb.group({
+        	city:[''],
+		street:['']
+        })
+},{validator:PasswordValidator});
+
+}
+
+in template:
+Confirm Password:<input [class.is-invalid]="registrationForm.errors?mismatch" formControlName="confirmPassword" type="password">
+====================
+Conditional validation with reactive forms:
+
+Requirement: we have an email field and one subscribe checkbox.Now if subscribe is checked we have to make sure email is also provided.
+
+<form [formGroup]="registrationForm">
+{{registrationForm.value | json}}
+Username:<input formControlName="usrName" type="text">
+Email:<input formControlName="email" type="email" [class.is-valid]="this.registrationForm.get('email').invalid && this.registrationForm.get('email').touched">
+<>
+Subscribe:<input  formControlName="subscribe" type="checkbox">
+<button type="submit">Submit</button>
+</form>
+
+----
+app component:
+import {FormBuilder,Validators} from '@angular/forms'
+@Component(...)
+export class Appcomponent{
+constructor(private fb:FormBuilder){}
+
+
+ngOnInit(){
+this.registrationForm= this.fb.group({
+	userName: ['default name',[Validators.required,Validators.minlength(3)]], //0th index=>default value,1st index=> validation
+	email: [''],
+	subscribe: [false]
+});
+
+this.registrationForm.get('subscribe').valueChanges
+                     .subscribe(checkedValue =>
+                       const email= this.registrationForm.get('email');
+                       if(checkedValue){
+			email.setValidators(Validators.required);
+                       }else{
+                        email.clearValidators();
+                       }
+                        email.updateValueAndValidity
+                      )
+}
+
+=============================
+Dynamic form controls using FormArray.
+
+FormArray => dynamic list of controls
+
+inside AppComponent:
+
+import {FormBuilder,FormGroup, FormArray} from '@angular/forms'
+
+constructor(private fb:FormBuilder){}
+
+registrationForm= this.fb.group({
+	userName: ['default name'], //every arrays 1st element is its default value.
+	password: [''],
+	confirmPassword: [''],
+        alternateEmails: this.fb.array([])
+});
+
+addAlternateEmail(){
+ this.registrationForm.get('alternateEmails').push(this.fb.control())
+}
+ 
+=====================
+submit reactive form:
+
+
+<form [formGroup]="registrationForm" (ngSubmit)="onSubmit()">
+...
+<button type="submit" [disabled]='registrationForm.valid'>Submit</button>
+</form>
+
+
+onSubmit(){
+console.log(this.registrationForm.value)
+//here we have got data in form of json now we may make ajax call
+
+==================================================================================
+HttpClientModule:
+
+in app.module.ts add HttpClientModule in imports:
+
+import {HttpClientModule} from '@angular/common/http'
+
+Now we can inject it inside service:
+
+
+import {HttpClient} from '@angular/common/http'
+export class MyService{
+constructor(private http: HttpClient){}
+
+postEmployee(){
+return this.http.put('url',{name:'tamajit'})
+}
+}
+-----------
+GET Example:
+
+this.http.get[Employee[]]('url')
+    .map(
+	(empList)=>{             //since we have specified type of Employee[] in get() call here empList is of type Employee[]
+	for(let emp of empList){
+	     console.log(emp);
+           }
+        return empList;
+          }
+     )
+     .subscribe(
+		(response)=> console.log(response);
+		);
+
+this.http.get[Employee[]]('url',
+                                {observe:'response' //other options 'body'(default).body=>returns Employee ,response =>returns full response ehere body is a port holding Employee
+                                ,responseType:'json' //other options 'blob','arraybuffer','json'(default),'event'
+                                ,headers : new HttpHeaders().set('key1','value1') //add request header
+				,params : new HttpParams().set('key1','value1') //query parameters
+                               })
+
+----------
+creating http request from stratch:
+
+const req=new HttpRequest('PUT','url',{name:tamajit},{reportProgress:true,observe: 'body'})
+1st arg=>HTTP method
+2nd arg=>URL
+3rd arg=>request body 
+4th arg=>config object observe,responseType,headers,params,reportProgress etc.
+
+http.request(req);
