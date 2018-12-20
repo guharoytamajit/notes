@@ -1,0 +1,46 @@
+
+console.log('label',x)
+while debugging always use console.log() with label ,and then filter by that label in console.
+
+============
+use console.dir(x) in place of console.log(x) to get more details about the internal properties.
+
+===========
+when you console.log() same object before and after mutation, and expand content in console you will see both of them showing updated value.
+To prevent this behaviour we can convert it into json and then again convert back to javascript object:
+
+let x=[1,2]
+console.log(JSON.parse(JSON.stringify(x))); // with this still the old value will be displayed in console
+x.push(3)
+console.log(x)
+
+============
+Projection:
+When we have list of object with many fields,suppose we dont want to display all the fields,then we can apply projection by using console.table() instead of console.log()
+
+console.table(x,['field1','field2']); // applying projection ie. display only 'field1','field2' properties for every object.
+
+=========
+Benchmarking:
+use console.time('label') together with console.timeEnd('label');
+Then in console time interval between start and end will be displayed with the given label.
+
+
+console.time('mylabel');
+console.time('mylabel2');
+setTimeout(()=>{console.timeEnd('myLabel')},5000);
+console.timeEnd('myLabel2')
+
+O/P:
+label2: 0.06 ms # time tahen between  console.time('mylabel') and console.timeEnd('mylabel')
+label: 5004 ms  # time tahen between  console.time('mylabel2') and console.timeEnd('mylabel2')
+
+=========
+Add breakpoint from code, just add:
+
+debugger;
+
+======
+you can search for a js file using ctrl+p in source tab of chrome
+
+=======

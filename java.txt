@@ -1,0 +1,6 @@
+remote debug:
+on remote machine=>
+java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=6006 com.Main
+
+on local eclipse=>
+create remote debug with ip of remote and port =6006

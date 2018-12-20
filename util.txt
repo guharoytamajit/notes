@@ -1,0 +1,16 @@
+Compare two folder recursively:
+
+Step1: first get the filelist with absolute path and side of bothe the directories:
+
+using following powershell command and store it in a file:
+Get-ChildItem -Recurse | select FullName,Length | Format-Table -HideTableHeaders | Out-File filelist.txt
+
+
+
+c:\aaa\file.ext 7755777    
+c:\aaa\bbb\1.txt 897667
+c:\aaa\bbb\2.ext 67788990
+c:\aaa\bbb\nnn\a.xls 99879000
+
+step2: compare the two generated files with any diff tool
+==============
