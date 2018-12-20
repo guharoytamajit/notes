@@ -1,3 +1,92 @@
 Using the ChainMapper and the ChainReducer classes is possible to compose Map/Reduce jobs that look like [MAP+ / REDUCE MAP*]. And immediate benefit of this pattern is a dramatic reduction in disk IO.
 
 IMPORTANT: There is no need to specify the output key/value classes for the ChainMapper, this is done by the addMapper for the last mapper in the chain.
+
+
+3 modes:
+1.Standalone:For Testing
+ Single Node,use host filesystem instead of HDFS,Single JVM used.HDFS and YARN not used only MR is used.
+ 
+2.Pseudo-distributed:For Testing
+ Single machine,2 JVM one for namenode and datanode each.  YARN,MR and HDFS all are used.
+
+3.Fully Distributed:For Production
+n machines used
+
+================
+Standalone Mode:
+install java, set JAVA_HOME and add java bin in path.
+export JAVA_HOME=/usr/local/jdk1.8
+export PATH=$PATH:$JAVA_HOME/bin
+
+install hadoop,add HADOOP_HOME/bin in PATH(no need to add hadoop sbin for standalone mode, it is required in pseudo distributed mode, it actually contains scripts to start hadoop daemons).
+share/hadoop folder in hadoop has all the jars. we need to add all those jars in our IDE eclipse or intellij idea.
+inside share/hadoop we need to add jars from following directories:  common,hdfs,mapreduce and yarn.
+
+Open $HADOOP_HOME/etc/hadoop/hadoop-env.sh:
+export JAVA_HOME=/usr/local/jdk1.8
+
+
+Now you can run MapReduce job in standalone mode.
+
+===================
+Pseudo  Distributed Mode:
+
+First follow all steps made in Standalone Mode
+
+Then make following changes in config files:
+
+core-site.xml:
+<configuration>
+   <property> 
+      <name>fs.defaultFS</name> 
+      <value>hdfs://localhost:9000</value> 
+   </property>
+</configuration>
+
+hdfs-site.xml:
+<configuration>
+   <property> 
+      <name>dfs.replication</name> 
+      <value>1</value> 
+   </property> 
+</configuration>
+
+mapred-site.xml:
+<configuration>
+   <property> 
+      <name>mapreduce.framework.name</name> 
+      <value>yarn</value> 
+   </property>
+</configuration>
+
+yarn-site.xml:
+<configuration>
+   <property> 
+      <name>yarn.nodemanager.aux-services</name> 
+      <value>mapreduce_shuffle</value> 
+   </property>   
+</configuration>
+
+Before starting HDFS service we need to Format  the namenode which can be done as:
+>hdfs namenode -format  (only one time)
+
+Start HDFS(namenode ,secondary namenode ,datanode):
+>start-dfs.sh  //can be stopped by stop-dfs.sh
+ now check HDFS details: loocahost:50070
+>hdfs dfs -mkdir /user 
+
+Start YARN(Resource manager and node manager):
+>start-yarn.sh
+
+>jsp //to check is all the services has started.
+===============
+Distributed mode:
+Install hadoop in all nodes.
+master machine should be able to ssh to all slaves.
+
+TODO
+=========
+
+
+

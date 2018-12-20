@@ -1,0 +1,322 @@
+column oriented database build on top of hadoop.
+opensource version of google bigtable.
+
+Why HBase?
+Hadoop has certain limitations which makes it unsuited for transaction processing:
+1.unstructured data (HDFS data are  unstructured,in form of files(text,audio,video),dont have any schema) 
+2.No random access (no way to process an individual record without processing the entire file)
+3.high latency
+4.not ACID compliant
+
+HBase is a distributed database management system that is part of hadoop ecosystem.
+HBase uses HDFS to store its underlying data, so by default it is distributed and fault tolerant.
+HBase is designed to support transaction processing, it has following properties:
+1.Awareness of structure of data
+2.Low Latency
+3.Random Access
+4.ACID compliant at certain level
+
+
+HBASE vs RDBMS
+Hbase doesnot use SQL
+HBase supports CRUD at individual row of a table only.It does not support milti record operation(across rows or across tables).So no join ,no groupby operations in hbase.
+HBase is denormalized and not designed using a relational data model.
+HBase is Column oriented, ie. instead of acting as a table it acts as a  sorted Map with key=<Row_id,Col_id> value=<Data>.
+HBase is ACID compliant at row level.Any operation that involves a single row is ACID compliant.
+
+===============
+Understanding column oriented database:
+
+Notification Table in RDBMS:
+-----------------------------------------------------------------
+id		type			 for_user		from_user		timestamp|
+-----------------------------------------------------------------|
+1 	    Friend request	 Ryan			Jessica			12345678 |
+2 		Comment			 Chaz			Danial			21223434 |
+3 		Comment 		 Rick			Brendan			39832477 |
+4 		Like			 Rick			Brendan			49879898 |
+-----------------------------------------------------------------
+
+Column oriented database structure(here row and column columns represent key of map, and value column represents value of map)
+-----------------------------------
+row		column	   value           
+-----------------------------------
+1 		 type		Friend request 
+1  		 for_user   Ryan
+1 		 from_user  Jessica
+1        timestamp  12345678
+2 		 type		Comment
+2  		 for_user   Chaz
+2 		 from_user  Danial
+2        timestamp  21223434
+....
+-------------------------------------
+
+We may have  few columns which will only be filled depending on notification type eg. If type=Comment can have comment_on column populated.
+------------------------------------------------------------------------------------------------
+id		type			 for_user		from_user		timestamp	friend_type		commented_on|
+------------------------------------------------------------------------------------------------|
+1 	    Friend request	 Ryan			Jessica			12345678 	new			      -		    |
+2 		Comment			 Chaz			Danial			21223434 	 -				link		|
+3 		Comment 		 Rick			Brendan			39832477                    photo       |
+4 		Like			 Rick			Brendan			49879898     -                -         |
+-------------------------------------------------------------------------------------------------
+This results in table that are  very sparse.Sparse tables are not very efficient in traditional database, because you use disk space even for empty cells.
+In column oriented database this empty cells can be skipped this saves space.
+Not only that since in  HBase each row has its own set of columns  we can add new column later any time without effecting other rows(which is hard in traditional RDBMS)
+So on column oriented  database we dont have to start with a fixed schema, we can add or remove columns for a record without effecting other records.
+
+
+====================
+HBASE denormalized vs RDBMS normalized
+
+Suppose we have  an entity:
+Employee(id,name,address,subordinates)
+
+In RDMBS we need three tables as shown below:
+-------------------------------
+id		name		addressid  |
+-------------------------------
+1 		alex 		1          |
+------------------------------
+
+------------------------------------
+addressid 		street 		city    |
+------------------------------------
+1 				abc			kolkata |
+------------------------------------
+
+-------------------------
+id 		subordinateEmpId |
+-------------------------|
+1 		3 				 |	
+1 		7                |
+1       9                |
+--------------------------
+
+In HBase:
+In Distributed System storage is cheap so data duplication is not a problem, instead we need to optimize disk seeks. 
+Instead of performing disk seek for three different table we can keep one table instead.
+
+---------------------------------------------
+ID		Name		Address		Subordinates			
+---------------------------------------------
+1       alex 		<STRUCT>      <ARRAY>
+---------------------------------------------
+
+With this approach all related entities are together and there is no need for  table joins.
+================
+HBase CRUD:
+Hbase is designed to perform random read write to a spefific row.
+No multi row operation,no aggregation or grouping, no join, no foreign key constraints.
+You need external applications like Mapreduce to perform joins on HBase tables.
+HBASE supports ACID at single row level, where traditional RDBMS can support ACID in update on N number of rows.
+
+============
+install:
+goto $HBASE_HOME/conf
+
+hbase-env.sh:
+export JAVA_HOME=/usr/lib/jvm/java-1.8.0
+-------------
+hbase-site.xml(for standalone mode):
+<configuration>
+   //Here you have to set the path where you want HBase to store its files.
+   <property>
+      <name>hbase.rootdir</name>
+      <value>file:/home/hadoop/HBase/HFiles</value>
+   </property>
+   //Here you have to set the path where you want HBase to store its built in zookeeper  files.
+   <property>
+      <name>hbase.zookeeper.property.dataDir</name>
+      <value>/home/hadoop/zookeeper</value>
+</configuration>
+-------------
+hbase-site.xml(for  distributed mode):
+<configuration>
+      <property>
+      <name>hbase.cluster.distributed</name>
+      <value>true</value>
+   </property>
+   //Here you have to set the path where you want HBase to store its files.
+   <property>
+      <name>hbase.rootdir</name>
+      <value>hdfs://localhost:9000/hbase</value>
+   </property>
+   //Here you have to set the path where you want HBase to store its built in zookeeper  files.
+   <property>
+      <name>hbase.zookeeper.property.dataDir</name>
+      <value>/home/hadoop/zookeeper</value>
+   </property>
+
+</configuration>
+
+
+In ~/.bashrc :
+set hbase home 
+add hbase/bin in path
+
+start hbase:
+$cd /usr/local/HBase/bin
+$./start-hbase.sh
+
+Checking the HBase Directory in HDFS:
+$ ./bin/hadoop fs -ls /hbase
+
+
+Starting and Stopping a Master Backup:
+$ ./bin/local-master-backup.sh start 2     // to stop this use  $ cat /tmp/hbase-user-1-master.pid |xargs kill -9
+
+Starting and Stopping RegionServers:
+$ .bin/local-regionservers.sh start 3     //to stop this use  .bin/local-regionservers.sh stop 3
+
+
+Starting HBaseShell:
+$./hbase shell     //check http://localhost:60010   or 16010
+
+now you can do all database operations
+===================
+hbase shell commands:
+
+>status //tells which services are up
+>list  //list hbase tables
+>create 'Sales','Transactions'  // sales=> table name, Transaction=>column family name.
+>put 'Sales','1','Transactions:Date','2016-01-03'   //Add record to table where  1=> row key, 'Transactions:Date'=>column family and column id ,'2016-01-03'   => value 
+>scan 'sales'   // see content of table sales
+>exit   //to exit out of shell
+
+==================
+Stopping hbase:
+//stop regoin server
+>local-regionservers.sh stop 3
+//stop master backup 
+>cat /tmp/hbase-user-1-master.pid |xargs kill -9
+//stop hbase
+>stop-hbase.sh
+================
+HBase vs Hive
+HBase can be used for both transactional and analytical processing.
+Hive only can be used for analytical processing(no random access,high letency ).
+Hive supports SQL which makes writing analytical queries very easy(which is not possible in HBase).
+Hive used HDFS for its storage, and MapReduce for processing(Actually hive is a translator form SQL to MR task).
+HBase use HDFS for storage,But it does not use MapReduce for processing.It has its own processor.
+Hive has a fixed schema,HBase is like a sorted Map and more flexible as no fixed schema.
+
+============
+CRUD:
+we can perform  CRUN ion two ways:
+1.using hbase shell
+2.using java API
+
+-----------------
+Creating a Table using shell:
+
+create ‘<table name>’,’<column family1>’ ,’<column family2>’ 
+eg. > create 'emp', 'personal data', 'professional data'
+----------------
+Creating a Table using java:
+
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.conf.Configuration;
+
+public class CreateTable {
+      
+   public static void main(String[] args) throws IOException {
+
+      // Instantiating configuration class
+      Configuration con = HBaseConfiguration.create();
+
+      // Instantiating HbaseAdmin class
+      HBaseAdmin admin = new HBaseAdmin(con);
+
+      // Instantiating table descriptor class
+      HTableDescriptor tableDescriptor = new
+      HTableDescriptor(TableName.valueOf("emp"));
+
+      // Adding column families to table descriptor
+      tableDescriptor.addFamily(new HColumnDescriptor("personal"));
+      tableDescriptor.addFamily(new HColumnDescriptor("professional"));
+
+      // Execute the table through admin
+      admin.createTable(tableDescriptor);
+      System.out.println(" Table created ");
+   }
+}
+-----------------------
+Listing a Table using HBase Shell:
+> list
+-------------------
+Listing Tables Using Java API:
+
+      // Instantiating a configuration class
+      Configuration conf = HBaseConfiguration.create();
+
+      // Instantiating HBaseAdmin class
+      HBaseAdmin admin = new HBaseAdmin(conf);
+
+      // Getting all the list of tables using HBaseAdmin object
+      HTableDescriptor[] tableDescriptor = admin.listTables();
+
+      // printing all the table names.
+      for (int i=0; i<tableDescriptor.length;i++ ){
+         System.out.println(tableDescriptor[i].getNameAsString());
+      }
+--------------------
+Dropping a Table using HBase Shell:
+>disable 'emp'
+> drop 'emp'
+>exists 'emp' //verify
+
+drop_all:
+> drop_all 't.* 
+>list   //verify
+
+disable all:
+>disable_all 'a.*'  
+
+Describe table :
+> describe 'emp'
+
+scan table:
+> scan 'employee'
+
+Create:
+put ’<table name>’,’row1’,’<colfamily:colname>’,’<value>’
+>put 'emp','1','personal data:name','raju'
+>put 'emp','1','personal data:city','hyderabad'
+>put 'emp','1','professional data:designation','manager'
+>put 'emp','1','professional data:salary','50000'
+>scan 'emp'
+
+Read:
+Read Row:
+get ’<table name>’,’row1’
+>get 'emp', '1'
+
+Read a Specific Column:
+get 'table name', ‘rowid’, {COLUMN => 'column family:column name '}
+>> get 'emp', '1', {COLUMN => 'personal:name'}
+
+Update:
+put ‘table name’,’row ’,'Column family:column name',’new value’
+>put 'emp','row1','personal:city','Delhi'
+
+Deleting a Specific Cell in a Table:
+delete ‘<table name>’, ‘<row>’, ‘<column name >’, ‘<time stamp>’
+> delete 'emp', '1', 'personal data:city',1417521848375
+
+Deleting All Cells in a Table:
+deleteall ‘<table name>’, ‘<row>’,
+> deleteall 'emp','1'
+
+Count:
+> count 'emp'
+
+Truncate:
+> truncate 'table name'
+
+

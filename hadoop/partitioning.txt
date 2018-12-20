@@ -1,0 +1,16 @@
+Partitioning strategies:
+1.Automatic sharding:
+  partitions are split when data exceeds a threshhold 
+  newly created partitions are relocated to a host with less data
+  similar to mongo auto sharding,bigtable
+
+2.Fixed partition assignment:
+  Namespace is divided into  Q evenly sized partitions.
+  Q/N partitions assigned per host where N => No. of host.
+  New Joining host steals partitions evenly from hosts
+  similar to dynamodb("strategy 3" in dynamo paper)
+
+3.Random token assignment:
+  Each host assigned T random tokens
+  T random tokens generated for joining hosts; New tokens divide existing ranges.
+  Identical to  classic cassandra when T=1 
