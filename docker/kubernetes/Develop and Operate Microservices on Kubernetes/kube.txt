@@ -7,9 +7,14 @@
 >minikube start
 
 >minikube delete
+>minikube dashboard
+
 
 >eval $(minikube docker-env) #now your shell can talk to minikube
 
+kubectl get nodes
+
+>kubectl run db --image mongo  #create deployment without explicit configuration
 =============Pod===========
 $ cat pod/pod.yaml
 apiVersion: v1
@@ -77,6 +82,10 @@ po/my-service-krwhp   1/1       Running   0          4m        app=my-service
 
 >kubectl scale  rs/my-service --replicas=10 #create 10 pods
 
+>kubectl label po/my-service-krwhp app-  #remove app label
+
+>kubectl label po/my-service-krwhp new-label=value
+
 If any pod is deleted(or even label is changes) rs will create one,it will try to maintainer desired No. of replicas.
 rs used selectors to search for matching labels and makes sure required number of replicas are there.
 	
@@ -85,7 +94,7 @@ rs used selectors to search for matching labels and makes sure required number o
 ========Service============================================
 Pods have IP address routable within cluster but no external connectivity.
 Pods are short lived,Address may change frequently.
-No DNS fro pod IPs, no load balancing
+No DNS for pod IPs, no load balancing
 
 Services:
 Set of pods by label
@@ -136,6 +145,9 @@ my-service   NodePort    10.0.0.230   <none>        80:30009/TCP     10s
 
 >IP=minikube ip
 >curl $IP:30009
+
+
+>kubectl get endpoints
 =======Ingress================
 Services:
  Do raw TCP/UDP forwarding
@@ -235,7 +247,7 @@ Persistent Volume(PV):
 
 Storage technology:
 1.Network Block device,like hard disk(eg. AWS Elastic block storage(cloud),AzureDisk(cloud),GCE persistent disk(cloud),Ceph or Rados(self hosted),iscsi(self hosted))
-   Fastr
+   Faster
    Fixed size
    Can (usually) be used by only one pod at a time
 2.Network File system unlike regular hard disk(eg. AWS Elastic File System(cloud),Azure Files(cloud),cephFS(self hosted),NFS(self hosted),GlusterFS(self hosted))   
@@ -316,6 +328,7 @@ Now even if pod restarts it will use the same PVC and no data will be lost.
 It is tidious to manually create PV for each PVCs,automatic volume provison can solve this.
 Cluster operator instead of creating PV each time he can create SC.
 Now when Application operator creates PVC it will refer SC(instead of PV)
+
 Volume Provisioner(a kubernetes component):
    When new PVC is created Volume Provisioner uses information defined in SC to create PV and bind is with the new PVC
 
@@ -585,4 +598,81 @@ spec:
     configMap:         #replace "configMap" with "secret"
       name: test-config
 ===========
- 
+ Java example:
+
+If myapp:1 image not present create one as follows:
+>cd MyApp
+>mvn clean package
+>docker build -t myapp:1 .
+
+After making some change create another image myapp:2
+
+>mvn clean package
+>docker build -t myapp:1 .
+
+
+cat deploy/springboot-deploy.yaml
+
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: my-app-deployment
+  labels:
+    app: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app
+        image: myapp:1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+spec:
+  type: NodePort
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 8080
+      nodePort: 31000
+
+
+
+>kubectl create -f deploy/springboot-deploy.yaml
+>IP=$(minikube ip)
+>curl $IP:31000/info   #it returns ip of pod
+
+if you hit the above URL multiple times you will see service will loadblance all requests among different pods.
+We can get pod ips as:
+>kubectl get pod -o wide
+
+>kubectl edit deploy/my-app-deployment                              #with this you can live edit and save.the changes will be reflected
+>kubectl set image deploy/my-app-deployment my-app=myapp:2 --record # --record will record changes which can be view with >kubectl rollout history deploy/my-app-deployment
+>kubectl rollout status -w deploy/my-app-deployment                 #wait and see rolling update in action
+>kubectl set image deploy/my-app-deployment my-app=myapp:3          #since there is no image myapp:3, the rolling update will stop 
+>kubectl rollout status -w deploy/my-app-deployment                 #this will pause for ever  ctrl+C to exit 
+>kubectl rollout history deploy/my-app-deployment                   #View history of all image changes( it will not show anything if --record is never used previously)
+>kubectl edit deploy/my-app-deployment                              #you can see deployment is still using myapp:3
+>kubectl rollout undo deploy/my-app-deployment                      #go back to myapp:2
+
+Note: unless image set command is recorded with  --record, kubectl rollout undo command will work as past commands are not recorded. Recording can be turned off by --record=false flag
+
+>kubectl rollout history deploy/my-app-deployment
+
+
+>kubectl rollout undo deploy/my-app-deployment --to-revision=2  #undo by revision number fom output of >kubectl rollout history  
+
+>kubectl scale deploy/my-app-deployment --replicas 8
+
+>kubectl delete -f deploy/springboot-deploy.yaml
+

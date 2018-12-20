@@ -95,7 +95,7 @@ conditional style binding:
 
 Apply multiple styles:
 <h2 [ngStyle]="titleStules">hello</h2>
-
+							
 
 titleStules={
 color:"blue",
@@ -316,7 +316,7 @@ const routes:Routes=[
 {path:'user',component:UserComponent,canActivate:[AuthGuard] ,children:[    //no need to add / in path it will be taken implicitly
   {path:':id',component:UserDetailComponent}       //id is just a parameter(placehoder) as it starts with ':', this route will match for /user/2 or /user/something etc. Value of this id can be obtained by using ActivatedRoute ,shown later.
  ]},
-{path:"" redirectTo="/user" pathMatch=""},
+{path:"" redirectTo="/user" pathMatch="full"},
 {path:'**',component:PageNotFoundCompinent}
 ]
 
@@ -894,3 +894,68 @@ const req=new HttpRequest('PUT','url',{name:tamajit},{reportProgress:true,observ
 4th arg=>config object observe,responseType,headers,params,reportProgress etc.
 
 http.request(req);
+
+====component lifecycle hooks====
+
+A component has a lifecycle eg. create component,render component,destroy component.
+
+After creating a component/directive by calling its constructor, Angular calls the lifecycle hook methods in the following sequence at specific moments:
+
+ngOnChanges() : 	
+Called every time a data-bound input property changes. It’s called a first time before the ngOnInit hook. The hook receives a SimpleChanges object that contains 
+the previous and current values for the data-bound inputs properties. This hook gets called often, so it’s a good idea to limit the amount of processing it does.
+Called before ngOnInit() and whenever one or more data-bound input properties change.
+
+
+
+ngOnInit() : called 1 time only 	
+ Called once upon initialization of the component .
+Called once, after the first ngOnChanges().
+
+ngDoCheck() : 	
+Detect and act upon changes that Angular can't or won't detect on its own.
+Called during every change detection run, immediately after ngOnChanges() and ngOnInit().
+
+ngAfterContentInit() : 	
+Respond after Angular projects external content into the component's view / the view that a directive is in.
+Called once after the first ngDoCheck().
+
+ngAfterContentChecked(): 	
+Respond after Angular checks the content projected into the directive/component.
+Called after the ngAfterContentInit() and every subsequent ngDoCheck().
+
+ngAfterViewInit() : 	
+Respond after Angular initializes the component's views and child views / the view that a directive is in.
+Called once after the first ngAfterContentChecked().
+
+ngAfterViewChecked() :	
+Respond after Angular checks the component's views and child views / the view that a directive is in.
+Called after the ngAfterViewInit and every subsequent ngAfterContentChecked().
+
+ngOnDestroy() : called 1 time only 	
+Cleanup just before Angular destroys the directive/component. Unsubscribe Observables and detach event handlers to avoid memory leaks.
+Called just before Angular destroys the directive/component.
+
+
+example:
+
+@Component(...)
+export class MyComponent implement OnChanges,OnInit, OnDestroy{
+   title = ''; 
+   ngOnInit() { 
+      this.title = "Hello"; 
+   } 
+  ngOnChanges(changes: SimpleChanges) {
+    for (let property in changes) {
+      if (property === 'title') {
+        console.log('Previous:', changes[property].previousValue);
+        console.log('Current:', changes[property].currentValue);
+      }
+    }
+  }
+  ngOnDestroy() {
+    console.log('Component Destroy');
+  }
+}
+
+=====

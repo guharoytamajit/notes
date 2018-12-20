@@ -1,0 +1,108 @@
+
+
+=========
+iterate through all files in a directory:
+for f in `ls`;
+do
+  echo "======="
+  echo $f;
+done; 
+
+=================
+
+ls config > out.log 2> out.err
+
+
+where out.log is stdout and out.err is stderr
+if config directory is present its content will be logged on out.log else error message will be logged on out.err
+
+if you want stdout and stderr to be same file use &> instead:
+ 
+ls config &> out
+
+=================
+x=1
+variable can be accessed  using $x or ${x}
+========
+
+command can be executed by wrapping with `` or $()
+out=$(ls)
+echo $out
+========
+special variables:
+you can access agruments as $1 ,$2 so on
+we can acces all arguments separated by space using $@
+we can get number of arguments using $#
+all arguments together double quoted $*
+
+$?  :The exit status of the last command executed.
+	
+$$  :process id
+
+$!  :The process number of the last background command.
+============
+Array:
+
+fruit[3]='guava'
+fruit[0]='mango'
+fruit[1]='apple'
+echo ${fruit[*]}
+
+O/P: mango apple guava
+==========
+
+a=0
+
+while [ $a -lt 10 ]
+do
+   echo $a
+   if [ $a -eq 5 ]
+   then
+      break
+   fi
+   a=`expr $a + 1`
+done
+
+----
+for var1 in 1 2 3
+do
+   for var2 in 0 5
+   do
+      if [ $var1 -eq 2 -a $var2 -eq 0 ]
+      then
+         break 2                             // break both loop
+      else
+         echo "$var1 $var2"
+      fi
+   done
+done
+
+=======
+selecting one or more column  :
+
+  ls -l
+
+-rwxr-xr-x 1 ibm 197121       120 Jun 25 19:29 build-image.sh*
+drwxr-xr-x 1 ibm 197121         0 Jun 26 04:43 common_lib/
+drwxr-xr-x 1 ibm 197121         0 Jun 25 19:29 config/
+-rw-r--r-- 1 ibm 197121      1778 Jun 25 21:27 Dockerfile
+drwxr-xr-x 1 ibm 197121         0 Jan 26  2016 hadoop-2.7.2/
+
+
+ ls -l|awk '{print $6}'
+
+Jun
+Jun
+Jun
+Jun
+Jan
+
+ ls -l|awk '{print $6 " " $7}'
+
+Jun 25
+Jun 26
+Jun 25
+Jun 25
+Jan 26
+
+

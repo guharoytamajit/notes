@@ -1,0 +1,325 @@
+with let we can define block scope variable.
+var=>function scope
+let=> block scope
+
+Decleration of variable without var or let or const will make it global
+
+{
+  let age=10;
+}
+console.log(age);
+O/P:
+ReferenceError: age is not defined
+
+----
+{
+  var age=10;
+}
+console.log(age);
+O/P:
+10
+----
+function f1(){
+ var age=10;
+}
+f1()
+console.log(age)
+O/P:
+ReferenceError: age is not defined
+---
+function f1(){
+ age=10;                                      #global
+}
+f1()
+console.log(age)
+O/P:
+10
+===========
+
+const keyword is like  (let + final)
+
+const age=10;
+age=20;    #TypeError: Assignment to constant variable.
+console.log(age)
+
+---
+const age=[10];
+age.push(20);  #mutation is allowed, we just cannot re-assign reference
+console.log(age)
+O/P:
+[10, 20]
+=======
+Hoisting=>a variable can be used before it has been declared.
+eg.
+age =20
+console.log(age)
+var a;
+O/P: 10
+---
+Hoisting does not work in similar way with let. eg.
+a=10
+console.log(a)
+let  a;
+O/P:ReferenceError: a is not defined
+---
+function f1(){
+a=10
+}
+let a;
+f1()
+console.log(a)
+O/P:10
+---
+function f1(){
+a=10
+}
+f1()
+let a;
+console.log(a)
+O/P: ReferenceError: a is not defined
+---
+function f1(){
+a=10
+}
+f1()
+console.log(a)
+O/P:10
+
+==============
+Fat arrow:
+let sum = (a,b)=>a+b
+console.log(sum(2,3))
+O/P:5
+---
+setInterval(()=>console.log("hello"),1000)
+O/P: prints "hello" every second
+---
+
+function f1(){
+  console.log(this)  #points to window object
+}
+f1()
+
+const f2= ()=>console.log(this)  #points to window object
+f2()
+-------
+HTML:
+
+<button>click</button>
+
+Javascript:
+
+function f1(){
+  console.log(this);
+}
+const f2=()=>console.log(this);
+
+let btn=document.querySelector("button");
+btn.addEventListener('click',f1); #points to HTMLButtonElement object
+btn.addEventListener('click',f2); #still points to window object
+
+Note:
+this in regular function refers to what called this function
+this in fat arrow function(keeps its context) always refers to where it is declared.
+
+======
+ES6 supports default parameter, here if second parameter is not provided by default 10 is passed.
+
+function compare(a,b=10){
+  return a===b;
+}
+console.log(compare(10)) 
+O/P:true
+-----
+function compare(a=10,b){
+  return a===b;
+}
+console.log(compare(10))   
+O/P:false
+
+here output is false because by calling compare(10) we are actually setting a=10, but b is still undefined.
+==========
+Object literal extension:
+
+let name="jack";
+let age=10;
+let obj={
+ name,
+  age,
+  location: "kolkata"
+}
+console.log(obj)
+
+O/P:{
+  age: 10,
+  location: "kolkata",
+  name: "jack"
+}
+
+In ES6 missing values are taken from external variables.
+----
+Old way of defining function in object:
+{
+greet: function(){}
+}
+
+New way:
+{
+greet(){}
+}
+
+example:
+let name="jack";
+let age=10;
+let obj={
+ name,
+  age,
+greet: function(){
+  console.log(this.name+' ' +this.age)
+},
+  greetNew(){
+  console.log(this.name+' ' +this.age)
+}  
+}
+---
+In ES6 we an have space in method name:
+let obj={
+"greet me"(){
+ console.log( "hello");
+}
+}
+obj["greet me"]()
+
+=======
+rest operator(values to array):
+
+function add(...numbers){
+  let sum=0;
+ for(let i in numbers){
+   sum+=numbers[i]
+ }
+  return sum
+}
+console.log(add(1,2,3,4))
+O/P:10
+=====
+spread operator ,opposite of rest operate (array to values):
+
+function mul(a,b,c){
+return a*b*c;
+}
+arr=[2,2,2]
+console.log(mul(...arr)) #converts lists to separate values
+O/P: 8
+====
+New ES6 for-of loop:
+arr=[5,3,8]
+for(let n of arr){
+  console.log(n)
+}
+O/P:5
+    3
+	8
+Note:
+ for loop with "in" returns index, for loop with "of" returns original value.
+============
+Template literals:(support of multiline and variable inside string)
+
+let name="world"
+let message=`hello 
+        ${name +'!!'}`
+console.log(message)
+O/P:hello
+    world!!
+
+Note: we can escape variable substitition by using \ before ${	
+===============
+Destructuring:
+Note: during destructuring the original values are not mutated.
+
+let arr=[5,6,8];
+let [a,b]=arr;
+console.log(a,b)
+
+O/P 5
+    6
+-----	
+let arr=[5,6,8];
+let [a,b,c,d,e="default value"]=arr;
+console.log(a,b,c,d,e)
+
+O/P 5
+    6	
+	8
+	undefined
+	"default value"
+----
+get list of all values excluding 1st value:
+
+let arr=[5,6,8];
+let [,...b]=arr; // we are ignoring 1st value, and take remaining value as array
+console.log(b)
+O/P:[6,8]	
+---
+use array destructure for swapping variables:
+
+let a=2;
+let b=3;
+let c=4;
+[c,a,b]=[a,b,c];
+console.log(a,b,c);
+
+o/p:3
+	4
+	2
+----	
+destructuring object:
+
+let obj={nam:"jack",age:20,greet(){console.log("hello")}}
+let {age,greet}= obj;
+console.log(age)
+greet()
+
+O/P:20
+    hello
+Note:
+In object destructuring order doesnot matter, match is found by matching property name to variable name.	
+----
+destructuring object with alias
+
+let obj={nam:"jack",age:20,greet(){console.log("hello")}}
+let {age: a,greet: f1}= obj;
+console.log(a)   #a refers age of obj
+f1()	
+O/P:20
+    hello
+==========
+Modules:
+
+script.js:
+import {msg,test} from './external.js'  #.js is required in system.js lib , but in final version of ES6 spec it was decided not to keep extra .js
+console.log(msg); 
+test();
+
+external.js:
+export let msg="hello";
+export function test(){console.log("hello world!!")}
+----
+instead of declaring export everywhere we can export everything together
+ 
+external.js:
+ let msg="hello";
+ function test(){console.log("hello world!!")}	
+ export {msg,test};
+---
+external.js:
+ let msg="hello";
+ let ab="world"
+ export {msg}
+ export default ab
+
+	
+	
+    
+
+
