@@ -1,0 +1,1 @@
+ kubeless function deploy hello --runtime python3.7 --from-file test.py --handler test.hello

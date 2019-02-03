@@ -1,0 +1,65 @@
+
+install istio on minikube:
+
+minikube start --memory=5192 --cpus=3 --kubernetes-version=v1.10.0    --extra-config=controller-manager.cluster-signing-cert-file="/var/lib/localkube/certs/ca.crt"  --extra-config=controller-manager.cluster-signing-key-file="/var/lib/localkube/certs/ca.key" --vm-driver=virtualbox
+
+
+
+Install istio:
+download from https://github.com/istio/istio/releases
+Add bin in your classpath so that istiocli is accessible
+
+
+
+git clone https://github.com/istio/istio.git
+
+https://medium.com/@bufferings/istio-bookinfo-on-minikube-1-deploy-app-7c953d18913d
+
+kubectl create -f install/kubernetes/helm/helm-service-account.yaml
+
+
+I used kubectl -n kube-system delete deployment tiller-deploy and kubectl -n kube-system delete service/tiller-deploy. Then helm --init worked. I was missing removing the service previously.
+
+
+
+https://medium.com/@bufferings/start-understanding-istio-installation-on-minikube-cc06633eb055
+
+minikube start --vm-driver=virtualbox --extra-config=controller-manager.cluster-signing-cert-file="/var/lib/localkube/certs/ca.crt" --extra-config=controller-manager.cluster-signing-key-file="/var/lib/localkube/certs/ca.key" --extra-config=apiserver.admission-control="NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota" --kubernetes-version=v1.10.0 --memory=5096
+
+minikube start --vm-driver=virtualbox --extra-config=controller-manager.cluster-signing-cert-file="/e/DockerToolbox/Minikube/.minikube/ca.crt" --extra-config=controller-manager.cluster-signing-key-file="/e/DockerToolbox/Minikube/.minikube/ca.key" --extra-config=apiserver.admission-control="NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota" --kubernetes-version=v1.10.0 --memory=5096
+
+minikube start --vm-driver=virtualbox --extra-config=controller-manager.cluster-signing-cert-file="/c/Users/abc/ca.crt" --extra-config=controller-manager.cluster-signing-key-file="/c/Users/abc/ca.key" --extra-config=apiserver.admission-control="NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota" --kubernetes-version=v1.10.0 --memory=5096
+
+kubectl create -f install/kubernetes/helm/helm-service-account.yaml
+helm init --service-account tiller
+
+kubectl get pods -n kube-system
+
+helm install install/kubernetes/helm/istio --name istio --namespace istio-system     
+      
+kubectl get svc -n istio-system
+
+
+
+kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
+istioctl create -f samples/bookinfo/networking/bookinfo-gateway.yaml
+
+another resource:  https://medium.com/@bufferings/istio-bookinfo-on-minikube-1-deploy-app-7c953d18913d
+
+===================
+minikube start --memory=5192 --cpus=3 --kubernetes-version=v1.10.0   --vm-driver=virtualbox
+     
+ kubectl apply -f install/kubernetes/helm/istio/templates/crds.yaml
+ kubectl apply -f install/kubernetes/helm/istio/charts/certmanager/templates/crds.yaml
+ helm template install/kubernetes/helm/istio --name istio --namespace istio-system > $HOME/istio.yaml
+ kubectl create namespace istio-system
+ kubectl apply -f $HOME/istio.yaml
+
+
+From ISTIO_HOME:
+kubectl label namespace default istio-injection=enabled
+kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl get services
+kubectl get pods
+kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl get gateway

@@ -1,0 +1,11 @@
+minikube start --extra-config kubelet.EnableCustomMetrics=true --vm-driver=virtualbox
+
+kubectl create -f https://raw.githubusercontent.com/luksa/kubia-qps/master/qps-deployment.yaml
+
+kubectl expose deployment kubia --port=80 --target-port=8080
+
+kubectl create -f https://raw.githubusercontent.com/luksa/kubia-qps/master/qps-autoscaler.yaml
+
+kubectl run -it --rm --restart=Never loadgenerator --image=busybox -- sh -c "while true; do wget -O - -q http://kubia.default; done"
+
+watch kubectl describe hpa,deployment
