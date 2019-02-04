@@ -95,6 +95,8 @@ spec:
 OR
 >kubectl describe -f pod/db.yml #very important also contain log events
 
+>kubectl logs po/db
+
 >kubectl exec db ps aux
 
 >kubectl exec -it db sh
@@ -105,9 +107,9 @@ OR
 
 >kubectl logs db
 
->kubectl exec -it db pkill mongod
+>kubectl exec -it db pkill mongod #kubernetes will automatically restart pod, if mongod killed 
 
->kubectl get pods
+>kubectl get pods #it will show restart =1
 
 >kubectl delete -f pod/db.yml
 
@@ -142,9 +144,10 @@ spec:
 
 >kubectl get -f pod/go-demo-2.yml -o json
 
->kubectl exec -it -c db go-demo-2 ps aux
+>kubectl exec -it -c db go-demo-2 ps aux  #on container "db" of pod "go-demo-2" execute "ps aux"
 
->kubectl logs go-demo-2 -c db
+>kubectl logs go-demo-2 -c db   #print logs of container "db" inside pod "go-demo-2"
+>kubectl delete go-demo-2
 
 >cat pod/go-demo-2-scaled.yml
 apiVersion: v1

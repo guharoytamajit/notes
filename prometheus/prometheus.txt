@@ -1,0 +1,45 @@
+open source monitoring solution, provides different metrics and alerting.
+Inspired by google brogmon.
+Fits well on cloud native infrastructure and a member of CNF(cloud native foundation) like kubernetes.
+
+Metrics are identified by name and a set of key-value pairs(labels)
+It has a flexible query language.
+Visualization can be done by inbuild expression browser or with integration with grafana.
+It stores metrics in memory and local disk in an own custom ,efficient format.
+Written in Go.
+
+Architecture:
+Prometheus collects metrics from different machine under monitor,by hitting their specific http endpoints.
+Every machine needs to expose some http endpoints which expose different metrics(this is unlike most monitoring and alerting system, ut very much like google brogmon).
+Scraping endpoints(approach used in prometheus) is much more efficient than other mechanisms like  3rd party agents.
+
+What does Web Scraping mean? 
+Web scraping is a term for various methods used to collect information from across the Internet
+Web scraping is also called Web data extraction, screen scraping or Web harvesting.
+
+A single premetheus server is able to ingest upto 1 million samples per second as several millions timeseries.
+
+https://github.com/in4it/prometheus-course
+Following scripts are provided in above git repo:
+1-install.sh: install prometheus
+2-node-exporter.sh:
+3-install-graphana.sh:
+
+prometheus port:9090
+grafana port : 3000
+
+Concepts:
+All data in prometheus is stored as time series
+Every time series is identified by "metric name"  and a set of key-value pairs called "labels".
+Time series actual data is called samples(could be float64 value or timestamp with millisecond precision etc)
+The notation of time series is often using the notation:
+  <metric-name>{<label name>=<label value>,....}
+  example:
+  node_boot_time{instance="localhost:9100",job="node_exporter"}
+  
+Prometheus Configuration:
+Configuration is stored in yaml file.
+The conf can be changed and applied without restarting  prometheus:
+   -reload configuration can be done by  >kill -SIGNUP <pid>  
+You can also pass  parameters(flags) at startup time to ./prometheus( but these flag parameters cannot be changed without restarting prometheus)
+Configuration file can pe passed to ./prometheus using flag --config.file

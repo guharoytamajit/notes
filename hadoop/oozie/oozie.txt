@@ -1,0 +1,90 @@
+Apache Oozie is a server-based workflow scheduling system to manage Hadoop jobs. 
+
+A workflow specifies a set of actions and the order and conditions under which those actions should be performed.
+few action may be dependent on another which needs to be run serially. 
+Other actions may be independent of one another can are parallelly
+a workflow can be represented using a DAG.
+
+Workflows, Coordinators, Bundles all come together to form the building blocks of Oozie.
+Oozie is an orchestration system for Hadoop jobs.
+
+actions can be mapreduce,hive query,pig script,shell,java program etc
+
+At any point you might have 1000s of Hadoop jobs running, many of which would be inter-dependent on one another.
+
+Managing these manually or with basic scripting does not scale.
+
+Oozie allows orchestration and control of such complex multi-stage Hadoop jobs.
+
+Multi-stage Hadoop jobs can then be run as a single Oozie job - the Oozie job is the only thing for you to manage!
+
+===============
+
+You may have multiple Workflows to manage.You can manually process each of these workflows and execute them.
+
+That can get onerous, it’s much easier to have some kind of controlling mechanism for individual workflows.
+
+You might want workflows to run at a certain time and frequency.
+
+Provided the input to the workflow is available.
+
+This needs a Coordinator!
+
+Coordinator:
+   The Coordinator schedules the execution of a workflow at a specified time and/or a specified frequency.
+
+   If input data is not available then the workflow is delayed till the data becomes available.
+
+   If no input data is needed then the workflow runs purely at a specified time or frequency.
+
+=======================
+For Manufacturing a Car there can be several workflows:
+eg Workflow for engine,Workflow for tire etc.
+
+Each of these workflows can have a coordinator.
+
+All these workflows come together and can build a car!
+
+A car is built with a collection of Coordinator jobs.
+
+Bundle:
+A collection of Coordinator jobs which can be started,stopped and modified together is called a Bundle!
+
+Data Pipelines:
+In Bundle the output of one Coordinator job managing a workflow can be the input to another Coordinator job.
+
+
+================
+The application can be a workflow run manually, a single coordinator or a number of coordinators forming a bundle.
+
+workflow.xml, coordinator.xml,bundle.xml files describe their corresponding applications.
+
+Oozie expects all files to be in HDFS before it can run.
+
+These XML files along with other files which are required for the Oozie application are copied over to HDFS before the job can run.
+===============
+
+Oozie Architecture(see oozie-highlevel-architecture.JPG)
+
+Oozie Server:
+Runs in a web container such as Apache Tomcat.
+Manages Oozie job scheduling and execution.
+Is stateless, and holds job related information in the database.
+
+Oozie Client:
+Uses a command line interface to talk to the server.
+The server provides a REST API and a Java client so Oozie clients can be written in any language.
+
+Hadoop Cluster:
+The Oozie server is a client of Hadoop.
+Oozie applications read their XML from HDFS.
+The Job runs on the Hadoop cluster.
+
+Database:
+All job related information is stored in the database.
+Oozie supports Derby, MySQL,Oracle and PostgreSQL.
+The Oozie package comes configured with Derby by default.
+=============
+
+
+

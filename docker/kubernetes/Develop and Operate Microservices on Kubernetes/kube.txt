@@ -15,6 +15,13 @@
 kubectl get nodes
 
 >kubectl run db --image mongo  #create deployment without explicit configuration
+========================
+Visualize kubernetes:
+git clone https://github.com/brendandburns/gcp-live-k8s-visualizer.git
+kubectl proxy --www=<path/to/gcp-live-k8s-visualizer>
+
+open http://localhost:8001/static/
+
 =============Pod===========
 $ cat pod/pod.yaml
 apiVersion: v1
@@ -123,15 +130,15 @@ Loadbalancer service type is ofter the best choice
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-service #service name and DNS name
+  name: my-service
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: my-service
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 80 #will be accessible from this port from outside cluster
+      nodePort: 30009 #will be accessible from this port from outside cluster
 	  
 Note:service name is also the DNS name which can be used by other services to connect to this service.
 
@@ -192,6 +199,71 @@ In ingress not enabled then enable it
 >minikube ip #ip address ob ingress controller
 >sudo vi /etc/host#here you can add ip to hostname mapping
 192.168.99.100 your-app.example
+
+
+Another example:
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-tutorial
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  backend:
+    serviceName: default-http-backend
+    servicePort: 80
+  rules:
+  - host: myminikube.info
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: echoserver
+          servicePort: 8080
+  - host: cheeses.all
+    http:
+      paths:
+      - path: /stilton
+        backend:
+          serviceName: stilton-cheese
+          servicePort: 80
+      - path: /cheddar
+        backend:
+          serviceName: cheddar-cheese
+          servicePort: 80
+
+We conclude:		  
+1.All requests to myminikube.info/ should be routed to the service in the cluster named echoserver.
+2.Requests mapping to cheeses.all/stilton should be routed to the stilton-cheese service.
+3.Finally, requests mapping to cheeses.all/cheddar should be routed to the cheddar-cheese service.
+Of course, there’s more to it; like the backend tag which implies that unmatched requests should be routed to the default-http-backend service and there’s also 
+the familiar kubernetes tags; for example the apiVersion tag which clearly marks ingress as a beta feature.	
+
+
+>kubectl run echoserver --image=gcr.io/google_containers/echoserver:1.4 --port=8080 #create deployment echoserver
+>kubectl expose deployment echoserver --type=NodePort	  #expose deployment echoserver as service
+>minikube service echoserver  #confirm that requests can get to the service
+
+>kubectl run stilton-cheese --image=errm/cheese:stilton --port=80
+>kubectl expose deployment stilton-cheese --type=NodePort
+>minikube service stilton-cheese
+
+>kubectl run cheddar-cheese --image=errm/cheese:cheddar --port=80
+>kubectl expose deployment cheddar-cheese --type=NodePort
+>minikube service cheddar-cheese
+
+Thus far, we can access the services via the [minikube ip]:[node port] address. Our aim, however, is to access them via myminikube.info , cheeses.all/stilton and cheeses.all/cheddar. 
+And that’s where ingress comes in.
+
+>kubectl describe ing ingress-tutorial
+
+
+Now, the last bit is to update our /etc/hosts file to route requests from myminikube.info and cheeses.all to our minikube instance.
+
+in /etc/hosts
+[minikube ip] myminikube.info cheeses.all
+
+Test it out by visiting myminikube.info , cheeses.all/stilton , cheeses.all/cheddar from your browser.
 
 ===================Deployment====================
 Limitations of RS:

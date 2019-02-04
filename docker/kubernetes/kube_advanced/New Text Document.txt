@@ -1,0 +1,71 @@
+Pod Autoscaling using HPA:
+  With Autoscaling, Kubernetes watches resource metrics of each Pod and determines if we need more or less Pods.
+  You can create custom metrics based on your application’s needs. The most common resource metrics is CPU utilization.
+  Kubernetes will watch the average CPU utilization over X seconds and, based on utilization, add or remove Pods. 
+  
+Adding Horizontal Pod Autoscaler (HPA) in k8s cluster:
+>kubectl autoscale deployment endpoints --cpu-percent=50 --min=1 --max=10
+
+https://rancher.com/blog/2018/2018-08-06-k8s-hpa-resource-custom-metrics/
+https://itsmetommy.com/2018/03/30/kubernetes-learning-with-minikube/
+
+
+kubectl create -f hpa/my-app-complete.yml  #include deploy and svc
+kubectl create -f hpa/my-app-hpa.yaml      #include hpa
+
+IP=$(minikube ip)
+curl $IP:31000/info
+
+OR
+
+minikube service my-app
+
+
+
+
+Loadtesting:
+service=$(minikube service  <service_name> --url)
+while true; do curl $service; done
+
+=================================
+Readiness Probe:
+For a Readiness Probe we need to add code into both our Pod YAML file and also our application code that is running in our Docker Container.
+
+To check if a pod is healthy enough to serve.
+
+
+#Application endpoint
+app.use('/readiness', function (req, res, next) {
+    res.status(200).json({ ready: true });
+});
+
+# the readiness probe details
+readinessProbe:
+  httpGet: # make an HTTP request
+    port: 8080 # port to use
+    path: /readiness # endpoint to hit
+    scheme: HTTP # or HTTPS
+  initialDelaySeconds: 3 # how long to wait before checking
+  periodSeconds: 3 # how long to wait between checks
+  successThreshold: 1 # how many successes to hit before accepting
+  failureThreshold: 1 # how many failures to accept before failing
+  timeoutSeconds: 1 # how long to wait for a response
+
+============================
+Liveness check:
+In k8s cluster if one of the Pods runs into an issue we need to let Kubernetes know that the Pod can be taken down and a new Pod spun up.
+The Liveness Check does this by periodically hitting all of your Pods and ensuring they are still responding as necessary.
+If a Pod fails the Liveness Check then Kubernetes can bring down that Pod and spin up a new one.
+If you skip the Liveness check then it is highly likely that you would have unhealthy Pods in your cluster with no automated way to repair the problem.
+
+# the liveness probe details
+livenessProbe:
+  httpGet: # make an HTTP request
+    port: 8080 # port to use
+    path: /healthcheck # endpoint to hit
+    scheme: HTTP # or HTTPS
+  initialDelaySeconds: 3 # how long to wait before checking
+  periodSeconds: 3 # how long to wait between checks
+  successThreshold: 1 # how many successes to hit before accepting
+  failureThreshold: 1 # how many failures to accept before failing
+  timeoutSeconds: 1 # how long to wait for a response
