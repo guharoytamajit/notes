@@ -1,0 +1,30 @@
+package manager for k8s.
+helps you to manage k8s apps
+maintained by CNCF
+It uses a packaging format called charts.
+
+chart:
+Collection of files that describe a set of kubernetes resources.
+A single chart can deploy an app or a database.
+At chart can have dependencies eg. wordpress chart has dependency on mysql chart.
+Charts use templates that are typically developed by package maintainer.They will generate yaml file which k8s understands.  
+You can think of chart templates as dynamic yaml files which can contail logic and variables.
+
+Sample template:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-configmap
+data:
+  myvalue: "Hello World"
+  drink: {{ .Values.favouriteDrink }}
+
+=>here "favouriteDrink" value can be overridden by the user when running "helm install"
+
+>helm init
+>helm version
+>helm install --name my-release --set mysqlRootPassword=secretpassword,mysqlUser=my-user,mysqlPassword=my-password,mysqlDatabase=my-database  stable/mysql
+
+OR
+
+helm install --name my-release -f values.yaml stable/mysql

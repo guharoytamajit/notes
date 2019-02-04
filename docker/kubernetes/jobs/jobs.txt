@@ -1,0 +1,142 @@
+Jobs:
+Short term process
+It does not require long running pods that dont stop eg. webserver.
+
+
+With ReplicationController/ReplicaSet a pod will be indefinitely restarted if the pod stops.
+Whereas with the Job resource, pods are expected to run a specific task and then exit.
+
+There are three main types of jobs:
+1.Non parallel jobs.
+2.Non parallel jobs with a fixed completion count.
+3.Parallel jobs with a fixed completion count
+4.Parallel jobs with work queue
+
+====================
+1.Non Parallel Jobs: (Parallelism:    1  and Completions:    1)
+The job resource will monitor the job and restart the pod if it fails or gets deleted.
+   - you can still influence this with a restartPolicy attribute.
+When the pod successfully completes  the job itself will be completed.
+
+example:
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi
+spec:
+  template:
+    spec:
+      containers:
+      - name: pi
+        image: perl
+        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(3000)"]
+      restartPolicy: Never
+  backoffLimit: 4
+
+examplle 2(job-prime.yaml):
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: primes
+spec:
+  template:
+    metadata:
+      name: primes
+    spec:
+      containers:
+      - name: primes
+        image: ubuntu
+        command: ["bash"]
+        args: ["-c",  "current=0; max=110; echo 1; echo 2; for((i=3;i<=max;)); do for((j=i-1;j>=2;)); do if [  `expr $i % $j` -ne 0 ] ; then current=1; else current=0; break; fi; j=`expr $j - 1`; done; if [ $current -eq 1 ] ; then echo $i; fi; i=`expr $i + 1`; done"]
+      restartPolicy: Never
+  backoffLimit: 4 
+
+>kubectl create -f job-prime.yaml
+>kubectl describe jobs/primes
+>kubectl get jobs
+>kubectl logs <pod name>
+
+Jobs use the same PodTemplateSpec  as Deployments and other controllers.
+spec.template.spec.restartPolicy  parameter set to Never  to prevent a pod from restarting once the operation is completed.
+spec.backoffLimit  specifies the number of retries before the Job is considered to be failed(default 6)
+=============
+2.Non parallel jobs with a fixed completion count: (Parallelism:    1  and Completions:    n)
+Jobs with a fixed completions count create one or more pods sequentially and each pod has to complete the work before the next one is started. 
+Job needs to specify a non-zero positive value for .spec.completions which defines number of tasks.
+A Job is considered completed when there is one successful pod for each value in the range 1 to .spec.completions
+
+example:
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: primes-parallel
+  labels:
+     app: primes
+spec:
+  completions: 3
+  template:
+    metadata:
+      name: primes
+      labels:
+        app: primes
+    spec:
+      containers:
+      - name: primes
+        image: ubuntu
+        command: ["bash"]
+        args: ["-c",  "current=0; max=110; echo 1; echo 2; for((i=3;i<=max;)); do for((j=i-1;j>=2;)); do if [  `expr $i % $j` -ne 0 ] ; then current=1; else current=0; break; fi; j=`expr $j - 1`; done; if [ $current -eq 1 ] ; then echo $i; fi; i=`expr $i + 1`; done"]
+      restartPolicy: Never
+
+>kubectl get pods -l app=primes -w #you if see a new pod starts only after one is complete(no parallel)
+>kubectl create -f job-prime-2.yaml
+>kubectl get jobs/primes-parallel
+>kubectl logs <pod name>   #we can view logs of each pods. 
+==============
+3.Parallel jobs with a fixed completion count: (Parallelism:    n  and Completions:    n)
+
+Job can run multiple pods in parallel
+You specify a fixed completion count
+The job is complete when  completion count == successful exited pods
+
+
+example:
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: primes-parallel-2
+  labels:
+    app: primes
+spec:
+  parallelism: 3
+  template:
+    metadata:
+      name: primes
+      labels:
+        app: primes
+    spec:
+      containers:
+      - name: primes
+        image: ubuntu
+        command: ["bash"]
+        args: ["-c",  "current=0; max=110; echo 1; echo 2; for((i=3;i<=max;)); do for((j=i-1;j>=2;)); do if [  `expr $i % $j` -ne 0 ] ; then current=1; else current=0; break; fi; j=`expr $j - 1`; done; if [ $current -eq 1 ] ; then echo $i; fi; i=`expr $i + 1`; done"]
+      restartPolicy: Never
+
+>kubectl get pods -l app=primes -w #you if see 3 pods pods running in parallel
+>kubectl create -f job-prime-3.yaml
+>kubectl get jobs/primes-parallel
+>kubectl logs <pod name>   #we can view logs of each pods. 
+==============
+4.Parallel jobs with a work queue:
+
+Here pods should coordinate with themselves(or an external service) to determine what each should work on.
+When any pod terminates  with success, no more pods are created and the job is considered completed.
+- this is because the pods should know thenselves when all the work is done,at the point when a pod terminates with
+  success, all pods should terminate,because the job is completed.
+
+
+============
+
+CronJobs:
+We can schedule jobs by cron expression.
+
