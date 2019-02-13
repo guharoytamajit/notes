@@ -1,0 +1,6 @@
+docker run -it -p 8079:8080 -v //c/Users/zep:/zep --net hadoop --hostname zeppelin --name zeppelin ubuntu:14.04 bash
+put zeeplin in c:/User/zep
+
+cd zeppelin-0.8.0-bin-all
+bin/zeppelin-daemon.sh  start
+//to view log check $ZEPPELIN_HOME/logs

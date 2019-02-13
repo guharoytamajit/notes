@@ -1,10 +1,12 @@
+https://serversforhackers.com/c/an-ansible-tutorial
 apt-get install python-pip
-pip install ansible
+pip install ansible=2.2.0.0
 ==============================
 Install in ubuntu 14.04:
-sudo apt-add-repository -y ppa:ansible/ansible
-sudo apt-get update
-sudo apt-get install -y ansible
+$ sudo apt-get install software-properties-common
+$ sudo apt-add-repository ppa:ansible/ansible
+$ sudo apt-get update
+$ sudo apt-get install ansible
 
 make sure you can access workers through ssh:
 >ssh-keygen
@@ -18,6 +20,7 @@ ansible all -i pi@192.168.0.102,pi@192.168.0.103 -m command --args <any command>
 ansible all -i pi@192.168.0.102,pi@192.168.0.103 -m command --args 'sudo apt-get install -y apache2'
 
 ansible-playbook lets us place Ansible configuration into files so we can reliably run the same set of commands over and over.
+
 
 =======================================
 we can skip entering hosts again and again by adding follwing inside /etc/ansible/hosts
@@ -34,23 +37,40 @@ pi@192.168.0.102
 >ansible web  -m ping
 
 >ansible all --become  -m shell -a 'apt-get install -y nginx'
->ansible web --become  -m shell -a 'apt-get remove -y  nginx'
+>ansible all --become  -m shell -a 'service start nginx'
+//test by hitting > curl <hostname>
+>ansible all --become  -m shell -a 'apt-get remove -y  nginx'
+>ansible all --become  -m shell -a 'pkill nginx'
 
 --become => sudo
 all => all groups
+
 web => all machines in web group inside /etc/ansible/hosts
 
 
+ansible all -m ping --become -k -u andy
+where:
+-m ping - Use the "ping" module, which simply runs the ping command and returns the results
+-k - Ask for a password rather than use key-based authentication
+-u vagrant - Log into servers using user andy
+
+check existance of a package:
+>dpkg -l|grep nginx
 
 Ansible modules ensure indempotence - we can run the same Tasks over and over without affecting the final result.
 
 For installing software on Debian/Ubuntu servers, the "apt" module will run the same command, but ensure idempotence.
->ansible all -become -m apt -a 'pkg=nginx state=installed update_cache=true'
+>ansible all -become -m apt -a 'pkg=nginx state=present update_cache=true'
+
+value of state must be one of: absent, build-dep, latest, present, present
 
 If above command fails the try it again after following two commands:
 
 >ansible all --become  -m shell -a 'apt-get clean'
 >ansible all --become  -m shell -a 'apt-get update'
+
+-m: module
+-a: arguments
 
 
 This will use the apt module to update the repository cache and install Nginx (if not installed).
@@ -58,12 +78,46 @@ This will use the apt module to update the repository cache and install Nginx (i
 ==================================================
 nginx.yml
 
-- hosts: local
+- hosts: all
   tasks:
    - name: Install Nginx
      apt: pkg=nginx state=present update_cache=true
 
 
 >ansible-playbook --become nginx.yml
+or
+ansible-playbook --become -k -u andy nginx.yml
 
 This Task does exactly the same as our ad-hoc command
+
+
+cleck syntax:
+>ansible-playbook  nginx-start.yaml  --syntax-check
+======================
+nginx-remove.yml
+
+- hosts: all
+  tasks:
+   - name: Install Nginx
+     apt: pkg=nginx state=absent update_cache=true
+===================
+nginx-start.yaml
+
+---
+- hosts: all
+  tasks:
+   - name: Install Nginx
+     apt: pkg=nginx state=installed update_cache=true
+     notify:
+      - Start Nginx
+
+  handlers:
+   - name: Start Nginx
+     service: name=nginx state=started
+
+
+
+service module can have following state values: start, stop, restart, reload
+
+Note:Notifiers are only run if the Task is run. If I already had Nginx installed, the Install Nginx Task would not be run and the notifier would not be called.
+=======================
