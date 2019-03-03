@@ -1,0 +1,354 @@
+go packages(libraries)
+golang.org/pkg
+
+we need to set two env variable GOPATH and GOROOT
+
+
+GOROOT is like GO_HOME where go is installed.( also add export PATH=$PATH:$GOROOT/bin)
+
+GOPATH : 
+must be set to whatever location you will use to write code. This is what the official document calls the Workspace
+The GOPATH environment variable lists places to look for Go code. On Unix, the value is a colon-separated string. On Windows, the value is a semicolon-separated string.
+GOPATH must be set to get, build and install packages outside the standard Go tree
+
+=====================
+go setup in eclipse:
+install goeclipse plugin
+goto Go perspective
+goto Windows>preferences>Go   set go installation path(goroot)
+create new go project(it will have directory structure shown in figure-1.png)
+NOTE:
+you cannot directly keep go files inside src(only for eclipse), it should be kept inside a folder(see figure-1.png)
+This src folder will hold all go projects
+
+
+create hello.go
+
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello, World")
+}
+
+
+run as go application
+
+========================
+create go workspace E:/goworkspace (workspace holds src,pkg and bin)
+create src dir inside your workspace
+set GOPATH=E:\goworkspace
+now create hello.go inside src 
+
+main() function inside main package is the entry point of golang
+uppercase functions are exported others are not eg. fmt.Println("hello")
+
+from src:
+go run hello.go
+go build hello.go  //this will create hello.exe inside src
+
+Yoc can keep go files directly inside src but it is not a good practice, try to keep it as your repo name or atleast a project 
+
+Lets create a realistic folder structure and keep our go file inside that
+E:\goworkspace\src\myprogram.com\hello\hello.go
+now from src:
+>go install  myprogram.com\hello
+it will create E:\goworkspace\bin\hello.exe 
+Note:
+1.since hello.exe is an executable file it was created inside bin ,other wise it would have been installed in E:\goworkspace\pkg
+2.go install <path> //this path should be relative to $GOPATH/src
+
+
+
+
+===============
+In Go semicolons are automatically added after every line.
+
+variable declaration:
+var name string = "hello"
+var a,b,c int = 1,2,3 //default value = 0
+
+if  values are declared in same line golang can infer type :
+	var a,b,c=true,4,"hello"
+	fmt.Println(a,b,c)
+	//OP: true 4 hello
+	
+we can also get ridd of var by using := instead of =	
+  a,b,c:=true,4,"hello"
+  
+view types.PNG for seeing basic types supported by golang
+=============
+pointers:
+if we pass an int variable in a func its value will be copied to another variable.
+
+message:="hello"
+var address *string=&message//   *string => pointer of type string     & => address of
+fmt.Println(message,address,*address)//  * => value of
+//OP:  hello 0xc00003c1c0 hello
+
+changing value using pointer:
+
+message:="hello"
+var address *string=&message
+*address="hi"
+fmt.Println(message,address,*address)
+//OP:  hi 0xc00003c1c0 hi
+===============
+Types:
+golang doesnot have classes but we can defing our custom types:
+
+type Salutation string  // now Salutation type will behave just like string
+func main() {
+var s Salutation= "hello!" 
+fmt.Println(s)
+}
+//OP: hello!
+
+
+type Salutation struct{ // we can define complex type using struct
+name string
+msg string
+}
+func main() {
+var s = Salutation{"tamajit","hello"} //   OR   Salutation{msg:"hello",name:"tamajit"}   OR    Salutation{} then set s.msg and s.name
+s.msg="hello!"
+fmt.Println(s.name,s.msg)
+}
+//OP: tamajit hello!
+
+Note:
+Since Salutation starts with capital it is visible,so golang dies not need public,private or protected
+===================
+Constants:
+const PI = 3.414
+const NAME = "tamajit"
+func main() {
+fmt.Println(PI,NAME)
+}
+
+OR 
+const (
+PI = 3.414
+NAME = "tamajit"
+)
+====================
+Functions:
+golang functions can have multiple return values
+functions can also be used as a type(very similar to javascript)
+supports function literals(has the concept of clusure similar to javascript)
+
+func Add(a int,b int) int{ //return type is defined after name,if function returns nothing then no return type declaration is needed eg. main()
+	return a+b
+}
+func main() {
+fmt.Println(Add(2,3))
+}
+
+---
+Return multi value:
+
+func AddSub(a int,b int) (int,int){
+	return a+b,a-b
+}
+func main() {
+	add,sub:=AddSub(2,3) // if we dont want reference  to a return type use _
+fmt.Println(add,sub)
+}
+
+OR
+
+func AddSub(a int,b int) (add int,sub int){
+	add =a+b
+	sub=a-b
+	return
+}
+func main() {
+	add,sub:=AddSub(2,3) // if we dont want reference  to a return type use _
+fmt.Println(add,sub)
+}
+----
+
+variadic function(var args):
+
+func Sum(values ...int) (sum int){
+	for _,val := range values{
+		sum += val
+	}
+	return
+}
+func main() {
+fmt.Println(Sum(1,2,3,4))// 10
+}
+------
+
+passing function as function argument:
+
+func Transform(a int,fn func(int) int ) int{    ///func(int) int  represents a function which takes and returns an int
+return fn(a)
+}
+func Double(a int)int{
+	return a*2
+}
+func main() {
+fmt.Println(Transform(5,Double))// 10
+}
+
+Note :
+fn func(int) int
+can be replaced with:
+
+type Custom func(int) int //Custom type refers to a function which takes and returns an int
+fn Custom
+
+
+------
+function returning function:
+
+func Transform() func(int)int{  
+return func(a int)int{
+	return a*2
+}
+}
+func main() {
+fmt.Println(Transform()(3))
+}
+-------
+
+
+==========================================
+Concurrency models:
+1.processor threads=> 
+harder to code,easy to do mistake 
+highest level of control
+a process has some resources like memory and n number of threads.
+all of these threads share same memory
+For synchronization we rely on set of mechanism like mutex,semaphore etc
+over use of mutex may reduce performance
+race condition
+
+2.events=>
+this model is often found in Ui where event gets triggered on clicking or on data
+this event is handled by other part of application
+three types of object are threre  :
+a)Emitter: emit events
+b)Receiver:events are received by 0 or more receiver.these receivers responds to event.
+  Since emitter code is independent of receiver, response are treated as concurrent.
+  Emitters are free to generate more events while receivers are still processing.
+c)Event object: contains event specific info like x,y coordinate of mouse position
+
+No memory share between emitter and receiver
+loose coupling( but receiver still need to register for events)
+Event emitters have no knowledge of there receivers ,so hard to trace what is hapenning on events by emitter.
+receiver may get overwelmed by load of events
+
+3.Callback and Promise:
+Memory isolation for each callback
+callback of hell problem
+Handling multiple receivers is difficult(the previous concurrency model  can easily take care of that )
+
+4.Communicating sequential processes(CSP):
+Actor model can handle thousands of concurrent task at once
+this allows individual actors to work in isolated manner,they only work with data they own
+Actors receive events does some processing and then pass the result to some other actor
+Programming not as complicated as asynchronous programming
+Once a message passed from one actor to another ,the info in that message is no longer accessible to sender actor.
+Only  one actor is the owner of a Message at a time.Memory isolation. 
+Easily supports multiple handlers
+But Tracibility is a challange
+-------------------
+Concurrency is go:
+No thread primitives(No way to directly manipulate processor threads)
+Goroutine=> lighter thread like construct,virtual(or green) thread
+in CSP model goroutines can be considered as actors.
+
+thread requires a stack to keep track of method call and store some state.
+For processor thread this stack size is ~1MB ie. 1000 threads will take around 1GB
+But green thread are around 2KB(if more stack space is required by goroutine at runtime, go runtime allocated more space as required)
+
+By default go apps uses single logical processor we can increate by  setting GOMAXPROCS
+So by default only single goroutine will run at a time Concurrent but not parallel,afer increasing GOMAXPROCS Go will now schedule goroutine execution across different processor parallely
+main() function is also invoked by a Goroutine
+
+sequential vs concurrent vs parallel 
+
+sequential example:
+package main
+import (
+	"time"
+)
+func main() {
+	func() {
+	time.Sleep(time.Duration(100) * time.Microsecond)
+		println("hello")
+	}()
+	func() {
+	time.Sleep(time.Duration(10) * time.Microsecond)
+		println("world")
+	}()
+}
+OP:hello
+   world
+
+Note:
+Until the first annonymous function completes 2nd    annonymous function cannot run as it is sequential.
+  
+-------------
+package main
+
+import (
+	"time"
+)
+
+func main() {
+	func() {
+//	time.Sleep(time.Duration(100) * time.Microsecond)
+		for i:=1;i<=1000;i++ {
+		println("hello")
+		}
+	}()
+	func() {
+//	time.Sleep(time.Duration(10) * time.Microsecond)
+		for i:=1;i<=1000;i++ {
+		println("world")
+		}
+	}()
+time.Sleep(time.Duration(1) * time.Second) //delay main goroutine
+}
+-------------
+import (
+	"time"
+)
+
+func main() {
+	func() {
+		for i:=1;i<=10;i++ {
+	time.Sleep(time.Duration(5) * time.Microsecond)
+		println("hello")
+		}
+	}()
+	func() {
+		for i:=1;i<=10;i++ {
+	time.Sleep(time.Duration(5) * time.Microsecond)
+		println("world")
+		}
+	}()
+time.Sleep(time.Duration(1) * time.Second) //delay main goroutine
+}
+
+--------------
+cuncurrent example
+
+
+
+  
+
+
+
+
+
+
+  
+
+
+

@@ -148,7 +148,17 @@ server.port=8888
 
 start app and hit localhost:8888/serviceInfo
 O/p http://192.168.1.1:8080
-
+------------
+#intance-name shwon in dashboard
+eureka.instance.instance-id=${spring.application.name}${random.int}
+#original link
+eureka.instance.hostname=localhost
+#use ip in link instead of hostname
+eureka.instance.prefer-ip-address=true      
+#make eureka check for health after regular interval, implement  HealthIndicator
+eureka.client.healthcheck.enabled=true       
+#enable eureka to unregister service
+eureka.server.enableSelfPreservation=false
 ---Service Discovery with resttemplate----
 
 @SpringBootApplication

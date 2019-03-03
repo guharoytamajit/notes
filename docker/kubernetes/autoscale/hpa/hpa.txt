@@ -1,4 +1,4 @@
-minikube start --extra-config kubelet.EnableCustomMetrics=true --vm-driver=virtualbox
+minikube start --extra-config=kubelet.EnableCustomMetrics=true --memory=5192 --cpus=3 --kubernetes-version=v1.10.0  --vm-driver=virtualbox
 
 kubectl create -f https://raw.githubusercontent.com/luksa/kubia-qps/master/qps-deployment.yaml
 

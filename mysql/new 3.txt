@@ -1,0 +1,39 @@
+create table emp(
+serial int NOT NULL AUTO_INCREMENT,
+eid int not null,
+ename VARCHAR(10) primary key,
+dob date
+married varchar(3) check(in '') 
+);
+
+
+CREATE TABLE Product (
+maker varchar(10), 
+model varchar(50), 
+type varchar(50),
+CONSTRAINT product_PK PRIMARY KEY (model),
+CONSTRAINT maker_ch CHECK(maker IS NOT NULL),
+CONSTRAINT type_ch CHECK(type IS NOT NULL)
+);
+
+CREATE TABLE Persons (
+    ID int  AUTO_INCREMENT,
+    LastName varchar(255) NOT NULL,
+    FirstName varchar(255),
+    Age int,
+    PRIMARY KEY (ID)
+);
+
+
+CONSTRAINT CHK_Person CHECK (Age>=18 AND City='Sandnes')
+CHECK(available IN('Yes','No')) DEFAULT 'Yes';
+CONSTRAINT maker_ch CHECK(maker IS NOT NULL),
+ Column_name TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+
+
+SELECT COUNT(CustomerID), Country
+FROM Customers
+GROUP BY Country
+HAVING COUNT(CustomerID) > 5
+ORDER BY COUNT(CustomerID) DESC;

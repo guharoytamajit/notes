@@ -10,6 +10,8 @@ Oozie is an orchestration system for Hadoop jobs.
 
 actions can be mapreduce,hive query,pig script,shell,java program etc
 
+multiple action forms a workflow(DAG of actions)
+
 At any point you might have 1000s of Hadoop jobs running, many of which would be inter-dependent on one another.
 
 Managing these manually or with basic scripting does not scale.

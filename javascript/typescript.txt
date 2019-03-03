@@ -1,0 +1,326 @@
+problems with javascript
+
+function addNumber(a,b){return a+b;}
+
+>addNumber(2,3)
+5  //ok
+>addNumber("1",0)
+10  //problem 
+>addNumber(2)
+NaN // problems
+>addNumber(1,2,3)
+3   //problems
+
+person={name:"andy"}
+person.barcode=12345 //problem we can add and random property,which is error prone
+-------------
+Typescript is a superset of js it also includes latest ecmascript features, typescript will also make sure it runs on older browser
+Typescript can be transpiled to js
+TS is like typed version of JS
+--------------
+ts can be installed as a npm module
+>npm install -g typescript
+
+
+hello.ts:
+let fn=()=>"hello world"
+
+compile it :
+tsc hello.ts
+
+generated js file- hello.js:
+var fn = function () { return "hello world"; };  //ts making sure it also runs on  older browser
+-----
+let a:number;
+let b:boolean;
+let c:string;
+let d:number|string //d can be assigned number or string. also called "UNION"
+
+//a=""   ts compilation will fail if we try to assign string to number type
+b=true
+c="hello"
+d="world"  //ok
+d=5        //ok
+-----------------
+in ts undefined and null are both primitive data type 
+var a:null
+var b:undefined
+var c:string
+a=undefined  //ok
+a=null       //ok
+//a=7        //error
+b=null       //ok
+c=""          //ok
+c=null        //ok
+
+-----------------
+var a: any    //any is default type,if no type provided by default it will be any(or it can refer value of all type)
+var b:number[]         //number array
+var c:[boolean,string] //2 tuple 1st value type should be boolean and 2nd should be string
+
+a=1  //any type can be assigned to a
+a=""
+a=[]
+//b=3  error
+b=[1,2,3]
+b.push(5)  //typescript knows push is a method of array hence allowed
+//b.ush(5)  //typescript knows "ush" is not a method of array hence not allowed
+//b.push('6') //typescript knows the type of array and will not allow any other type but number
+//b=['1',2]
+c=[true,"hello"]
+//c=[true]   error
+-------------------
+If typescript compiler there is an ts error but it is a valid js. then tsc will geve error but also gererate js, as it is a superset of js it will allow js.
+test.ts:
+var v:number
+v="hello"
+  
+Above ts will give error while compiling but it will still produce test.js as the above code is a valid js
+
+test.js:
+var v;
+v = "hello";
+-------
+ function add(a:number,b:number):number{
+ //takes two number and returns a number
+    return a+b;
+}
+
+add(5,6)
+//add("1",0)   //error
+// add(5,6,7)  //if number of args doesnot match ts will give error,even if remaining types are correct
+// add(6)      //error no of args mismatch
+
+Note:in above commented code ts gives error, but still it will produce js as they are valid js.
+
+we can make few arguments optional using "?",then ts will not complain if optional argument is missing:
+function add(a:number,b?:number):number{
+    return a+b;
+}
+add(5)  / now this call will not give compilation error as 2nd argument is optional
+
+Note:optional argument if present should be at the last
+
+we can also provide default value if arguments are missing in call:
+function add(a:number,b:number=0):number{
+    return a+b;
+}
+add(5)
+Note:default argument(1 or more ) if present should be at the end
+------------
+Implicit typing:
+If a variable is declared and assigned at the same time,ts implictly refers the type
+
+var a=10 // type of a will be set to number implicitly
+//a="hello" //ts will give error, string cannot be assigned to type number
+
+var greet=()=>"hello"
+var msg=greet()
+//msg=9 //ts will give error, number cannot be assigned to type string
+----------------
+class Person{
+    firstName:string;
+    lastName:string;
+    getFullName(){
+        this.firstName+" "+this.lastName;
+    }
+	constructor(){
+        console.log("constructor called")
+    }
+	toStr
+}
+let p:Person
+p=new Person()
+p.firstName="tamajit"
+p.lastName="guha roy"
+console.log(p)
+
+>tsc  hello.ts && node hello.js
+constructor called
+Person { firstName: 'tamajit', lastName: 'guha roy' } 
+
+Note:
+declaring constructor is optional
+you connot dec;are more than one constructor(constructor overloading not allowed)
+
+alternative code using constructor with args:
+class Person{
+    firstName:string;
+    lastName:string;
+    getFullName(){
+        this.firstName+" "+this.lastName;
+    }
+    constructor(fn:string,ln:string){
+        this.firstName=fn;
+        this.lastName=ln
+    }
+}
+let p=new Person("tamajit","guharoy")
+console.log(p)
+-------------------------------
+Inheritance:
+class Person{
+    name:string;
+greet(){
+    console.log("good morning")
+}
+}
+
+class Programmer extends Person{
+    greet(){
+        console.log("hello world")
+    }
+    greetlikeNormalGuy(){
+super.greet()// calls parent's method 
+    }
+}
+
+let p=new Programmer()
+p.greet()
+p.greetlikeNormalGuy()
+OP:
+hello world
+good morning
+
+Note: 
+use this.method() to call a method in same class and super.method() to call a parent class method
+similarly inside constructor using super() you can call parent constructor
+
+concept of polymorphism is also there:
+let p:Person=new Programmer()
+p.greet() //due to polymorphism Programmer.greet() will be called
+//p.greetlikeNormalGuy() tsc will complain because class person has no such method
+
+--------------------
+Interface:
+
+interface  Person{
+    name:string;
+    greet():string; 
+}
+class Programmer implements Person{
+    name:string;  //we need to declare variables again while implementing
+    greet(){
+    return "hello world"
+    }
+}
+
+let p:Person=new Programmer()
+console.log(p.greet())
+
+//we can also create interface implementation using javascript object
+//it should have all variables and pethod of Person interface
+
+let p1:Person={name:"tamajit",greet:()=>"hey"} //this js object can have extra variables but it cannot have less which is presennt in Person interface
+var p2={name:"tamajit",location:"",greet:()=>"hey"}
+p1=p2 //p1 can refer p2 as p2 has all the members(variable or method) wgich is part of p1. But calling p1.location would result in compilation because p1 object's interface is not aware of this property
+//p2=p1 this would have coused compilation error as p2 object's interface has a location property which is not present in p1 object
+
+OR
+
+var v1={a:""}
+var v2={a:"",b:""}
+v1=v2  //ok because v2 has all the property which v1 has
+//v2=v1 //error as v1 doesnot have b property it cannot be assigned to v2
+
+so when we do assignment like :
+let  p={name:"",age:24}
+implicitly an interface/class is created with properties of provided js object. and now p is an instance of that new implicit class/interface 
+--------------
+By default scope of instance variables and method inside class is public
+But it can also be private or readonly or protected like shown below
+
+class  Person{
+   private firstName:string;
+   private lastName:string;
+    
+   constructor (firstName:string,lastName:string){
+       this.firstName=firstName
+       this.lastName=lastName
+   }
+   getFirstName(){return this.firstName}
+   getLastName(){return this.lastName}
+   setFirstName(fn:string){this.firstName=fn}
+   setLastName(ln:string){this.lastName=ln}
+}
+let p:Person=new Person("tamajit","guha roy")
+
+there is a shorthand of above code:
+
+class  Person{
+   constructor (private firstName:string,private  lastName:string){ //now no need to declare instance variable and no need to assign them value
+   }
+   getFirstName(){return this.firstName}
+   getLastName(){return this.lastName}
+   setFirstName(fn:string){this.firstName=fn}
+   setLastName(ln:string){this.lastName=ln}
+}
+let p:Person=new Person("tamajit","guha roy")
+------------
+Readonly modifier can only be set once and then they become read only.trying to set them will give compilation error.
+
+class  Person{
+   constructor (readonly firstName:string,readonly  lastName:string){
+   }
+   getFirstName(){return this.firstName}
+   getLastName(){return this.lastName}
+}
+let p:Person=new Person("tamajit","guha roy")
+console.log(p)
+
+---------------------
+enum:
+enum DaysOfWeek{SUN,MON,TUE,WED,THU,FRI,SAT}
+let today:DaysOfWeek=DaysOfWeek.SUN
+if(today===DaysOfWeek.SUN){
+    console.log("holiday")
+}
+----------------
+generics
+example1:
+function echo<T>(val:T):T{
+return val;
+}
+let a:number=echo(3)
+let b:string=echo("")
+
+example2:
+interface Animal{sound();}
+class Dog implements Animal{sound=()=>console.log("woof")}
+class Cat implements Animal{sound=()=>console.log("mao")}
+
+function echo<T extends Animal>(val:T){
+    val.sound()
+} 
+echo(new Dog())
+
+example3:
+class List<T>{
+private list:T[]=[];
+add(val:T){
+this.list.push(val)
+}
+remove(index:number){
+    this.list.splice(index,1)
+} 
+print(){
+console.log("list content",this.list)
+}
+}
+
+let l:List<number>= new List<number>()
+l.add(4)
+l.add(1)
+l.add(7)
+l.print()
+l.remove(1)
+l.print()  
+--------
+module:
+
+
+------
+tsc hello.ts --out hi.js --watch
+
+tsc --init //create config file ie. tsconfig.json
+we can set all our configuration on tsconfig.json  then >tsc command will be enough

@@ -1,0 +1,27 @@
+download flutter*.zip for your OS
+unzip it , add its  bin on $PATH
+
+create a flutter workspace say E:/flutterworkspace
+open command command prompt in flutter workspace and create your app using following command 
+>flutter create first_app
+
+
+install AndroidStudio
+we can create a new emulator from tools>AVD Manager (enable hardware accelerator  for better performance)
+then open our first_app project using AndroidStudio
+
+Install dara and flutter plugin:
+AndroidStudio will ask you to install missing dart plug-in(see install_plugin.PNG). we need to install it.
+It will ask to restart AndroidStudio ,restart it 
+At bottom right it will display "plugin suggestion" (plugin_suggestion.PNG) expand it and click "configure plugin" then ok.This will install flutter plugin.You can restart again.
+
+install google ubs driver:
+goto settings search for "android sdk", inside "sdk tools" tab select google usb driver see google_usb_driver.PNG
+
+if android sdk is not in the default location which is C:\Users\{username}\AppData\Local\Android\Sdk
+we need to set ANDROID_HOME env variable which will point to android sdk location.
+and to set PATH=%ANDROID_HOME%/tools;%ANDROID_HOME%\platform-tools
+Note: you can identify android sdk location by presence of folders like emulator,build-tools,platforms,platform-tool etc
+========
+
+main() function inside lib/main.dart is the starting point of your flutter app and we should not rename the file .

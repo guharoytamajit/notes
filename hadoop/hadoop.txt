@@ -79,7 +79,7 @@ Start HDFS(namenode ,secondary namenode ,datanode):
 Start YARN(Resource manager and node manager):
 >start-yarn.sh
 
->jsp //to check is all the services has started.
+>jps //to check is all the services has started.
 ===============
 Distributed mode:
 Install hadoop in all nodes.

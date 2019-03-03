@@ -1,0 +1,227 @@
+
+Can be used for moving differents types of data into hadoop.
+Very well suited for data ingestion from streaming sources.
+
+agent can have one or more source,channel and sink
+source(receiver) to chnnel(buffer), many to many relationshp
+channel to sink(writer), one to many relationship
+so sink can consume from one channel only
+
+channel can be of two types memory(faster) and file(fault tolerant)
+Sources receive data in the form of events
+source PUSHes data to channel
+channel buffers events
+If channel capacity(configurable from property) is full it will stop accepting more data from the Source 
+sink POLLS/pulls (data is removed from channel after getting ACK from sink this is unlike kafka) from channel and PUSHes to endpoint(destination)
+
+source=>spooling directory(flume ageent will watch for changes in this dir),exec,syslog
+sink=>console log,local directory,HDFS,HBase
+
+start a flume agent:
+>flume-ng agent --conf-file spool-to-log.properties --name agent1
+name=>agent name
+conf-file>contains configuration of different agents,conf-file can have n number of agents defined but only the one you specify in --name will be active
+
+we start one agent at a time
+
+-----------------
+Say you have an application that generates files and writes them to a specified directory Ex: Logfiles
+You can configure Flume to “watch” for new files in the directory. This is called a Spooling Directory
+Whenever a new file is added to the directory
+1. Flume will read it
+2. Eventually push the data to a specified endpoint
+
+Files added to the Spooling Directory should be
+# 1: Text files / custom deserializer
+    -The Spooling Directory Source expects that the files written will be text files
+	-To read files in any other format, you have to write a custom deserializer in Java and plug it in your properties file
+# 2: Immutable
+    -Once Flume reads a file, it will mark it as completed and move on
+	-Flume expects that you will not try to modify the file later
+# 3: Unique in name
+    -If you try to add a file with the same name as a previous one, the Flume Agent will throw an exception and quit
+
+
+spool-to-log.properties:
+
+agent1.sources =source1
+agent1.sinks = sink1
+agent1.channels = channel1
+
+
+agent1.sources.source1.channels = channel1
+agent1.sinks.sink1.channel = channel1 
+
+agent1.sources.source1.type = spooldir
+agent1.sources.source1.spoolDir  = /Users/swethakolalapudi/tmp/spooldir
+
+agent1.sinks.sink1.type = logger   #here we are simply pushing the data in console log
+agent1.channels.channel1.type = file 
+
+
+Flume Events:
+A flume event is the base unit of communication between source,channel and sink
+source receives data in form of flume events then pushes these events  to channel
+channel buffers a number of flume events
+sink polls events from channel and forward them to endpoint
+if data is written safely in endpoint sink sends ACK to channel and the event is removed from channel
+
+Flume events consists of a key-value pair
+key=>Event headers  (metadata) eg eventid etc
+Value=>Event body(payload/data).This is usually a byte array representing  a single record of data.
+        Event body has to completely fit in the channel,if a record is bigger than channel capacity flume wont be able to transport that event.Then directly copy instead of using flume.
+--------------------
+spool-to-hdfs.properties:
+
+agent1.sources =source1
+agent1.sinks = sink1
+agent1.channels = channel1
+
+agent1.sources.source1.channels = channel1
+agent1.sinks.sink1.channel = channel1 
+
+agent1.sources.source1.type = spooldir
+agent1.sources.source1.spoolDir  = /Users/swethakolalapudi/tmp/spooldir
+
+agent1.sinks.sink1.type = hdfs # here you can also pass Fully qualified classname of HDFS sink class ie org.apache.flume.sink.hdfs.HDFSEventSink, hdfs is an alias of full class name
+agent1.sinks.sink1.hdfs.path = /tmp/flume #path inside hdfs where original data will be stored
+agent1.sinks.sink1.hdfs.filePrefix = events 
+agent1.sinks.sink1.hdfs.fileSuffix = .log 
+agent1.sinks.sink1.hdfs.inUsePrefix = _   #this prefix indicates this wile is open and being written into,once file is closed this prefix is removed.
+agent1.sinks.sink1.hdfs.fileType = DataStream  #format of hdfs file default SequenceFile
+
+agent1.channels.channel1.type = file 
+---------
+The filename in hdfs will be like <filePrefix>_<some number><fileSuffix>. here it will be events_<some number>.log
+So original filename in spool directory will not be preserved inside HDFS.Only file content is kept.
+The content of each file in the spooling directory will become the body of 1 flume event,the event is written to HDFS
+1 src file = 1 flume event
+
+How do we decide how many events will go into one HDFS file?(n flume event goes to one hdfs file  with name <filePrefix>_<some number><fileSuffix>)
+the files in hdfs are rolled over every 30 seconds(by default which can be overwritten)
+You can change the interval by setting the rollInterval property
+Instead of rolling over by time you can roll over the files bt event count(rollCount property) or cumulative event size(rollSize property)
+
+what are agent1.sinks.sink1.hdfs.fileType options?
+SequenceFile(default)=>is used when you want to write the events in binary format. It expects that whoever is reading the files knows how to serialize the binary data to object/data
+Datastream=>For uncompressed file format.Default format is TEXT. For other formats you have to write a serializer class and plug it in the sink's serializer property  
+CompressedStream=>For compressed file formats eg gzip,bzip2 etc.
+
+==========
+hadoop-to-hdfs.properties:
+
+httpagent.sources = http-source
+httpagent.sinks = hdfs-sink
+httpagent.channels = ch
+
+httpagent.sources.http-source.channels = ch
+httpagent.sinks.hdfs-sink.channel = ch 
+
+# Define / Configure Source 
+###############################
+httpagent.sources.http-source.type = org.apache.flume.source.http.HTTPSource
+httpagent.sources.http-source.channels = ch
+httpagent.sources.http-source.bind = localhost
+httpagent.sources.http-source.port = 8989
+
+
+# HDFS File Sink
+###############################
+httpagent.sinks.hdfs-sink.type = hdfs
+httpagent.sinks.hdfs-sink.hdfs.path = /tmp/flume/http
+httpagent.sinks.hdfs-sink.hdfs.filePrefix = events 
+httpagent.sinks.hdfs-sink.hdfs.fileSuffix = .log 
+httpagent.sinks.hdfs-sink.hdfs.inUsePrefix = _
+httpagent.sinks.hdfs-sink.hdfs.fileType = DataStream 
+
+# Channels
+###############################
+httpagent.channels.ch.type = memory
+httpagent.channels.ch.capacity = 1000  #number of events channel can hold,channel will stop accepting new events  if this limit is crossed.
+
+
+Click tracking App:
+Lets say you are tracking clicks on  a webpage
+Every click generate some action in the form of HTTP requests
+here name of the flume agent is "httpagent"
+One of the HTTP requests could be posting an event to flume
+HttpSource acts just as if there were a webserver at a specified host and port.
+If you made POST request to this webserver, those data will be processed by flume
+The requests should be posted in the form of JSON {"headers":{},"body": payload}
+each http POST results in 1 flume event
+You can also write  custom http handlers for events posted in any other format than JSON eg XML 
+
+>flume-ng agent --conf-file http-to-hdfs.properties --name httpagent
+
+$ curl -X POST \
+-H 'Content-Type: application/json; charset=UTF-8' \
+-d ‘[ {"headers" : {"eventheader1" : "event1", \
+”eventheader2" : "event2" } , \
+”body" : "This is the body1" }]' \
+http://localhost:8989
+-------------
+event bucketing:
+When you use a HDFS sink, you can use event headers to dynamically choose the path where events are written.
+
+let change following property in hadoop-to-hdfs.properties: 
+httpagent.sinks.hdfs-sink.hdfs.path = /tmp/flume/http/%{topic}
+
+The sink will now look for an event header called topic.Events are bucketed based on their topics and written to the relevant path
+
+For example:
+{
+"headers" : {"topic" : "topic1"} ,
+”body" : "This is the body1"
+}
+Written to a file in /tmp/flume/http/topic1
+
+{
+"headers" : {"topic" : "topic2"} ,
+”body" : "This is the body2"
+}
+Written to a file in /tmp/flume/http/topic2
+
+So this way depending on header value we can route content in different HDFS file
+==================================
+Load HBase:
+
+spool-to-hbase.properties
+
+agent1.sources =source1
+agent1.sinks = hbaseSink
+agent1.channels = channel1
+
+agent1.sources.source1.channels = channel1
+agent1.sinks.sink1.channel = channel1 
+
+agent1.sources.source1.type = spooldir
+agent1.sources.source1.spoolDir  = /Users/swethakolalapudi/tmp/spooldir
+
+agent1.sinks.hbaseSink.channel = channel1
+agent1.sinks.hbaseSink.type = org.apache.flume.sink.hbase.AsyncHBaseSink  #class name for using HBase as sink
+agent1.sinks.hbaseSink.table = test_table    #hbase table,should already exist ,flume will not create if does not exist
+agent1.sinks.hbaseSink.columnFamily = test   #hbase column family,should already exist
+agent1.sinks.hbaseSink.serializer=org.apache.flume.sink.hbase.SimpleAsyncHbaseEventSerializer  #describes how data should be written to hbase,it will write the entire payload to a specified column
+agent1.sinks.hbaseSink.serializer.payloadColumn = pCol
+
+agent1.channels.channel1.type = file 
+
+why use flume to load HBase?
+You might not want to create a new Java application just to do the one-time migration
+
+You can write a script to dump your data as txt files in a Spooling directory
+Flume will take the txt files and put the data in HBase
+
+You can implement a custom hbase sink serializer, if you want to do custom processing on the payload and insert into specific columns
+Before running, make sure the HBase config file hbase-site.xml is available in your classpath,Flume will use this to connect to your HBase instance
+==================
+
+upto 6.1 flume&sqoop.pdf page 241
+
+
+
+
+		
+		
+		
+

@@ -1,0 +1,206 @@
+ZooKeeper is a distributed coordination service to manage large set of hosts(distributed application).
+It exposes a simple set of primitives to implement high level services for:
+  synchronization,configuration maintenance,groups and naming(it provides building blocks for these services)
+
+uses:
+-Maintain configuration information
+  eg sharing config info across all nodes
+-Naming Service
+  eg finding a machine in a cluster of 1000 of servers
+-Providing distributed synchronization
+  eg Lock,Barrier,Queue etc
+-Provide group service
+  eg Leader election or more
+
+Most commonly used for synchronizing information across nodes in the cluster
+
+Created at Yahoo,implemented in java
+
+Coordination services are hard to get right and prone to problems like deadlock or race condition.
+Race condition- 
+A race condition occurs when two or more threads can access shared data and they try to change it at the same time. Because the thread scheduling algorithm can swap between threads at any time, 
+you don't know the order in which the threads will attempt to access the shared data. Therefore, the result of the change in data is dependent on the thread scheduling algorithm.
+
+Problems often occur when one thread does a "check-then-act" (e.g. "check" if the value is X, then "act" to do something that depends on the value being X) and another thread does 
+something to the value in between the "check" and the "act". E.g:
+
+if (x == 5) // The "Check"
+{
+   y = x * 2; // The "Act"
+
+   // If another thread changed x in between "if (x == 5)" and "y = x * 2" above,
+   // y will not be equal to 10.
+}
+
+In order to prevent race conditions from occurring, you would typically put a lock around the shared data to ensure only one thread can access the data at a time.
+
+// Obtain lock for x
+if (x == 5)
+{
+   y = x * 2; // Now, nothing can change x until the lock is released. 
+              // Therefore y = 10
+}
+// release lock for x
+
+
+Deadlock- two or more threads waiting for eachother,while holding some resource which other thread require.
+----------
+Note:here node=server 
+Zookeeper ensemble:A group of zookeeper servers(or nodes),Minimum 3 nodes are required to create ensemble
+a 7 node ensembe can lose upto 3 nodes and still work
+zookeeper has two types of nodes available leader node and follower node.
+leader node:leaders are selected through election.
+             It is recommended to have odd number of nodes to avoid election conflict.
+             can serve both read and write requests
+slave nodes: can only serve read requests
+
+There is only one leader node(server) remaining are followers see cluster.PNG
+If leader node fails another leader is elected
+All zookeeper servers(nodes) must know about each other
+
+zookeeper client generally holds list of server addresses and connect one of the server(node),if connection fails it tries to connect next server in list.
+Read request from client can be served by any zookeeper node (master/follower), but write request always go through master.
+
+standalone mode(no HA):
+In this mode there is only one zookeeper server,all client talks to this node only.  
+
+Other components of zookeeper nodes:
+Request Processor(Leader node only):
+ -Active in leader node and is responsible for processing write requests.
+ -After processing it sends changes to the follower nodes
+
+Atomic Broadcast:
+  -Present in both leader and follower nodes.
+  -It is responsible for sending changes to other nodes.
+
+In-Memory database or Replicated database:
+  -present in both leader and follower,each node has its own database.
+  -It is responsible for storing data in zookeeper
+  -Data is also written to filesystem providing recoverability in case of cluster failure.
+  -read requests can be directly served from  In-Memory database 
+==============================================
+zookeeper stores information in :
+-momory: for better latency
+-filesystem: to recover after failure
+zodes are logical abstruction for storing data
+
+usecase:
+suppose you have 2 machine node1 and node2.Your goal is keeping the xml configuration same in node2 which is updated in node1.
+you can accomplish this by using zookeeper
+steps:
+user update xml in node1
+node1 update the changes in znode of zookeeper
+node2 gets updated by zookeeper
+As a result node2 is in sync with node1
+
+usecase2:
+for master election any a master-slave distributed system when a master fails.
+
+Hadoop Active namenode and Standby namenode coordination:
+
+
+==============================================
+ZNodes:
+Every node in zookeeper tree is referred as znode
+each znodes can store upto 1MB of data
+znodes are organized very similar to filesystem, and only identified by absolute path
+Znode also contains:
+  -version number(every time znode modified its version increases)
+  -ACL(for authorization)
+  -timestamp
+  -data length(max 1MB)
+
+Znodes can be of three types:
+1.Persistance: Alive until they are explicitly deleted.
+2.Ephemeral: Alive until client connection is alive
+3.Sequential: either Persistance or Ephemeral, it plays an important role in locking and synchronization
+-----------
+Sessions & Watches
+Sessions:
+-zk clients is configured with a list of servers in the ensenble
+-Requests in a session are executed in a FIFO order
+-once session is established the session id is assigned to the client
+-client sends heartbeat to keep the session valid
+-session timeout are ususlly represented in milliseconds
+-as the session ends all the ephemeral nodes created during that session also gets deleted.
+
+Watches(Notification):
+-mechanism for clients to get notification about the changes in the zookeeper
+-clients can set watch while reading a particular node
+-the changes could be data associated to znode or changes in znode's children
+-watches are triggered only once, user need to set watch again after using it once
+-if session expires ,watches are also removed
+
+also see watches.PNG
+=========================
+Consistency Guarantees provided by zookeeper:
+1.Sequential Consistency
+  -client updates are applied in order
+2.Atomicity
+  -Update success or fail(no partial update)
+3.Single system image
+  -All client sees same view of zookeeper service regardless of server
+4.Reliability
+  -If update succeeds then it persists
+5.Timeliness
+  -Client view of system is guarenteed up-to-date within a time bound
+    =>generally within tens of seconds
+    =>if client does not see system changes within time bound, then service outage.
+
+Zookeeper Does NOT Guarantees:
+=>Simultaneously consistent cross client views
+=>Different clients will not always have identical views of Zookeeper data at every instance in time.
+   -zk provides sync() method that forces a Zookeeper ensemble server to catch up with leader
+ 
+
+
+==============================================
+start zookeeper:
+conf/zoo.properties:
+dataDir=E:/temp
+
+>bin/zkServer.cmd //start zk
+
+>zkCli.cmd -server localhost:2181
+>help
+ZooKeeper -server host:port cmd args
+        stat path [watch]
+        set path data [version]
+        ls path [watch]
+        delquota [-n|-b] path
+        ls2 path [watch]
+        setAcl path acl
+        setquota -n|-b val path
+        history
+        redo cmdno
+        printwatches on|off
+        delete path [version]
+        sync path
+        listquota path
+        rmr path
+        get path [watch]
+        create [-s] [-e] path data acl
+        addauth scheme auth
+        quit
+        getAcl path
+        close
+        connect host:port
+
+>ls /
+[zookeeper] //this is a znode
+//lets create HelloWorld znode
+>create /HelloWorld ""
+Created /HelloWorld
+>ls /
+[zookeeper, HelloWorld]
+>delete /HelloWorld 
+>ls /
+[zookeeper] 
+
+
+ls /cluster
+get /cluster/id
+==========================
+Two threads are spawned when a zk object is created
+=>IO thread for all IO operations
+=>Event thread for event callbacks
