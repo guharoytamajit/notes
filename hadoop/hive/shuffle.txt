@@ -1,0 +1,20 @@
+
+>hive
+>set mapreduce.job.reduces=1;
+>set hive.auto.convert.join =false; 
+
+Map only operation:(verify them on Jobhistory server YARN. To check shuffling Take a look at counters>reduce shuffle bytes)
+>select * from user where id-123;
+
+Map and Reduce operation with little shuffle:
+>select count(*) from user;
+
+
+Map and Reduce operation with more shuffle:(as it makes sure all states are together)
+>select avg(id) from user where state < 'LA' group by state  
+
+
+join operations will have large shuffle 
+
+some hive queries may launch more than one MR job:for example  join followed by sort by clause
+Our goal should be reduce shuffle as much as possible, for example if you are doing same join multiple times you should instead make a prejoin table and reuse it.   

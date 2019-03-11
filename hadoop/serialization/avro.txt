@@ -1,0 +1,87 @@
+Avro is a Remote procedure call and data serialization framework which is also used as storage format for Hadoop ecosystem.
+Avro uses JSON for defining schema,avro file contains binary data.Avro data is stored along with its schema.
+avro file extension=> .avro ; avro schema extension => .avsc
+It supports rich datastructure like record,enum,array,map etc.
+Converting a normal data into avro is called serialization.
+While readng Avro file there is no need to supply schema explicitly as it is already a part of avro file.
+As avro schema is JSON schema evolution becomes very easy much efficient.
+
+
+Row oriented (Avro,thrift,protobuffer):
+
+For table:
+a1,b1,c1
+a2,b2,c2
+a3,b3,c3
+a4,b4,c4
+
+row oriented Avro will store it as:
+a1,b1,c1,a2,b2,c2,a3,b3,c3,a4,b4,c4
+
+Advantages of Row oriented format:
+1.Write and forget 
+2.Requires less memory than column oriented
+3.Guaranteed data is written when flushed,synced(written on disk)=> Much better than Parquet for writing,less chances of data loss while write operation.
+
+avro file starts with a header and has a set of avro blocks
+set of rows(with column) forms a avro block 
+multiple avro blocks are delimited by sync markers(random 16byte sequence)
+sync markers separate avro blocks
+avro is encoded and compressed at avro block level.
+All sync marker  bytes are stored in avro header
+
+Avro header:
+1.Avro schema
+2.key-value metadata(eg what compression algo used)
+3.all 16byte sync markers
+
+1 HDFS block can have n number of avro blocks
+
+Schema and Encoding:
+Schema is required to decode data.
+
+----------------------------
+Schema Types:
+Primitives: boolean ,int,long,float,double,string,fixed(fixed length string),binary
+Record: for complex type same as struct
+Union
+null
+Map & List
+
+-------------------
+Schema Evolution:
+Add fields to records but with a  default value
+Remove fields from records
+Promote types without data loss int to long,foat to double etc
+Update Reader with the sehema before you update Writer(Readers can read old data,Writer should not write new data that reader cannot read)
+Do this at a table level
+Ensure backward-compatibility. New schema can read old files(not vice-versa)
+Impala users : donot remove columns,only add new fields at the end(order matters)
+-------------------
+Object Model:
+The inmemory representation of data that u work with whenever u read data into your program
+It has three primary object models:
+1.Generic
+2.Specific
+3.Reflect
+
+Generic:
+For any runtime schema
+Build tools for any data
+Basis for JSON and CSV conversation
+
+Specific:
+Compile a schema into java objects(or other language)
+Type safe (extra type validation)
+Works like Thrift and Protobuf
+
+Reflect:
+Generate a schema from  Java classes
+Works directly with instance
+Some performance hit(not good)
+==================
+use avro-tools command utility to do interesting things with avro.
+>avro-tools tojson abc.avro #view data as json
+>avro-tools getmeta abc.avro #view dmetada from avro header(eg avro schema,compression algo used etc)
+>avro-tools getschema abc.avro #view avro schema
+>avro-tools compile schema test.avsc ./ #generate java class from avro schema(specific mode)

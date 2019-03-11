@@ -209,10 +209,18 @@ we can perform  CRUN ion two ways:
 2.using java API
 
 -----------------
+Hbase web-ui:
+http://host:16010
+-----------
 Creating a Table using shell:
 
 create ‘<table name>’,’<column family1>’ ,’<column family2>’ 
 eg. > create 'emp', 'personal data', 'professional data'
+
+create table with 4 separate regions:
+>create 'user','f1',SPLITS =>['0250000','0500000','0750000']
+another example,split in three regions :
+>create 'user','f1',SPLITS =>['h','m']
 ----------------
 Creating a Table using java:
 

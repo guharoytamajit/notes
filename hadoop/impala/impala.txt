@@ -1,0 +1,86 @@
+Impala is an analytic database
+ -Different from relational database 
+ -A massively parallel processing(MPP) database(use several machines for computation)
+
+Created by Cloudera, now an  Apache project written in C++
+JDBC support
+Use SQL for querying, expandable with custom user defined functions.
+Shares same data which is also used by hive tables
+ -Supports formats like Parquet and Avro
+ -Various compression formats supported
+ 
+ 
+ See architecture.png and flow.png
+ 
+ 
+ Uses cases for Impala:
+ Business Intelligence(BI):
+  -Impala provides fastest way to run SQL for BI tools
+ Data Analytics:
+  -Run fast queries on Impala,Run long query on Hive
+ Data Science:
+ Dashboards:
+ ==================
+ Impala Shell:
+ You use the Impala shell to interact with Impala
+ >impala-shell
+ 
+ Connect to another Impala daemon
+ >impala-shell --impalad=hostdns:port
+ 
+ getting list of commands:
+ >impala-shell --help
+ 
+ Hue: 
+ It is a browser based way to interact with Impala(it has auto completion feature ctrl+space)
+ We can also  save a query and reuse it.
+ ==============
+ Impala datasources:
+ 1.Regular HDFS files.
+ 2.Hbase as datasource, we can run queries on HBase tables.
+ 
+ Impala dataformats:
+Row oriented formats:
+  - delimited text,SequenceFile and Avro
+Parquet
+Support common compression formats like snappy,gzip etc.  
+
+
+Create tables:
+Need to define table name,columns with types,location(HDFS,S3(s3 queries will be slower compared to HDFS)) and format.
+
+>impala-shell
+>create table cardssimple(card STRING,suit STRING)
+ ROW FORMAT FELIMITED
+ FIELDS TERMINATED BY '\t';
+ 
+by default it will be created in /user/hive/warehouse/<table_name>
+
+the tables can be located outside of /user/hive/warehouse which are called external tables
+>create table cardssimple(card STRING,suit STRING)
+ LOCATION '/user/vmuser/cards';
+ 
+External table's data is not deleted during a table DROP, use of external table is recommended  
+ 
+>describe cardssimple;
+
+see impala-types.png to see impala supported simple types
+
+Impala also supports complex types:
+Array,Map,Struct
+
+Loading data:
+>LOAD DATA INPATH '/user/vmuser/playing_card.tsv' INTO TABLES cards;
+>LOAD DATA INPATH '/user/vmuser/playing_card.tsv' OVERWRITE INTO TABLES cards; //overwrites old data
+
+Individual insert are  supported but not update.
+
+   
+ 
+ 
+
+ 
+
+ 
+
+ 

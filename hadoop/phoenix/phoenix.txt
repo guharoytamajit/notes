@@ -1,0 +1,106 @@
+Enables SQL developers to enjoy the power of HBase
+Tranlates SQL to native HBase operations
+Very light and fast layer at top of HBase
+Support for indexes and views
+has commandline interface
+has JDBC connectivity
+
+Developed at salesforce,Apache managed open source
+
+
+start phoenix:
+>cd $Phoenix_HOME/bin
+>sqlline.py  localhost:2181:/hbase-unsecure  #usin zookeeper we are making phoenix aware of hbase
+ 
+view tables:
+>!tables  
+OP:hbase tables + few phoenix internal system tables
+
+create a table:
+>create table emp(id integer primary key,fname varchar,lname varchar)// pk will be treated as rowid
+we can verify the created table from hbase as well 
+>hbase shell
+>list
+
+insert table from phoenix
+>upsert into emp values (1,'john','doe');
+
+select query
+>select * from emp;
+
+
+>drop table <tablename>
+
+
+Important schema operations:
+create table inside a database/schema(no need for >create database <dbname>)
+>create table s1.emp(id integer primary key,lname varchar);  //here s1 =>database/schema 
+>alter table  t1 add fname varchar;
+>alter table  t1 drop column lname;
+>drop table s1.emp;
+
+view table columns:
+>!columns <tablename>
+
+If where condition is applied in primary key(which maps to row_id),fetch will be very fast 
+>select  * from emp where id=1;
+Finding a row by row_id is very fast because columns are sorted by row_Id
+
+Whereas If where condition is applied in any other field which is not row_id ,it requires full table scan:
+>select  * from emp where lname='doe';//now very fast
+
+migrate table
+>upsert into new_emp select * from emp
+
+phoenix add support for index feature at the top of HBase,this enables faster fetch when where clause is added on indexed field:
+>create index lname on emp(lname);//this will implicitly create a table named "lname"(can be verified with >!tables) which holds mapping of lname and row_id and it is also sorted by lastname.
+>select  * from emp where lname='doe';//much faster now
+implicitly above select query will be equivalent to:
+select  * from emp where id =(select id from lname where lname='doe')
+
+Above kind of indexing requires double lookup(query on lname to get id then query on emp) ,we can create cover index which requires single lookup
+Alternatively we can create "cover index" which is whole data duplication based index:
+>create index  lnamecover on emp (lname,id) include (fname);
+It will create new table named "lnamecover" which has key=(lname,id) and other column values.Now this will be used for indexing.
+ 
+test is indexing is used:
+>explain select * from emp where lname='doe'
+
+$PHOENIX_HOME/bin has many other executable other than sqlline.py
+1.psql.py
+>psql.py --help //to see what iit can do
+>psql.py localhost:2181:/hbase-unsecure  test.sql //this will execute the provided sql script
+2.sqlline.py
+ -it is just like hbase shell but for phoenix
+3.queryserver.py
+>queryserver.py stop  
+>queryserver.py start //starts query server
+4.sqlline-thin.py
+>sqlline-thin.py http://localhost:8765 //it will connect to query server (not hbase)
+===============
+update statistics and view statistics of a table:
+>update statistics emp; 
+>select * from system.stats where physical_name='emp';
+==============
+salted table:(avoids hotspotting problem/all req to same node problem)
+When we are doing multiple inserts on emp table and if eid increases by one each time.All those records will go to the same region.
+So we are not taking advantage of all the nodes in cluster. Salted table solves this problem and distribute input load across cluster.
+
+lets create a salted table:
+>create table salt_emp (id integer primary key,fname varchar,lname varchar) SALT_BUCKETS=10;
+//phoenix will create 10 regions for this table
+now even if we insert emp records with increasing id it will be distributed across regions due to addition of salt on row_id
+>upsert into salt_emp select * from emp	
+Now check hbase console localhost:16060 te see if records are distributed across regions
+
+==============
+View: same as applying a query on table and treat that output as a table
+>create view jnames (d1 varchar) as select * from  emp where fname like 'j%';
+>select * from jnames;
+>drop view jnames;
+View does not create hbase table as it is just a query
+---------------
+By setting outputformat to verticle,few cammands will show more detailed info
+>!set outputFormat verticle 
+>!tables
+>!set outputFormat table  //revert back output format

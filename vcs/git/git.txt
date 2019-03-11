@@ -1,0 +1,368 @@
+git has three level of variables:
+1.System(All users): /etc/gitconfig  or ProgramFiles/git/etc/gitconfig
+2.Global(everywhere for a specific user): ~/.gitconfig.    to view it we can do cat ~/.gitconfig   
+3.Local: ./git/config
+
+set a  property(global=>--global, system=>--system):
+>git config --global user.name "tamajit"
+>git config --global user.email "guharoytamajit@gmail.com"
+>git config --system a "apple"
+>git config  b  "ball"
+
+
+read value:
+>git config user.name
+>git config --list
+
+make console output colourful:
+>git config --global color.ui true
+set editor:
+>git config  --global core.editor "vim"
+
+4 locations:
+working directory(WD)
+staged Area(SA)
+repo
+stash
+
+different states of file:
+1.new untracked file: 
+  New file added working directory. neither staged nor added to repo.
+  message: Untracked files
+
+2.Tracked file with changes on WD: 
+  message: changes not staged for commit
+  Changes done/deleted on working directory. neither staged nor added to repo.
+
+3.Ignored file: 
+Present in working directory only.Intensionally ignored by adding them on .gitignore
+message: No message
+
+4.tracked in stage  which is not committed:
+ message: changes to be committed.
+
+5.repo in sync with WD and stage location:
+ message: Nothing to commit
+
+6.Unmerged:
+ during merge conflict
+
+initialize git repo:
+>git init
+>git add a.txt //add a.txt to stage.To add all files >git add .
+>git commit -m "commit msg"
+
+.gitignore contains list of files to be ignored by git repo:
+
+*.class  #ignore all *.class files (root and also all sub-directories)
+!imp/*.class /#will not ignore any *.class files which are inside imp directore
+target    #ignore content of target directory in root or sub-directory
+/*.tmp  #ignore *.tmp file in root. But *.tmp files inside any directory will be tracked
+[0-9]?[abc]
+/assert/videos/
+
+gitignore files can be also located on sub-directories
+
+define global gitignore file:
+>git config --global core.excludesfile  ~/my-global-ignore
+
+unstage a staged file:
+>git reset HEAD <abc.txt>             #but changes still present in WD
+HEAD refers to last commit in repo
+
+to remove changes from WD as well:
+>git reset HEAD --hard                #only tracked files will be removed from stage & WD. Untracked files are still un-harmed.
+
+
+Add  new staged changes as previous commit
+>git commit --amend -m "an updated commit message"
+
+add+commmit together:
+>git commit -am ""      #it will not consider deleted file and untracked file
+
+delete file from repo:
+>git rm abc.txt
+>git commit -m ""
+
+delete file from repo but retain in WD(make it untracked)
+>git rm --cached abc.txt
+
+Remove a file/directory from repo and make it ignored:
+>git rm --cached -r bin  #-r =>recursive
+>echo bin/ >> .gitignore
+>git add .
+>git commit -m ""
+
+rename a file in repo:
+>git mv a.txt a/b.txt
+=======================
+diff:
+>git diff abc.txt                         #WD vs SA
+>git diff --staged(or --cached) abc.txt   #SA vd HEAD
+>git  diff HEAD abc.txt                   #HEAD  vs WD
+OR
+>git diff branch1 abc.txt
+>git diff commit_hash abc.txt               
+>git diff <commit_hash1> <commit_hash2>
+>git diff <commit_hash1>..  #changes since a commit
+>git diff <branch1> <branch2>
+>git diff --color-words abc.txt
+
+apply patch:
+>git diff 4d36..ac567 > abc.patch  #save diff
+>git apply patch abc.patch         #apply diff
+======================
+view commits :
+>git log
+>git log --stat
+>git log --oneline --graph --all --decorate
+>git log -n 5
+>git log --since=2012-06-15  # it accepts values like "2.weeks","3 days","2 weeks ago","3 days ago"
+>git log --until=2016-06-15
+>git log --author=tamajit
+>git log --grep="test commit"
+>git log b123..  a.txt   #shows what happened to a.txt since commit b123
+>git log b123..c456  a.txt   #shows what happened to a.txt between  commit b123 and c456
+>git log -p  #more detailed log.shows changes made
+>git log -p b123..  a.txt   #shows changes to a.txt since commit b123
+===================
+Branch:
+view all branch:
+>git branch  #current branch will be marked as *
+
+create branch:
+>git branch test
+
+switch to a branch:
+>git checkout test
+
+create+checkout
+>git checkout -b test1
+
+merge a branch to current branch:
+>git merge test
+
+delete branch:
+>git branch -d test  #If the content of a brance is niot merged  it is not allowed to delete by default. We can force delete that with -D flag.
+>git branch --merged  #check if a branch is merged 
+
+rename branch 
+>git branch -m oldname newname
+=======
+Revert/Undo:
+1.Checkout:
+ syntax:      checkout -- <commit_hash> <file or folder>
+>git checkout -- abc.txt              #get HEAD version in working directory
+Note: 
+=>Here you can skip "--" but if there is a branch name same as file name ,it will instead switch branch.So using -- is good practice.
+=>This checkout will get content of HEAD in Working Directory.In the change is there in Staged area it will not be effected by checkout(do >git reset HEAD abc.txt  to remove from staged to WD, or do it with --hard to remove it from SA and WD together).
+
+getting a file version of a particular commit:
+>git checkout <commit_id>  -- a.txt   #if no commit_hash provided HEAD will be considered
+---
+2 Reset:
+Rewinds HEAD
+--soft=>does not change WD or SA
+--mixed(default)=>update SA with rewinded HEAD, WD still same
+--hard=>update WD and SA with rewinded HEAD
+
+syntax:  git reset <commit_hash>
+instead of commit we can use following expressions:
+ HEAD^^,HEAD~2,master^,5a34d6~3 
+^ =>parent
+^^ =>parents parent, so on
+~ =>parent
+~2 => parents parent 
+~3 = ^^^
+
+eg 
+>git reset --soft 12a3
+>git reset HEAD^^
+
+----
+3 Revert:
+same as checkout -- with auto commit. we can prevent commit by setting --no-commit or -n
+>git revert -n c234a5
+
+cancel revert:
+>git revert --abort
+=================
+clean(untracked/ignored files and directories)
+>git clean (-n or -f)
+-f =>force(actual execution)
+-n =>dry run(not actual execution) 
+you have to pass either -n or -f other wise it will fail
+
+-X =>remove only ignored files
+>git clean -nX  #dry run .see which ignored files will be removed if executed with -fail
+>git clean -fX  #remove ignored files. 
+
+By default only untracked files will be deleted. ignored files+directory and untracked directory will still be there
+-d =>Remove untracked directories in addition to untracked files.
+>git clean -fd     #remove untracked files and directories.ignored still there
+ 
+-x =>include ignored(files + directories)
+>git -fx   # removes untracked files and ignored files+directories
+>git -fdx   #removes untracked files+directories and ignored files+directories
+ 
+ -e => exclude filter
+>git clean -fdx -e *.tmp  #removes untracked files+directories and ignored files+directories  excluding those matching *.tmp expression
+
+
+=========
+Using alias:
+>alias gc="git commit"
+>gc -m ""
+======
+Rebase:
+
+
+==========
+View changes to a particular file:
+>gitk  abc.txt
+OR
+>git log -p abc.txt
+To follow filename past renames:
+>gitk --follow [filename]
+===========
+Remote repos:
+Add remote repo:
+>git remote add <alias> <link>
+>git romote add origin http://github.com/....
+
+Once a remote (say with alias origin) is created.For every remote branch say "test1" there will be a coresponding "origin/test1" branch locally.
+This "origin/master" always tries to stay in sync with coresponging romote master branch.
+
+View all romotes:
+A local branch can have multiple remote repos each with unique alias
+>git remote #list remotes
+
+View remotes with corresponding url:
+>git remote -v
+O/P:
+origin  https://github.com/guharoytamajit/test.git (fetch)
+origin  https://github.com/guharoytamajit/test.git (push)
+
+Remove a remote:
+>git remote rm origin
+
+
+create a local branch from a remote branch with alias origin:
+>git branch demo origin/demo   #If 2nd argument not provided by default it is head.   "git branch demo" == "git branch demo HEAD"
+
+create and checkout aremote branch:
+>git checkout -b demo origin/demo
+
+
+fetch remote changes:
+>git fetch   #(or >git fetch origin) It will update all remote branches with corresponding '<remote-alias>/<branch-name>' eg. 'origin/test1'
+
+>git fetch origin test1 # it will only update origin/test1 with respect remote repository test1 branch. Other '<remote-alias>/<branch-name>' will not be updated.
+
+
+push:
+git push <remote-alias> <local-branch>:<remote-branch>
+>git push origin test2:t2
+it will also create 'origin/t2' locally 
+
+remove a remote branch using push:
+>git push origin :t2
+
+
+pull a remote branch:
+>git pull origin <remote-branch>:<localbranch>
+>git pull origin t2:myt2
+
+pull=fetch+merge
+
+>git pull origin t3
+OR
+>git fetch origin t3
+>git checkout t3  #if local t3 branch does not exist (ie. it is not created locally ) >git checkout -b t3 origin/t3
+>git merge origin/h3
+
+====
+git list:
+> git ls-tree HEAD  #list repo content
+>git ls-tree master abc/ #view content inside master branch's  abc directory
+--
+git show:
+>git show <commit_hash>  #show changes in this commit
+=========
+Git stash:
+Place for storing changes temporarily, without having to commit them.
+We generall do stash before switching branch or doing git pull.
+>git stash save "message"   #save all tracked files in stash
+>git stash list   #show list of stashes
+>git stash show stash@{0} #show changes of a stash
+
+>git stash pop stash@{0}   #apply+ remove from stash list
+
+>git stash apply stash@{0}  #only apply
+
+By default only tracked files are stashed.untracked and ignored are not  stashed:
+>git stash save -u ""    #stash tracked + un-tracked files
+
+By default >git stash show only shows tracked files.To view untracked stashed content:
+>git show stash{0}^3   #we need to append extra "^3"  after stash id.
+
+
+========
+Squash multiple commits:
+We can squash last three commits as:
+>git reset HEAD~3
+>git commit -m "last 3 commits"
+
+========
+Git Rebase:
+>git checkout master
+>git rebase branch1   #it will reve history of branch1, it will look like every thing happened in master branch
+
+steps:
+1.go to common parent of master and branch1
+2.add all commits of branch1
+3.add all commits of master
+4.remove branch1
+
+==============================
+Launch kdiff during merge conflict:
+>git merge -t kdiff3
+
+======
+Tracking branch:
+
+By default, branches in Git have nothing to do with each other. However, when you tell a local branch to "track" a remote branch, you create a connection between these two branches. 
+Your local branch now has a "counterpart" on the remote server.
+Advantahes of tracking:
+1.Pushing and pulling becomes a lot easier. You can simply use the shorthand commands "git pull" and "git push" instead of (git push origin dev)
+2.Git can now inform you about "unpushed" and "unpulled" commits.You get messages like  your local branch is "2 commits ahead" or your local branch is "4 commits behind" 
+ This information helps tremendously in staying up-to-date.
+ 
+ There are three main scenarios for creating a tracking connection:
+ 1.When you're starting to work on an existing remote branch(not present locally):
+   -Let's say one of your colleagues has already started and published a branch on your remote server. You now want to chime in and start working on that topic, too. 
+    In that scenario, simply use the --track flag with the "git checkout" command:
+ >git checkout --track origin/dev
+   This creates a new local branch with the same name as the remote one - and directly establishes a tracking connection between the two.
+   
+ 2.When you're publishing a local branch:
+   -Let's now look at the opposite scenario: you started a new local branch and now want to publish it on the remote for the first time: 
+ >git push -u origin dev
+   You can tell Git to track the newly created remote branch simply by using the -u flag with "git push".
+ 
+ 3.When you decide at a later point in time:
+   -In cases when you simply forgot, you can set (or change) a tracking relationship for your current HEAD branch at any time:
+ >git branch -u origin/dev   
+ 
+
+ Which branches are tracking what?
+  >git branch -vv
+
+ Remove a current tracking relationship:
+  >git branch --unset-upstream 
+  
+ Which branches get pushed/pulled?
+This is an area of confusion because the defaults changed between versions of git. Take a look at your config (use git config --list) and find a setting called push.default. 
+The usual default is simple which will only push/pull the branch to/from the branch you're currently on and the one it tracks. You can optionally set this to be matching (this was once the default) 
+which will then push/pull all changes between all branches and their remote tracking sisters. Sometimes this second option is cumbersome if you have a branch that is not the one you're working 
+on get into a state where it won't merge! 

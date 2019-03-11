@@ -1,0 +1,8 @@
+download subdirectore of repo:
+To download:
+https://github.com/guharoytamajit/notes/docker
+
+>svn export  https://github.com/guharoytamajit/notes/trunk/docker
+
+//Note: we need to add "/trunk" between repo url and directory you want to download
+======================== 

@@ -1,0 +1,76 @@
+kite is a library which  makes file look like a table.
+kite-dataset is a command line utility of kite
+
+Create avro schema from csv data file:
+>kite-dataset csv-schema  emp.csv  --record-name Employee
+
+kite by default assumes all fields can have null ,so for making a field required use --require field:
+>kite-dataset csv-schema  emp.csv  --record-name Employee --require empId,ename
+
+To save output as avro schema use -o file
+>kite-dataset csv-schema  emp.csv  --record-name Employee --require empId,ename -o emp.avsc 
+
+create a kite dataset:
+>kite-dataset  create emp --schema emp.avsc
+
+Note:This table will be available in hive and impala for use. veryfy by goint to hive shell and type >show tables;
+
+dataset(table) info:
+>kite-dataset info emp   //it is actually shortcut of >kite-dataset info dataset:hive:emp
+
+load csv records on emp dataset (table):
+>kite-dataset csv-import emp.csv  emp
+NOTE: kite is loading json from hostmachine to HDFS
+
+view first few records of emp dataset:
+>kite-dataset show emp
+----------
+Access kite dataset from  impala:
+Impala is an SQL engine build for hadoop
+Lets run an Impala query on our dataset
+>impala-shell -i host:2100 //commect to impala
+ >imvalidate metadata //invalidate cache
+>select * from emp limit 10;
+
+---------
+kite dataset records are loaded inside hive warehouse  and its metastore,lets check them:
+>hadoop  fs -ls  /user/hive/warehouse/emp
+O/P it has both avro schema(inside metadata/schema/1. avsc) and data(binary)
+
+This is same as avro+hive setup
+
+>hive
+>discribe formatted emp 
+O/P: here you will see hive is using AvroContainerInputFormat & AvroContainerOutputFormat
+
+
+-----------------
+update avro schema(schema evolution):
+>kite-dataset update emp --schema emp.avsc
+----------------
+Hive partitioning using kite:
+>kite-dataset partition-config --schema rating.avsc timestamp:year timestamp:month -o year-month.json
+
+create hive table in parquet format :
+>kite-dataset create ratings --schema ratings.avsc --partition-by year-month.json --format parquet
+>kite info ratings //verify
+
+>hive 
+>discribe formatted ratings   //verify from hive
+O/P: here you will see hive is using MapredParquetInputFormat & MapredParquetOutputFormat
+
+======================
+create schema from json data file:
+>kite-dataset json-schema zips.json  --record-name ZipCode -o zip.avsc
+
+create kite dataset/hive table:
+>kite-dataset create zips --schema zips.avsc
+
+load json data from local into our table:
+>kite-dataset  json-import zips.json zips 
+NOTE: kite is loading json from hostmachine to HDFS
+
+load data from hdfs to our kite/hive table:
+>kite-dataset json-import hdfs:/user/cloudera/zips.json zips
+
+>kite-dataset show zips //verify

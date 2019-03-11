@@ -1,0 +1,144 @@
+Column oriented format
+
+For table:
+a1,b1,c1
+a2,b2,c2
+a3,b3,c3
+a4,b4,c4
+
+row oriented  format will store it as:
+a1,b1,c1,a2,b2,c2,a3,b3,c3,a4,b4,c4
+
+Column oriented (Parquet) will store it as:
+a1,a2,a3,a4,b1,b2,b3,b4,c1,c2,c3,c4
+-----------------
+Disadvantages of column oriented style:
+1.Buffer rows into groups:
+  b1 cannot be written into disk until a4 is written.So we have to read the whole row of a column(in memory) before jumping into the  next column.
+  RowGroup size = Memory footprint per open file.
+
+2.High memory overhead:
+  for same reason as above.
+3.No flush or sync to guarantee data is written:
+ data is persisted when perquet file closes(you dont have much control)
+
+Advantages of Column oriented style:
+1.Read Effeciency:
+ a)If we only want column b we can read it by sequential disk access without much disk seeking.
+ b)Disk has a block size and these blocks are unit of reading .In row oriented format for reading a column value we read a block which also 
+   contains other column values(as block size > a column value size).So here we are fetching other columns value which we dont need.
+
+2.Small data encoding:
+ Since all data of column are of same type we can do data encoding which take lesser space
+3.Better compression: 	
+  Since all data of column are of same type we can do better compression
+--------------------
+Data encoding in Column oriented can save a lot of space:
+1.Bit packing:
+  Suppose in a movie table there is a rating column.That can have the value of 1-5.Since we are already aware of possible results.We know all you need is 3bits to represent any value in  1 to 5.
+  Parquet will store 3 bits for each value  instead of storing integers like 1,2,3.   
+    our encoding 1=>001, 2=>010 ...., 5=>101
+2.Run length encoding:
+   Suppose you have multiple sensons which emits some events.There is a good changes multiple events have same timestamps.Suppose there are 100 rows with same timestamp.In this case 
+   parquet instead of storing the same timestamp 100 times it will use some special encoding to represent repeat a value n times and store the original value(or bit packing  value) only once.It will collapse(replace) duplicate values with the number of time they appear.
+3.Dictionary encoding:
+  It will try to create enum of all possible values for a column,and assign small bit pattern to every possible values.For example  for feedback column we can have  values like good,bad,average.We can substitute them as  Bad=>00,Average=01,Good=>10 etc.
+  Now the original content can be replaced by new bit patterns in the column content.Note: you need to store the dictionary mapping to get original values later. 
+4.Delta encoding:
+  For  example for a timestamp column instead of storing whole timestamp we can store deltas(changes) with respect to its previous value.
+-----------------------
+The above encoding is applied in  both places ie. when columns are in memory and disk
+Column oriented requires more memory so parquet tries to apply above data encodings(also when it is buffered in memory) to reduce the amount of memory usage.  
+   
+============
+
+A parquet file contains n number of RowGroup, single header and single footer. Parquet file footer keeps references of start of every RowGroup
+A row group has one column chunk for each columns( if there are 4 columns , it will have 4X1 column chunks). n rowgroup= 1 HDFS block
+All record of a column are divided into multiple column chunks(if there are 50 rows, and if 10 records forms a column chunk, then we will have 5 column chunks for each column )
+Each column chunks has n pages
+A page is conceptually an indivisible unit (in terms of compression and encoding). 
+
+parquet file example:
+---------------------------------------
+4-byte magic number "PAR1"             |
+<Column 1 Chunk 1 + Column Metadata>   |
+<Column 2 Chunk 1 + Column Metadata>   |
+...                                    |
+<Column N Chunk 1 + Column Metadata>   |
+<Column 1 Chunk 2 + Column Metadata>   |
+<Column 2 Chunk 2 + Column Metadata>   |
+...                                    |
+<Column N Chunk 2 + Column Metadata>   |
+...                                    |
+<Column 1 Chunk M + Column Metadata>   |
+<Column 2 Chunk M + Column Metadata>   |
+...                                    |
+<Column N Chunk M + Column Metadata>   |
+File Metadata                          |
+4-byte length in bytes of file metadata|
+4-byte magic number "PAR1"             | 
+---------------------------------------
+In the above example, there are N columns in this table, split into M row groups. 
+The file metadata contains the locations of all the column metadata start locations. More details on what is contained in the metadata can be found in the thrift files.
+
+Row Groups:
+1.Must be in one HDFS block:
+The size of row group should be close to hdfs block but always less than HDFS block to prevent data transfer over network.If it takes more than one block ,
+the 2nd block has to to transferred to the computing node which is generally the same node where first block of data is present.
+Remember computing like MR is always tried to be  launched in the node where date is present.
+2.Target a constant size:
+We should a fixed size row group.There can be more than  one row group in an HDFS block, but we should make sure  not any of  those RowGroups is not split across 2 HDFS block for better performance.
+By default rewgroup size is 128MB which is = 1 HDFS block
+3.RowGroup size = Memory footprint per open file
+
+
+A parquet file size can be several HDFS blocks long,but its RowGroup's size should be < HDFS block.
+ 
+There are no sync markers(delimiter) in parquet,Parquet File footer keeps references of start of every RowGroup 
+Sync markers removes overhead of scanning remote data(from other HDFS black)
+=============
+Column chunk::
+Column chunks are divided into pages .
+Pages are approx of same size
+First page in cloumn chunk may be a dictionary(see dictionary encoding)
+--------------
+Pages:
+Like a avro block but only one column.
+Encoded and compressed individually
+Have min,max stats to skip data.
+Special kind of pages: dictionary and index pages(eg. bloom filter)
+------------
+Parquet File Footer:(like Avro file Header)
+Written last
+Contains row groups offsets(references):    with this  we can apply padding (on near empty hdfs block) to prevent rowgroup splitting and instead start new rowgroup in new HDFS block
+has schema and key-value metadata.
+Until footer is written no rowgroups are accessible,so partial parquet files are of no use.
+===============
+Patquet does not force you to use a new object model(infact it does not have an object model)
+Most formats(avro,protobuffer,thrift) define there own object model and each have there own schema format.
+Like protobuff compiles your protobuff schema into protobuff objects same for avro,thrift
+As a result your application gets tightly coupled to the file format you are using.
+Parquet solves this by using its Record API instead of building a new object model
+
+Parquet Record API:
+Read directly to or from any object model
+Drop-in replacement for other formats:
+       -It can build object model for avro,thrift,protobuffer
+
+----------------------
+Parquet-Avro:(reuse every feature of avro in parquet)
+use avro schema and evolution rules
+support avro generics,specific and reflect
+this is the most recommended object model
+-----------------
+
+Parquet utility tools:
+>parquet-tiils -h #all commands
+>parquet-tools schema file.parquet #view schema
+>parquet-tools head file.parquet #shows first few records
+>parquet-tools cat file.parquet #view reord
+>parquet-tools meta file.parquet #view metadata: schema,encoding used on each column,rowgroup and column refs etc
+>parquet-tools dump -d file.parquet 
+==============
+Avro better for write operation,less memory overhead and less chances of loosing data.Partial Parquet files are of no use.
+Parquet better for read operations.Best for write once and read many times(OLAP)

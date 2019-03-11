@@ -51,7 +51,8 @@ a 7 node ensembe can lose upto 3 nodes and still work
 zookeeper has two types of nodes available leader node and follower node.
 leader node:leaders are selected through election.
              It is recommended to have odd number of nodes to avoid election conflict.
-             can serve both read and write requests
+             can serve both read and write requests(writes are forwarded to the leader and go through majority consensus before a response is generated)
+
 slave nodes: can only serve read requests
 
 There is only one leader node(server) remaining are followers see cluster.PNG
@@ -112,8 +113,39 @@ Znode also contains:
 
 Znodes can be of three types:
 1.Persistance: Alive until they are explicitly deleted.
-2.Ephemeral: Alive until client connection is alive
+              CRUD operation can be done on it by any client(not only creator).provided ACL permission is there.
+  eg create /test testdata
+2.Ephemeral: Alive until client connection is alive( use -e flag while creating)
+             Ephemeral nodes cannot have children.
+             While it is alive CRUD operation can be done on it by any client(not only creator).provided ACL permission is there.
+eg create -e /etest testdata
+
+For example, a distributed group membership service can be implemented
+by using ephemeral znodes. The property of ephemeral nodes getting deleted when
+the creator client's session ends can be used as an analogue of a node that is joining or
+leaving a distributed cluster. Using the membership service, any node is able discover
+the members of the group at any particular time.
+
 3.Sequential: either Persistance or Ephemeral, it plays an important role in locking and synchronization
+             A sequential znode is assigned a sequence number by ZooKeeper as a part of its name during its creation.
+             It has a format of 10 digits with 0 (zero) padding. eg. /path/to/znode-0000000001
+
+Sequential znodes can be used for the implementation of a distributed
+global queue, as sequence numbers can impose a global ordering. They
+may also be used to design a lock service for a distributed application
+
+four modes of znodes:
+• persistent              >create  /hello data
+• ephemeral               >create -e /hello data
+• persistent_sequential   >create -s /hello data
+• ephemeral_sequential    >create -s -e /hello data
+
+every time you create a sequential node its value is increased by 1:
+ >create -s -e  /test/new  hello
+Created /test/new0000000000
+ >create -s -e  /test/new  hello2
+Created /test/new0000000001
+
 -----------
 Sessions & Watches
 Sessions:
@@ -123,7 +155,7 @@ Sessions:
 -client sends heartbeat to keep the session valid
 -session timeout are ususlly represented in milliseconds
 -as the session ends all the ephemeral nodes created during that session also gets deleted.
-
+------------------
 Watches(Notification):
 -mechanism for clients to get notification about the changes in the zookeeper
 -clients can set watch while reading a particular node
@@ -132,6 +164,24 @@ Watches(Notification):
 -if session expires ,watches are also removed
 
 also see watches.PNG
+
+ZooKeeper is designed to be a scalable and robust centralized service for very large distributed applications.
+A common design anti-pattern associated while accessing such services by clients is through polling or a pull kind of model.Pull model often suffers from scalability problems when implemented in large and complex distributed systems
+ZooKeeper designers implemented a mechanism where clients can get notifications from the ZooKeeper service instead of polling for events. This resembles a push model.
+example:
+terminal1: >create -e /test hello1
+terminal2: >get /test watch   #watch in get registers a watch
+terminal1:>set  /test hello2
+terminal1: O/p:
+WATCHER::
+WatchedEvent state:SyncConnected type:NodeDataChanged path:/test
+
+Since ZooKeeper watches are one-time triggers and due to the latency involved between getting a watch event and resetting of the watch, it's possible that a client might lose changes done to a znode during this interval. 
+In a distributed application in which a znode changes multiple times between the dispatch of an event and resetting the watch for events, developers must be careful to handle such situations in the application logic.
+
+When a client gets disconnected from the ZooKeeper server, it doesn't receive any watches until the connection is re-established. If the client then reconnects, any previously registered watches will also be reregistered and triggered.
+
+
 =========================
 Consistency Guarantees provided by zookeeper:
 1.Sequential Consistency
@@ -141,14 +191,14 @@ Consistency Guarantees provided by zookeeper:
 3.Single system image
   -All client sees same view of zookeeper service regardless of server
 4.Reliability
-  -If update succeeds then it persists
+  -If update succeeds then it persists(D of ACID)
 5.Timeliness
-  -Client view of system is guarenteed up-to-date within a time bound
+  -Client view of system is guarenteed up-to-date within a time bound.This is known as eventual consistency.
     =>generally within tens of seconds
     =>if client does not see system changes within time bound, then service outage.
 
 Zookeeper Does NOT Guarantees:
-=>Simultaneously consistent cross client views
+=>Simultaneously consistent cross client views(it is only eventual consistency)
 =>Different clients will not always have identical views of Zookeeper data at every instance in time.
    -zk provides sync() method that forces a Zookeeper ensemble server to catch up with leader
  
@@ -189,18 +239,125 @@ ZooKeeper -server host:port cmd args
 >ls /
 [zookeeper] //this is a znode
 //lets create HelloWorld znode
->create /HelloWorld ""
+>create /HelloWorld "data"
 Created /HelloWorld
 >ls /
 [zookeeper, HelloWorld]
->delete /HelloWorld 
+>delete /HelloWorld  # for recursive delete use "rmr /path"
 >ls /
 [zookeeper] 
 
-
-ls /cluster
-get /cluster/id
+>ls /cluster
+>get /cluster/id
+>stat /zookeeper  #path attributes, this is similar to stat command in unix
 ==========================
 Two threads are spawned when a zk object is created
 =>IO thread for all IO operations
 =>Event thread for event callbacks
+=================
+Examples:
+------------
+Lets test if ephemeral node stays alive after session is over:
+1.Open two terminal viz.terminal1 and terminal2
+2.open zookeeper-client/zkcli on both of them
+3.in terminal1 create a ephemeral node
+ >create -e /test1 hello
+4.Form both terminal1 and terminal2,  you can see it is accessible
+ >get /test1
+5.end terminal1 session (ctrl+z/ctrl+c)
+6.wait for few seconds,now you will see /test1 node is no longer accessible from terminal2 as it is deleted due to end of session from where it is created(ie. terminal1)
+ >get /test1
+This proves ephemeral znode is deleted after session is over, it also shows znode is not only accessible from created terminal but other terminals also.
+Even though ephemeral nodes are tied to a client session, they are visible to all clients, depending on the configured Access Control List (ACL) policy.
+An ephemeral znode can also be explicitly deleted by the creator client or any other authorized client by using the delete API call.
+==============
+ACL(Access Control List):More granular authorization
+see acl.PNG
+
+ZooKeeper provides the following built-in authentication mechanisms based on ACLs:
+• World: This represents anyone who is connecting to the ZooKeeper service
+• Auth: This represents any authenticated user, but doesn't use any ID
+• Digest: This represents the username and password way of authentication
+• IP address: This represents authentication with the IP address of the client
+
+In addition to the authentication schemes mentioned in the preceding list, ZooKeeper also supports a pluggable authentication mechanism, which makes it possible to integrate third-party authentication schemes if needed.
+
+ACL associated with a particular znode doesn't propagate to its children
+
+ZooKeeper's ACLs support the following permissions:ZooKeeper's ACLs support the following permissions:
+CREATE: Creates a child znode
+READ: Gets a list of child znodes and the data associated with a znode
+WRITE: Sets (writes) data to a znode
+DELETE: Deletes a child znode
+ADMIN: Sets ACLs (permissions)
+
+There are a number of predefined ACLs in ZooKeeper. These IDs, as defined by ZooKeeper ACLs, are shown in the following table:
+ANYONE_ID_UNSAFE This ID represents anyone
+AUTH_IDS This is used to set ACLs, which get substituted with the IDs of the authenticated client
+OPEN_ACL_UNSAFE This denotes a completely open ACL, and grants all permissions except the ADMIN permission
+CREATOR_ALL_ACL This ACL grants all the permissions to the creator of the znode
+READ_ACL_UNSAFE This ACL gives the world the ability to read
+
+
+ZooKeeper stat structure:
+Every znode in ZooKeeper's namespace has a stat structure associated with it, which is analogous to the stat structure of files in a Unix/Linux filesystem.
+stat fields:
+• cZxid: This is the transaction ID of the change that caused this znode to be created.
+• mZxid: This is the transaction ID of the change that last modified this znode.
+• pZxid: This is the transaction ID for a znode change that pertains to adding or removing children.
+• ctime: This denotes the creation time of a znode in milliseconds from epoch.
+• mtime: This denotes the last modification time of a znode in milliseconds from epoch.
+• dataVersion: This denotes the number of changes made to the data of this znode.
+• cversion: This denotes the number of changes made to the children of this znode.
+• aclVersion: This denotes the number of changes made to the ACL of this znode.
+• ephemeralOwner: This is the session ID of the znode's owner if the znode is an ephemeral node. If the znode is not an ephemeral node, this field is set to zero.
+• dataLength: This is the length of the data field of this znode.
+• numChildren: This denotes the number of children of this znode.
+
+We  can view the znode stat structure using the stat or ls2 command:
+>stat /zookeeper
+OR
+>ls2 /zookeeper
+
+======================
+ZooKeeper uses a special atomic messaging protocol called ZooKeeper Atomic
+Broadcast (ZAB). This protocol ensures that the local replicas in the ensemble never
+diverge. Also, the ZAB protocol is atomic, so the protocol guarantees that updates
+either succeed or fail.
+
+The replicated database and the atomic broadcast protocol together with the leader
+election mechanism form the heart of the ZooKeeper service implementation
+
+-------------
+Transaction in Zookeeper:
+Transaction processing involves two steps in ZooKeeper: leader election and atomic broadcast. This resembles a two-phase commit protocol, which also includes a leader election and an atomic broadcast.
+
+Phase 1 – leader election:
+The servers in an ensemble go through a process of electing a master server, called the leader. The other servers in the ensemble are called followers.
+
+
+
+
+
+
+
+
+===============
+Common distributed tasks(common cluster synchronization primitives/datastructure):
+Barrier:
+Barrier is a type of synchronization method used in distributed systems to block the processing of a set of nodes until a condition is satisfied.
+It defines a point where all nodes must stop their processing and cannot proceed until all the other nodes reach this barrier.
+
+The algorithm to implement a barrier using ZooKeeper is as follows:
+1. To start with, a znode is designated to be a barrier znode, say /zk_barrier.
+2. The barrier is said to be active in the system if this barrier znode exists.
+3. Each client calls the ZooKeeper API's exists() function on /zk_barrier by registering for watch events on the barrier znode (the watch event is set to true).
+4. If the exists() method returns false, the barrier no longer exists, and the client proceeds with its computation.
+5. Else, if the exists() method returns true, the clients just waits for watch events.
+6. Whenever the barrier exit condition is met, the client in charge of the barrier will delete /zk_barrier.
+7. The deletion triggers a watch event, and on getting this notification, the client calls the exists() function on /zk_barrier again.
+8. Step 7 returns true, and the clients can proceed further.
+
+
+
+
