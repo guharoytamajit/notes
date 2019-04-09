@@ -55,7 +55,7 @@ Now if we type something in producer console,all those messages will be updated 
 Get all message from beginning:
 >bin/kafka-console-consumer.sh --zookeeper <host:port> --topic topic1 --from-beginning
 
-zookeeper-server-start.bat ../../conf/zookeeper.properties
+zookeeper-server-start.bat ../../config/zookeeper.properties
 kafka-server-start.bat   ../../config/server.properties
 
 
