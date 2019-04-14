@@ -1,0 +1,9 @@
+Hyperledger is an ecosystem which has lots of blockchain related projects
+
+Fabric:
+Hyperledger Fabric is a blockchain framework implementation .
+Allows us to use distributed ledger.
+Hyperledger Fabric allows components, such as consensus and membership services, to be plug-and-play. 
+Hyperledger Fabric leverages container technology to host smart contracts called “chaincode” that comprise the application logic of the system
+
+

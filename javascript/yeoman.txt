@@ -1,0 +1,127 @@
+yoman custom gererator:
+
+
+Note:
+our generator directory => c:/generator-app
+our test generater app location =>c:/myapp
+
+>mkdir generator-mygen
+>cd generator-mygen
+>code .
+>npm init (fill details)
+>npm install yeoman-generator --save
+
+ inside generator-mygen create:
+app/index.js   //entry point for our custom generator
+
+
+index.js:
+'use strict';
+var Generator = require('yeoman-generator');
+module.exports=class extends Generator {
+ method1(){
+  this.log('Hello World!!');
+}
+}
+
+We assign the extended generator to module.exports to make it available to the ecosystem. This is how we export modules in Node.js.
+
+>npm link  // make our generator global, only afyer this we can use our custom generator
+
+The default generator used when you call "yo mygen" is the app generator. This must be contained within the app/ directory.
+
+Sub-generators, used when you call yo mygen:subcommand, are stored in folders named exactly like the sub command.
+
+
+>cd c:/myapp
+>yo mygen
+O/p
+====================
+Add typescript definition:(this step is optional)
+>npm install tsd -d  //install typescript definitions globally
+>cd generator-app
+>tsd init  //it will generate tsd.json and tsd.s.ts
+>tsd install node lodash --save //install typescript definition files for node and lodash,it will be added in tsd.json. definitions will be stored inside ./typings directory
+
+Now we cann accss lodash as:
+var _=require('lodash'); //code assist will also be present on editor like vs code as we have downloaded typescript definition file
+
+===============
+Overwriting the constructor:
+
+module.exports = class extends Generator {
+  // The name `constructor` is important here
+  constructor(args, opts) {
+    // Calling the super constructor is important so our generator is correctly set up
+    super(args, opts);
+
+    // Next, add your custom code
+    this.option('babel'); // This method adds support for a `--babel` flag
+  }
+};
+
+==================
+We can add multiple methods:
+
+module.exports = class extends Generator {
+  method1() {
+    this.log('method 1 just ran');
+  }
+
+  method2() {
+    this.log('method 2 just ran');
+  }
+
+  _private_method() {
+       console.log('private hey');
+     }
+};
+
+Each method directly attached to a Generator prototype is considered to be a task. Each task is run in sequence by the Yeoman environment run loop.
+
+In other words, each function on the object returned by Object.getPrototypeOf(Generator) will be automatically run.
+
+Methods whose name  starts with _ wont run automatically . 
+
+============== 
+
+The available priorities are (in running order):
+
+initializing - Your initialization methods (checking current project state, getting configs, etc)
+prompting - Where you prompt users for options (where you’d call this.prompt())
+configuring - Saving configurations and configure the project (creating .editorconfig files and other metadata files)
+default - If the method name doesn’t match a priority, it will be pushed to this group.
+writing - Where you write the generator specific files (routes, controllers, etc)
+conflicts - Where conflicts are handled (used internally)
+install - Where installations are run (npm, bower)
+end - Called last, cleanup, say good bye, etc
+
+Note:
+If the method name doesn’t match a priority, it is pushed in the default group.In above example method1() and method2() added to default group.
+
+
+============
+It is important to never use console.log() or process.stdout.write() to output content. Using them would hide the output from users not using a terminal. 
+Instead, always rely on the UI generic this.log() method, where this is the context of your current generator.
+
+Prompt:
+module.exports = class extends Generator {
+  async prompting() {
+    const answers = await this.prompt([
+      {
+        type: "input",
+        name: "name",
+        message: "Your project name",
+        default: this.appname // Default to current folder name
+      },
+      {
+        type: "confirm",
+        name: "cool",
+        message: "Would you like to enable the Cool feature?"
+      }
+    ]);
+
+    this.log("app name", answers.name);
+    this.log("cool feature", answers.cool);
+  }
+};

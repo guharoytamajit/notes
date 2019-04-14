@@ -1,0 +1,35 @@
+Btree:
+Often referred as index
+Most storage engine supports B+Tree
+ -Each leaf node contains a link to the next node for the fast range traversals
+ -values are sorted in order
+ -each leaf page is at the same distance from root level
+ -InnoDB storage uses B+Tree index(in b+ tree indermediate node does not carry any data but just references unlike regular btree)where only leaf node has data
+ -size of b+tree is much smaller than btree
+
+Advantages of btree:
+-speed up data access,storage engine(like innodb) traverses from root to leaf with help of pointers
+-Increases performance in following patterns:
+  1.Full value search("tamajit")
+  2.Leftmost value("tam" for "tamajit")
+  3.range value(1-50  or a%-k%)
+-btree  structure helps order by clause to increase the performance
+-------
+Cluster Index:
+ -Just a different approach of data storage,not supported by all storage engine.InnoDB supports it.
+ -Rows with adjacent key values are stored close to each other.
+ -One cluster index per table.
+Advantages:
+-Related data is stored close to each other leading less disk I/O while retrieving sequential or range data.
+-Faster data access as data and index are stored together at leaf node.
+
+Disadvantages:
+-Data insertation speed is dependent on the order of the primary key.
+   Tables needs to optimize if inserted data is not ordered by primary key.
+-cluster index have minimal impact for in memory data
+-updating the clustered index column is expensive as data is moved based on its size to different location
+-Page split occurs when new data is inserted leading to fragmentation
+
+TODO
+
+
