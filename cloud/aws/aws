@@ -1,0 +1,308 @@
+Regions:
+Aws has multiple regions eg oregon,california,paris,Sao paulo,Mumbai,Sydney,Tokyo,Singapore.
+There are around 22 regions.
+Why choose a particular region?
+1.For lower latency,if we select a region closer to target audiance.
+2.Same service may have different cost in different region.
+3.Certain data are not allowed to live outside a region by local law.
+
+Each region has a set of Availability zones(each AZ is a collection of Data Centers/facilities )
+example:
+Region Oregon(us-west-2) has following availability zones: us-west-2a, us-west-2b,  us-west-2c
+Availability zones are carefully placed so that if one face some natural disaster/power grid failure  other is very likely to survive.
+
+Each Availability zones(AZ) are inter connected(point to point) with private Fibre to support high bandwidth.
+Our servers in applications can communicate between AZ on same private network that means:
+1.we can load balance across multiple datacenters.
+2.We can replicate  data across multiple centers.
+So we can be resilient to loss of a whole datacenter.
+
+Edge Locations(EL):
+EL powers different services in AWS like cloudfront(Content Delivery Network-CDN),Route53(global DNS server),API Gateway(gives serverless rest API)
+There are more than 100 EL and many of them exists outside a Region.
+Route53 can help users in a particular place to route request to the content of closest cloudfront.
+cloudfront very common for caching web content.
+
+Scope of Services:
+1.Global Services:
+Available across every region eg. IAM,CloudFront,Route53(DNS server)
+A user created in IAM is available everywhere.
+Changes made in CloudFront propogate globally across all edge locations.
+When we make changes to our public DNS zones those changes are propogated across the globe.
+
+2.Regional Services:
+eg. DynamoDB,S3,Elastic Load Balancing,Virtual Private Cloud(VPC)
+VPS enables us to create private network which can use resources from multiple AZ(but within same region) 
+
+3.Availability Zone limited services:
+eg. Elastic Block Store(EBS),EC2,Subnet
+Each subnets of VPC will belong to an  AZ
+==========================================================================
+IAM(Identity and Access Management):
+Takes care of Authentication and Authorization of different web services.
+We can create users,groups of users,password policy,MFA
+
+We avail AWS services using API
+
+Ways to use services:
+1.SDK eg JAVA.Python they internally use AWS API (access id + secret key)
+2.CLI which user SDKs which uses AWS API (access id + secret key)
+3.Management Console(Web interface) they also use  AWS API 
+
+Users:
+Created inside IAM service
+Login to Management COnsole
+Canhave long-term access keys(sored in OS not in Code/env)
+
+Group:
+a Group has n number of users
+a user may belong to more than one Group
+Cannot be nested
+
+Credential Types:
+Email+Password=> Master/Root Account.
+Username+Password=> AWS Web Console
+Access Key+Secret Key(Long term)=> CLI,SDK
+Access Key+Secret Key+Session Token(Short term)=>Role Based access
+
+
+Amazon Resource Names (ARNs):
+Amazon Resource Names (ARNs) uniquely identify AWS resources. 
+eg.
+arn:aws:iam::aws:policy/IAMUserChangePassword
+arn:aws:iam::867310245731:group/everyone (here 867310245731 is account id)
+
+Permissions/Policies:
+Both Users and Group can have different permissions
+Permissions are represented using policy.
+If a User or Group has two policies one with allow and other with deny on a certain permission eg.deleteDynamoTable ,then deny policy will hold. 
+While defining policy * in ANR represents wildcard which represents all resource.
+
+AWS provideslots of policies,we can also make our own custom policy intwo ways:
+1.Managed Policy(it can be reused)
+2.Inline Policy(it cannot be reused)
+
+Scenario Problem:
+Give developer group all access to S3 excluding delete bucket operation.
+
+Solution:
+Assign following policies:
+AmazonS3FullAccess(aws manages)
+And create a custom managed policy like(which will prevent bucket deletion):
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Deny",
+            "Action": "s3:DeleteBucket",
+            "Resource": "*"
+        }
+    ]
+}
+ 
+
+Scenario Problem:
+Lets create a Group "everyone" which will hold permission common to everyone.
+Everyone should be able to see all user list,they should be able to change their own password,
+Can should be able to Manage there own Access Key
+
+Solution:
+assign the following AWS policies:
+IAMReadOnlyAccess(will be able to see list of users etc)
+IAMUserChangePassword(user can change their own password)
+Create a custom managed policy:
+service:IAM
+in Action search "AccessKey" and select following access
+Actions:ListAccessKey,CreateAccessKey,DeleteAccessKey,UpdateAccessKey,GetAccessKeyLastUsed
+Make sure ARN should end with ${aws:username}  not "*" other wise it will be able to manipulate any users access key.
+Note: inside ARN we can use variable ${aws:username}  to denote current user
+
+Roles:
+access key is stored in our local machine.
+If we want to deploy code to some EC2 instance we may embed our access keys in our code,which will have permissions to access other resources like DB.
+But this is very risky as we dont want out access keys available in repos like github.
+Roles solve this problem,For example we can create a Role for EC2 withh all reguired permissions.Then EC2 will be able to temporarily access other services like S3,lambda etc.
+Roles can have set of Permissions(represented in form of policies)
+Implicitly in above case EC2 will make a call to STS "security token service" to get temporary tokens,which can be renewed after regular interval as they expires after around 15mins.
+Using this temp token EC2 will get all permission attached to the given Role.
+
+The Role can also be used to give a User temporary permission to access resources in a different account.
+=================================
+VPC:
+Helps us to create logically isolated network like your LAN.
+VPCs are created per account per region(spans a single region).
+To cover multiple regions we need multiple VPCs.
+That means VPCs can use AZs belong to same region only.
+VPCs can peer with other VPCs in same or another region(No transitive routing supported).
+VPCs can talk to internet/other network using Gateways.
+Max 5 VPCs allowed per region by default.
+VPCs can be further divided into subnets.
+Sebnets belong to a single AZ.
+Max 200 subnets per VPC by default.
+
+How to use VPCs(Common Patterns):
+We could create VPCs per environment.See Fig1.png
+We can have different VPCs for database,Backend and frontend,which can be connected by VPC peers. see Fig2.png.
+We can have VPCs per department.see Fig3.png
+
+Subnets can be public(connected to Internet Gateway) or private(not connected to internet).
+We can have a public subnet for webapp and have a private subnet for database.To protect our db from direct internet access.
+
+In folowing example we will have a public subnet which has our load balance and a private subnet having our application.
+
+AWS account has a default VPC, we can create our own using "create VPC" from your VPCs page.
+Steps:
+Name:web-apps
+IP4 CIDR:10.0.0.0/16 (choose from any private ip range )
+
+Create subnet for load balancer:
+Steps:
+Name:load-balancing-a  (subnet are specific to AZ so here we are appending "-a" denoting a particular AZ,helpful for easy tracing)
+VPC:web-apps
+AZ:us-east-2a
+IP4 CIDR:10.0.0.0/24 (should be sub network IP inside VPC )
+
+Create subnet for application:
+Steps:
+Name:applications-a  (a are specific to AZ so here we are appending "-a" denoting a particular AZ,helpful for easy tracing)
+VPC:web-apps
+AZ:us-east-2a    (We could choose any AZ belong to same region)
+IP4 CIDR:10.0.1.0/24 (should be sub network IP inside VPC and should not overlap with other subnet in same VPC )
+
+
+When you create a VPC a default NACL,Security Group,Route Table are created as well.
+----------------
+Routing:
+Sample routing shown in Fig4.png.
+Subnets can interact with each other only through routers as they belong sepatate virtual network.
+
+Example of routing table where 10.0.0.0/16 is VPC CIDR and 10.0.0.0/24,10.0.1.0/24 ,10.0.2.0/24 are different subnet CIDRs :
+  CIDR         | Destination
+10.0.0.0/16      local            =>this rule will allow all machines in different subnes to interact with each other.
+192.168.0.0/16   VPN              =>Request in this IP range will be forwarded to VPN Gateway
+0.0.0.0/0        Internet Gateway =>0.0.0.0/0 represents "all other request",This rule will send all other IP requests to  internet gateway.
+
+NAT(Network Address Translation):
+See Fig5.png.
+subnets like database subnet should not be public,to prevent direct access.
+But sometimes they need internet access for example for software update/upgrade.
+NAT makes one way internet access possible.ie no one in internet can hit database but database can access internet.
+This kind of subnet with NAT is called "hybrid subnet"(neither public nor private)
+example:
+  CIDR         | Destination
+0.0.0.0/0        NAT
+--------------------------
+Going back to our web-apps VPC network.
+Lets configure routing,we acn add "web-app" filter to hide other VPC configurations.
+
+First Create an Internet Gateway:
+Goto "Internet Gateways" on left menu and create one.
+Name:web-apps-internet-access
+
+Now attach this gateway to web-apps VPC using options under Action menu.
+
+Goto "route tables" on left menu and select route table corresponding to "web-app" VPC( or alternatively you can create a new route table)
+In the botton "Routes" tab you will find
+Destination  | Target
+10.0.0.0/16    local
+
+To access internet add the following rule in route table:
+0.0.0.0/0   Internet Gateway(web-apps-internet-access)
+Goto "subnet association" tab in bottom
+select "load-balancing-a" subnet, to associate this subnet to this Routing table.
+
+We can verify subnet-routing table association.Going to subnet left menu and select subnet "load-balancing-a" and see bottom tab called "RouteTable"
+-------------
+Network Access Control List(NACL):
+Firewall for subnet or Security Group for subnet.
+Stateless 
+Rules are applied in order
+Must specify both ingress and engress(incoming and outgoing)
+Default NACL allows all ingress/egress
+
+Example Ingress(Incoming) rules of load-balancer subnet 10.2.0.0/23 in VCP(10.2.0.0/16) containing subnets(10.2.0.0/23 and 10.2.2.0/23):
+
+Protocol   | Port      | Source     |Allow/Deny|
+TCP          80          0.0.0.0/0     Allow 
+TCP          443         0.0.0.0/0     Allow
+TCP          1024-65535  10.2.0.0/16   Allow
+ALL          ALL         0.0.0.0/0     Deny
+ 
+Whole internet can access 80 and 443 port
+All machines inside VPC can access 1024-65535
+Anything else denied
+
+Egress(Outgoing) Rules of load-balancer subnet 10.2.0.0/23:
+ 
+Protocol   | Port      | Source     |Allow/Deny|
+TCP          1024-65535  0.0.0.0/0     Allow     //allows to send back HTTP(S) response.Without this rule HTTP response will not be sent.
+ALL          ALL         0.0.0.0/0     Deny
+
+ports less than 1024 are priviledge ports which are blocked.
+Here Elastic Load Balancer(ELB) gets req in port 80 or 443 but it always replies in another port in range 1024-65535(non-priviledged ports).
+So without the first egress rule,our web app can receive request but response will never go back to the client.
+-------------------
+Lets apply NACL to our web-app VPC:
+Go to Network ACL left menu and select existing one or create a new one.
+Here lets create a new NACL with following details:
+Name:load-balancing-public-traffic
+VPC:web-app
+
+select inbound rules tab at bottom and add:
+Rule#|Protocol   | Port      | Source     |Allow/Deny|
+100   TCP          80          0.0.0.0/0     Allow 
+110   TCP          443         0.0.0.0/0     Allow
+120   TCP          1024-65535  10.0.0.0/16   Allow
+*     ALL          ALL         0.0.0.0/0     Deny
+
+select outbound rules tab at bottom and add:
+Rule#|Protocol   | Port      | Source     |Allow/Deny|
+100    TCP         1024-65535  0.0.0.0/0     Allow    
+*      ALL         ALL         0.0.0.0/0     Deny
+
+
+associate this NACL with load-balancing-a subnet from "subnet associations" tab at bottom.
+
+We can verify NACL association.Going to subnet left menu and select subnet "load-balancing-a" and see bottom tab called "Network ACL"
+-------------------------------------
+Security Groups:
+Firewall applied to individual instances like ELB ,EC2 or Network interface
+They are stateful .See egress rule in Fig6.png
+Egress rules apply to initiating new connection.
+Also Here in Egress no need to specify outgoing for corresponding ingress,as it is stateless.
+
+Inbound Rule for load balancer instance:
+Protocol   | Port      | Source     
+TCP          80          0.0.0.0/0    
+TCP          443         0.0.0.0/0    
+
+Outbound Rule for load balancer instance:
+Protocol   | Port      | Dest     
+TCP          8080        sg-34234(ie. Security group backend application)   //allowed to create connection in app(EC2) in port 8080  
+
+Note:
+Egress rules apply to initiating new connection.
+We dont need following rule in outbound as it is stateful it tracks incoming request and make sure corresponding response is returned.
+Protocol   | Port      | Dest     
+TCP          1024-65535  0.0.0.0/0    
+
+
+Ingress rule for application instance:
+Protocol   | Port      | Source     
+TCP          8080        sg-68903(ie. Security group of load balancer instance)   
+
+Outbound Rule for application instance:
+Protocol   | Port      | Dest     
+TCP          3306        sg-15432(ie. Security group of database instance) 
+
+By default in SG:
+All ingress is denied
+All egress are allowed
+
+ 
+
+
+
+
+

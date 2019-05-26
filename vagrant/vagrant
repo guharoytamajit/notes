@@ -1,0 +1,479 @@
+>vagrant version
+>vagrant -h //help 
+>vagrant box -h  //help for a sub command
+
+>vagrant init bento/ubuntu-16.04
+above command will create a file called Vagrantfile with following content.
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-16.04"
+end
+
+>vagrant up  //start VM
+above command will automatically attempt to download the box file if not present.
+use "vagrant box list" to see list of downloaded box
+Then it will start the VM.
+It will also show informations like  port forwarding, shared folders, and networking details in console.
+
+>vagrant status  //check status
+>vagrant ssh //to ssh inside the above VM(ctrl+d or exit to exit)
+>vagrant halt //stop VM
+>vagrant up  //start VM
+>vagrant destroy  //destroy VM
+>vagrant suspend  //save state(like hibernate)
+>vagrant resume  //resume after suspended
+>vagrant reload //restart VM
+
+
+
+use https://app.vagrantup.com/boxes/search to find VM box
+
+>vagrant box add ubuntu/trusty64  //To cache(download) a box for later use.
+>vagrant box remove ubuntu/trusty64 //remove box from cache
+>vagrant box list  //list downloaded or cached box.
+
+
+create box from existing vm
+>vagrant package --base=<my vm name shown in virtualbox> --output=<any name of box>.box
+For example:
+>vagrant package --base=kali --output=mykali.box
+it will create mykali.box in current directory
+
+>vagrant box add centos64.box --name=mykali //add VM in cache
+Now "vagrant box list" will show mykali. 
+We can use it as "vagrant init mykali", we can provide os credentials as shown below:
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "mykali"
+  config.ssh.username="root"
+  config.ssh.password="tamajit"
+end
+
+Now we can start mykali VM as:
+>vagrant up --provider=virtualbox
+=======================
+A DEFINED SINGLE MACHINE ENVIRONMENT
+
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define "web" do |web|
+    web.vm.box ="puppetlabs/ubuntu-14.04-32-nocm"
+  end
+end
+
+>vagrant up web
+
+We can again shorten the command by passing a primary flag to config.vm.define and  use only "vagrant up": 
+ config.vm.define "web", primary: true do |web|
+
+
+======================
+PORT forwarding:
+
+Vagrant.configure("2") do |config|
+  config.vm.network "forwarded_port", guest: 80, host: 8080
+end
+
+OR
+
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define "web", primary: true do |web|
+    web.vm.box ="puppetlabs/ubuntu-14.04-32-nocm"
+    web.vm.network "forwarded_port", guest:80, host:8888
+    web.vm.provision "shell", inline: "apt-get install -y  nginx"
+  end
+end
+
+>curl http://localhost:8888
+
+If port 8888 on the host machine is blocked by another process, the Vagrant startup will fail as the Vagrant machine will be unable to associate to port 8888. To avoid these types of scenarios set  "auto_correct: true"
+
+web.vm.network "forwarded_port", guest:80, host:8888, auto_correct: true
+===============
+box with GUI:
+>vagrant init chad-thompson/ubuntu-trusty64-gui
+
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|  
+  config.vm.box = "chad-thompson/ubuntu-trusty64-gui"  
+  config.vm.provider "virtualbox" do |vbox|
+    vbox.gui = true
+  end
+  config.vm.provider "vmware_fusion" do |fusion|
+    fusion.gui = true
+  end
+end
+
+
+>vagrant up //it will autopick virtualbox or vmware depending upon the provider
+
+Alternatively:
+
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "chad-thompson/ubuntu-trusty64-gui"
+end
+
+>vagrant up chad-thompson/ubuntu-trusty64-gui --provider virtualbox
+===========================
+Shared Folder:
+By default location of vagrantfile in host machine is mounted in /vagrant of guest.Which is bi directional.So vagrantfile is also accessible from guest machine. 
+/vagrant(guest) => /home/tamajit/vagrant-test(host)
+
+Add a shared directory(synced_folder): 
+ web.vm.synced_folder "vagrantsite/", "/opt/vagrantsite"
+
+Full example:
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define "web", primary: true do |web|
+    web.vm.box ="puppetlabs/ubuntu-14.04-32-nocm"
+    web.vm.network "forwarded_port",
+    guest:80, host:8888
+    web.vm.synced_folder "vagrantsite/", "/opt/vagrantsite"
+    web.vm.provision "shell", inline: "apt-get install -y  nginx; ln -s /opt/vagrantsite /usr/share/nginx/html/vagrantsite"
+  end
+end
+
+>vagrant reload
+========
+Sharing folders using Network File Systems:
+Vagrant supports two different networked file systems:
+1.The Unix Networked File System (NFS)
+2.The Windows Server Message Block (SMB) protocol
+
+To make use if nfs add an extra type:"nfs" to web.vm.synced_folder  as follows:
+
+web.vm.synced_folder "vagrantsite/","/opt/vagrantsite", type:"nfs"
+
+
+
+
+
+
+
+
+=========
+rsync
+
+TODO
+
+============
+vagrant SSH:
+we can connect to vagrant guest using "vagrant ssh" from vagrantfile location, How to login from other location?
+
+>vagrant ssh-config
+  Host default
+  HostName 127.0.0.1
+  User vagrant
+  Port 2222
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile /home/tamajit/vagrant-test/.vagrant/machines/default/virtualbox/private_key
+  IdentitiesOnly yes
+  LogLevel FATAL
+
+now we can connect from any shell using:
+>ssh -p 2222 -i /home/tamajit/vagrant-test/.vagrant/machines/default/virtualbox/private_key  vagrant@127.0.0.1
+
+
+If there are multiple guest machines there will be separate private key for each 
+
+
+Vagrant.configure("2") do |config|
+  config.vm.define "web1" do |web1|
+    web1.vm.box = "bento/ubuntu-16.04"  
+  end 
+  config.vm.define "web2" do |web2|
+    web2.vm.box = "bento/ubuntu-16.04"  
+  end 
+end
+
+>vagrant up
+>vagrant ssh-config
+Host web1
+  HostName 127.0.0.1
+  User vagrant
+  Port 2200
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile /home/tamajit/vagrant-test/.vagrant/machines/web1/virtualbox/private_key
+  IdentitiesOnly yes
+  LogLevel FATAL
+
+Host web2
+  HostName 127.0.0.1
+  User vagrant
+  Port 2201
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile /home/tamajit/vagrant-test/.vagrant/machines/web2/virtualbox/private_key
+  IdentitiesOnly yes
+  LogLevel FATAL
+
+Now we can use above details to ssh to web1 or web2 machine.
+
+We can control single machine out of all using vm name after most commands
+eg.
+>vagrant suspend web2 #save state of only web2, web1 still running
+>vagrant resume web2
+
+Note:Two machines have two different private key
+
+=====
+Customizing virtual machine specific settings:
+We can set things like cpu,memory etc.
+eg.
+   web.vm.provider "virtualbox" do |vbox|
+      vbox.memory = 2048
+      vbox.cpus = 2
+    end
+
+full example:
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define "web", primary: true do |web|
+    web.vm.box ="puppetlabs/ubuntu-14.04-32-nocm"
+    web.vm.network "forwarded_port", guest:80, host:8888
+    web.vm.provision "shell", inline: "apt-get install -y  nginx"
+      web.vm.provider "virtualbox" do |vbox|
+      vbox.memory = 2048
+      vbox.cpus = 2
+    end
+  end
+end
+
+================
+Provisioning a Vagrant Environment:
+Vagrant implements a number of methods to install and configure software wherein each different method is referred to as a provisioner.
+
+1.Running basic shell commands:
+
+eg.
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "puppetlabs/ubuntu-14.04-32-nocm"
+  config.vm.provision "shell", 
+    inline: "echo 'Welcome to my world' > /etc/motd"
+end
+
+shell=>The type of provisioner being executed
+
+Note: Content of /etc/motd file is displayed  to users on login.
+
+Executing the "vagrant provision" command will only execute commands defined in provisioners.
+
+We should make sure provision actions are idempotent,example of non-idempotent cammand :
+"echo 'Welcome to my world' >> /etc/motd"  //append to file
+
+2.Executing shell scripts in a Vagrantfile:
+
+example:
+VAGRANTFILE_API_VERSION = "2"
+$nginx_install = <<SCRIPT
+  if [ ! -x /usr/sbin/nginx ]; then
+    apt-get install -y nginx;
+  fi
+
+  # Default NGINX directory: /usr/share/nginx/html
+  # Replace this with symbolic link to vagrant directory.
+  if [ ! -L /usr/share/nginx/html ]; then
+    rm -rf /usr/share/nginx/html
+    ln -s /vagrant/html /usr/share/nginx/html
+  fi
+SCRIPT
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "puppetlabs/ubuntu-14.04-32-nocm"
+  config.vm.provision "shell", inline: $nginx_install
+  config.vm.network "forwarded_port", guest:80, host:8080
+end
+
+
+Following shell script checks for the existence of the nginx executable using the -x flag:
+  if [ ! -x /usr/sbin/nginx ]; then
+    apt-get install -y nginx;
+  fi
+
+Following script  checks for the existence of a symbolic link using the -L flag:
+  if [ ! -L /usr/share/nginx/html ]; then
+    rm -rf /usr/share/nginx/html
+    ln -s /vagrant/html /usr/share/nginx/html
+  fi
+
+3.Provisioning with external shell scripts:
+
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "puppetlabs/ubuntu-14.04-32-nocm"
+  config.vm.provision "shell", path: "nginx-install.sh"
+  config.vm.network "forwarded_port", guest:80, host:8080
+end
+
+nginx-install.sh:
+#!/bin/bash
+
+  if [ ! -x /usr/sbin/nginx ]; then
+    apt-get install -y nginx;
+  fi
+
+  # Default NGINX directory: /usr/share/nginx/html
+  # Replace this with symbolic link to vagrant directory.
+  if [ ! -L /usr/share/nginx/html ]; then
+    rm -rf /usr/share/nginx/html
+    ln -s /vagrant/html /usr/share/nginx/html
+  fi
+========================
+Provisioning with Configuration Management Tools like Ansible:
+
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define "web", primary: true do |web|
+    web.vm.box ="puppetlabs/ubuntu-14.04-32-nocm"
+    web.vm.network "forwarded_port", guest: 80, host:8080
+      web.vm.provision "ansible" do |ansible|
+        ansible.playbook="ansible/playbook.yml"
+        ansible.sudo = true
+      end
+  end 
+end
+
+
+============================
+Networking:
+Vagrant essentially offers two options:
+
+1.A local network that limits access to Virtual Machines (VMs) running on the host computer. The hypervisor software typically specifies an address range.
+2.A bridged network that will obtain an IP address from outside the local range. This means that the Vagrant machine can be accessed as any other machine on the host computer network. You can, for example, specify bridged networking if you want your Vagrant machine to be a shared resource among many different people in your office. 
+
+
+private_network:
+1.Guest machine accessible only from host,each guest have their own ip.
+2.Others guests under same host can access each other (if in same subnet).However no guest machines are reachable outside host machine(even on same LAN).
+3.Can communicate with guest machines with its ip directly,rather than using port forwarding.
+
+example:
+config.vm.network "private_network", type: "dhcp"  //ip automatically assigned to guest machine
+config.vm.network "private_network", ip: "172.16.0.11"
+
+
+public_network:
+1.Now guest machine will behave like any other machine in LAN.It has its own public IP.
+2.Can be accessed by host,guest  or any other machine in LAN.
+
+example:
+config.vm.network "private_network"  //DHCP.  ip automatically assigned to guest machine
+config.vm.network "private_network", ip: "192.168.0.11"
+
+
+We can use combination of port_forwarding,private_network,public_network all of them should work together.
+
+
+
+
+
+
+
+=====================
+Multi machine:
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define "database" do |db|
+    db.vm.box = "puppetlabs/ubuntu-14.04-64-nocm"
+    db.vm.hostname = "db01"
+    db.vm.network "private_network", ip: "192.168.55.100"
+  end
+  config.vm.define "web" do |web|
+    web.vm.box = "puppetlabs/ubuntu-14.04-64-nocm"
+    web.vm.hostname = "web01"
+    web.vm.network "private_network", ip:"192.168.55.101"
+  end
+end
+
+
+=======
+cluster:
+
+VAGRANTFILE_API_VERSION = "2"
+$consul_server_ip = "192.168.30.130"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  # Define a global box file to be used by all machines.
+  config.vm.box = "puppetlabs/ubuntu-14.04-64-puppet"
+  # Create and provision a Consul server machine.
+  config.vm.define "consul" do |consul|
+    consul.vm.hostname = "consul"
+    consul.vm.network "private_network", ip: $consul_server_ip
+    consul.vm.provision "shell", inline: "apt-get update && apt-get install -y unzip"
+    consul.vm.provision "puppet" do |puppet|
+      puppet.manifests_path = "puppet/manifests"
+      puppet.module_path    = "puppet/modules"
+      puppet.manifest_file  = "site.pp"
+    end
+  end
+  (1..$cluster_nodes).each do |i|
+    config.vm.define vm_name = "cluster%02d" % i do |cluster|
+      cluster.vm.hostname = vm_name
+      cluster.vm.provision "shell", inline: "apt-get update && apt-get install -y unzip"
+      cluster.vm.provision "puppet" do |puppet|
+        puppet.manifests_path = "puppet/manifests"
+        puppet.module_path    = "puppet/modules"
+        puppet.manifest_file  = "site.pp"
+      end
+      cluster.vm.provision "shell", inline: "consul join #{$consul_server_ip}"
+    end
+  end
+=================
+Docker as provider:
+
+example1:
+Vagrant.configure("2") do |config|
+  config.vm.provider "docker" do |d|
+    d.image = "mysql"
+    d.has_ssh = true
+  end
+end
+
+>vagrant up --no-parallel
+
+example2:
+VAGRANTFILE_API_VERSION = "2"
+  Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define"database" do |db|
+    db.vm.provider "docker" do |d|
+      d.image="mysql"
+      d.env = {
+        :MYSQL_ROOT_PASSWORD => "root",
+        :MYSQL_DATABASE      => "dockertest",
+        :MYSQL_USER          => "dockertest",
+        :MYSQL_PASSWORD      => "d0cker"
+      }
+      d.ports =["3306:3306"]
+      d.remains_running = "true"
+    end
+  end
+end
+
+
+>vagrant up –provider=docker 
+
+===============
+docker as provisioner:
+
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "bento/ubuntu-16.04"
+  config.vm.provision "shell", inline:"apt-get install -y mysql-client"
+  config.vm.provision "docker" do |d|
+    d.pull_images "library/mysql"
+    d.run 'library/mysql', args: '-e MYSQL_ROOT_PASSWORD=password -p 3306:3306'
+  end
+end
+
+
+
+

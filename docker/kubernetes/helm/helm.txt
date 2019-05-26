@@ -1,6 +1,13 @@
 package manager for k8s.
 helps you to manage k8s apps
 maintained by CNCF
+===============
+Install And Configure Helm
+>curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
+>chmod 700 get_helm.sh
+>./get_helm.sh
+
+=============
 It uses a packaging format called charts.
 
 chart:

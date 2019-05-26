@@ -1,0 +1,39 @@
+>useradd --help
+>useradd -D #like test run, will show defaults
+>useradd jim  #crteate user jim
+>id // shows current user id,group etc 
+>id jim //shows id,group etc  of jim
+In many linux distribution when a user is created he is also added to a group with same as username
+>less /etc/passwd  //stores user details
+Here you will see even services have accound but then are not assigned any shell(/sbin/nologin)
+>less /etc/shadow  //stores password in encrypted form 
+>passwd jim  //add password,expiry,lock details  for jim user
+
+
+>cd /etc/skel/  //this directory holds the default home structure for any account.
+If we add any file in skel directory it will be added in all user's home
+
+    
+>usermod --help //can be used to change username/password/group  ,lock/unlock account,change home etc
+>userdel -r jim // -r makes sure home directory is deleted
+
+
+Suppose an organization has departments like hr,sales. Now instead of giving permissions to individual users we can add users to different groups say HR or sales. Then give a set of priviledge to these groups.
+
+>groupadd sales
+>groupadd hr
+
+>less /etc/group // all group details
+
+Changing group of user:
+we use usermod with following flags:
+-g =>changes primary group,users primary group is  a group with same name as user
+-G =>change supplementary group.This will overwrite not append. we can use "," as delimiter for passing multiple groups.
+-a =>add user to a supplementary group.
+
+>usermod  -aG sales jim
+
+>groupmod --help
+>groupdel hr //delete group hr
+
+

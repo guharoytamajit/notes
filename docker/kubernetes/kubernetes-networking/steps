@@ -1,0 +1,12 @@
+>vagrant up //start k8s cluster
+>vagrant ssh k8s-master // logging inside master
+master> kubectk cluster-info
+you will get ip of master,in output.
+>curl <master ip>  //it will give certification verification failed error!! . Note since we are doing this from master we can also use localhost instead of ip.
+>curl <master ip>  --insecure    //hitting master in insecure mode (which you should not do in real life),Now we will get json response(although forbidden)
+
+>ps aux|grep kube-apiserver //check if kube-apiserver is running 
+
+
+
+

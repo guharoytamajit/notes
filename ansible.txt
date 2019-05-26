@@ -1,3 +1,10 @@
+Features:
+1.Nothing to Install on the Remote Hosts: There’s no need to preinstall an agent. 
+2.Push based: Chef and Puppet, are pull based by default.Agents installed on the servers periodically check in with a central service and pull down configuration.
+Ansible is push based by default.make a change to a playbook & run it. connects to servers and executes modules, which changes server state.
+3.Many Built-in Modules
+
+
 https://serversforhackers.com/c/an-ansible-tutorial
 apt-get install python-pip
 pip install ansible=2.2.0.0
@@ -20,6 +27,85 @@ ansible all -i pi@192.168.0.102,pi@192.168.0.103 -m command --args <any command>
 ansible all -i pi@192.168.0.102,pi@192.168.0.103 -m command --args 'sudo apt-get install -y apache2'
 
 ansible-playbook lets us place Ansible configuration into files so we can reliably run the same set of commands over and over.
+===================================
+Vagrant+ansible setup:
+
+setup machine with vagrant:
+>vagrant init ubuntu/trusty64
+>vagrant up
+>vagrant ssh
+This approach lets us interact with the shell, but Ansible needs to connect to the virtual machine by using the regular SSH client, not the vagrant ssh command.
+
+Tell Vagrant to output the SSH connection details by typing the following:
+>vagrant ssh-config
+Host default
+  HostName 127.0.0.1
+  User vagrant
+  Port 2222
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile /Users/lorin/dev/ansiblebook/ch01/playbooks/.vagrant/machines/default/virtualbox/private_key
+  IdentitiesOnly yes
+  LogLevel FATAL
+
+Connect through ssh:
+ssh vagrant@127.0.0.1 -p 2222 -i /Users/lorin/dev/ansiblebook/ch01/playbooks/.vagrant/machines/default/virtualbox/private_key
+
+Ansible can manage only the servers it explicitly knows about. You provide Ansible with information about servers by specifying them in an inventory file.
+
+Each server needs a name that Ansible will use to identify it. You can use the hostname of the server, or you can give it an alias and pass additional arguments to tell Ansible how to connect to it. We’ll give our Vagrant server the alias of testserver.
+
+./hosts:
+testserver ansible_host=127.0.0.1 ansible_port=2222 ansible_user=vagrant \ ansible_private_key_file=.vagrant/machines/default/virtualbox/private_key
+
+Here we see one of the drawbacks of using Vagrant: we have to explicitly pass in extra arguments to tell Ansible how to connect. In most cases, we won’t need this extra data.
+
+If you have an Ubuntu machine on Amazon EC2 with a hostname like ec2-203-0-113-120.compute-1.amazonaws.com, then your inventory file will look something like this (all on one line):
+testserver ansible_host=ec2-203-0-113-120.compute-1.amazonaws.com \
+ ansible_user=ubuntu ansible_private_key_file=/path/to/keyfile.pem
+
+
+>ansible testserver -i host -m ping
+-i => inventory file path here it is ./host which has entry for testserver
+-m =>module name
+testserver  =>the host to ping, entry for this must be present in inventory
+
+
+If Ansible did not succeed, add the -vvvv flag to see more details about the error:
+>ansible testserver -i hosts -m ping -vvvv
+
+
+
+Ansible looks for an ansible.cfg file in the following places, in this order:
+1. File specified by the ANSIBLE_CONFIG environment variable
+2. ./ansible.cfg (ansible.cfg in the current directory)
+3. ~/.ansible.cfg (.ansible.cfg in your home directory)
+4. /etc/ansible/ansible.cfg
+
+We had to type a lot of text in the inventory file to tell Ansible about our test server. Fortunately, Ansible has ways to specify these sorts of variables so we don’t have to put them all in one place. 
+
+
+--ansible.cfg--
+[defaults]
+inventory = hosts
+remote_user = vagrant
+private_key_file = .vagrant/machines/default/virtualbox/private_key
+host_key_checking = False
+
+--hosts--
+testserver ansible_host=127.0.0.1 ansible_port=2222
+
+private_key_file details already provided in ansible.cfg so we no longer need to provide that in hosts file as shown above.
+
+We can ping by using following command:
+>ansible testserver -m ping
+
+Ansible uses /etc/ansible/hosts as the default location for the inventory file. However, it is recommended to keep inventory files version-controlled alongside  playbooks.
+
+Check uptime
+>ansible testserver -m command -a uptime
+
 
 
 =======================================
@@ -121,3 +207,326 @@ service module can have following state values: start, stop, restart, reload
 
 Note:Notifiers are only run if the Task is run. If I already had Nginx installed, the Install Nginx Task would not be run and the notifier would not be called.
 =======================
+
+Vagrant+ansible using playbook:
+
+VAGRANTFILE_API_VERSION = "2"
+
+---Vagrantfile---
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "ubuntu/trusty64"
+  config.vm.network "forwarded_port", guest: 80, host: 8080
+  config.vm.network "forwarded_port", guest: 443, host: 8443
+end
+
+>vagrant up
+03340337032/33
+
+---web-notls.yml---
+- name: Configure webserver with nginx
+  hosts: webservers
+  become: True
+  tasks:
+    - name: install nginx
+      apt: name=nginx update_cache=yes
+
+    - name: copy nginx config file
+      copy: src=files/nginx.conf dest=/etc/nginx/sites-available/default
+
+    - name: enable configuration
+      file: >
+        dest=/etc/nginx/sites-enabled/default
+        src=/etc/nginx/sites-available/default
+        state=link
+
+    - name: copy index.html
+      template: src=templates/index.html.j2 dest=/usr/share/nginx/html/index.html
+        mode=0644
+
+    - name: restart nginx
+      service: name=nginx state=restarted
+
+---files/nginx.conf---
+server {
+        listen 80 default_server;
+        listen [::]:80 default_server ipv6only=on;
+
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+
+        server_name localhost;
+
+        location / {
+                try_files $uri $uri/ =404;
+        }
+}
+
+---playbooks/templates/index.html.j2---
+<html>
+  <head>
+    <title>Welcome to ansible</title>
+  </head>
+  <body>
+  <h1>nginx, configured by Ansible</h1>
+  <p>If you can see this, Ansible successfully installed nginx.</p>
+
+  <p>Running on {{ inventory_hostname }}</p>
+  </body>
+</html>
+
+---playbooks/hosts---
+[webservers]
+testserver ansible_host=127.0.0.1 ansible_port=2222
+
+
+
+Note:
+1. '>' in yaml will allow us to declare multi-line string 
+2. YAML truthy:
+true, True, TRUE, yes, Yes, YES, on, On, ON, y, Y
+3. YAML falsey:
+false, False, FALSE, no, No, NO, off, Off, OFF, n, N
+4. module arg truthy:
+yes, on, 1, true
+5. module arg falsey:
+no, off, 0, false
+
+
+>ansible webservers -m ping //test
+>ansible-playbook web-notls.yml
+
+
+If your playbook file is marked as executable and starts with a line that looks like this:
+#!/usr/bin/env ansible-playbook
+then you can execute it by invoking it directly, like this:
+>./web-notls.yml
+
+Every play must contain the following:
+1.A set of hosts to configure
+2.A list of tasks to be executed on those hosts
+3.Think of a play as the thing that connects hosts to tasks.
+
+
+Viewing ansible module documentation:
+>ansible-doc <module name>
+example:
+>ansible-doc service
+
+
+Entity relationship:
+playbook has n number of plays
+play has n number of hosts
+play has n number of tasks
+Task has a module
+
+
+Adding TLS Support:
+---web-tls.yml---
+- name: Configure webserver with nginx and tls
+  hosts: webservers
+  become: True
+  vars:
+    key_file: /etc/nginx/ssl/nginx.key
+    cert_file: /etc/nginx/ssl/nginx.crt
+    conf_file: /etc/nginx/sites-available/default
+    server_name: localhost
+  tasks:
+    - name: Install nginx
+      apt: name=nginx update_cache=yes cache_valid_time=3600
+
+    - name: create directories for ssl certificates
+      file: path=/etc/nginx/ssl state=directory
+
+    - name: copy TLS key
+      copy: src=files/nginx.key dest={{ key_file }} owner=root mode=0600
+      notify: restart nginx
+
+    - name: copy TLS certificate
+      copy: src=files/nginx.crt dest={{ cert_file }}
+      notify: restart nginx
+
+    - name: copy nginx config file
+      template: src=templates/nginx.conf.j2 dest={{ conf_file }}
+      notify: restart nginx
+
+    - name: enable configuration
+      file: dest=/etc/nginx/sites-enabled/default src={{ conf_file }} state=link
+      notify: restart nginx
+
+    - name: copy index.html
+      template: src=templates/index.html.j2 dest=/usr/share/nginx/html/index.html
+             mode=0644
+
+  handlers:
+    - name: restart nginx
+      service: name=nginx state=restarted
+
+
+
+
+---templates/nginx.conf.j2
+server {
+        listen 80 default_server;
+        listen [::]:80 default_server ipv6only=on;
+
+        listen 443 ssl;
+
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+
+        server_name {{ server_name }};
+        ssl_certificate {{ cert_file }};
+        ssl_certificate_key {{ key_file }};
+
+        location / {
+                try_files $uri $uri/ =404;
+        }
+}
+
+
+
+
+Generating a TLS Certificate:
+>mkdir files
+>openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -subj /CN=localhost \
+    -keyout files/nginx.key -out files/nginx.crt
+
+We generate the files nginx.key(private key) and nginx.crt in the files directory. The certificate has an expiration date of 10 years (3,650 days) 
+
+
+Variables(vars in playbook):
+They can be used in tasks,by using the {{ braces }} notation.
+
+Handlers:
+ A handler is similar to a task, but it runs only if it has been notified by a task(eg. notify: restart nginx).
+ A task will fire the notification if Ansible recognizes that the task has changed the state of the system. 
+ Handlers usually run after all of the tasks are run at the end of the play.
+ They run only once, even if they are notified multiple times. 
+ If a play contains multiple handlers, the handlers always run in the order that they are defined in the handlers section, not the notification order.
+ The official Ansible docs mention that the only common uses for handlers are for restarting services and for reboots.
+
+Running the Playbook:
+>ansible-playbook web-tls.yml
+
+hit:  https://localhost:8443
+=========================
+Understanding Inventory(Ansible + vagrant):
+
+define multiple machines
+---Vagrantfile---
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  # Use the same key for each machine
+  config.ssh.insert_key = false
+
+  config.vm.define "vagrant1" do |vagrant1|
+    vagrant1.vm.box = "ubuntu/trusty64"
+    vagrant1.vm.network "forwarded_port", guest: 80, host: 8080
+    vagrant1.vm.network "forwarded_port", guest: 443, host: 8443
+  end
+  config.vm.define "vagrant2" do |vagrant2|
+    vagrant2.vm.box = "ubuntu/trusty64"
+    vagrant2.vm.network "forwarded_port", guest: 80, host: 8081
+    vagrant2.vm.network "forwarded_port", guest: 443, host: 8444
+  end
+  config.vm.define "vagrant3" do |vagrant3|
+    vagrant3.vm.box = "ubuntu/trusty64"
+    vagrant3.vm.network "forwarded_port", guest: 80, host: 8082
+    vagrant3.vm.network "forwarded_port", guest: 443, host: 8445
+  end
+end
+
+Note:
+Vagrant 1.7+ defaults to using a different SSH key for each host. Using "config.ssh.insert_key = false" we ensure use the same key for each machine.
+
+
+>vagrant up
+
+---ansible.cfg---
+[defaults]
+inventory = inventory
+remote_user = vagrant
+private_key_file = ~/.vagrant.d/insecure_private_key
+host_key_checking = False
+
+>vagrant ssh-config //we need to know what SSH ports inside each VM.
+Host vagrant1
+  HostName 127.0.0.1
+  User vagrant
+  Port 2222
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile /Users/lorin/.vagrant.d/insecure_private_key
+  IdentitiesOnly yes
+  LogLevel FATAL
+
+Host vagrant2
+  HostName 127.0.0.1
+  User vagrant
+  Port 2200
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile /Users/lorin/.vagrant.d/insecure_private_key
+  IdentitiesOnly yes
+  LogLevel FATAL
+
+Host vagrant3
+  HostName 127.0.0.1
+  User vagrant
+  Port 2201
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile /Users/lorin/.vagrant.d/insecure_private_key
+  IdentitiesOnly yes
+  LogLevel FATAL
+
+
+Modify your hosts file so it looks like this:
+--hosts---
+vagrant1 ansible_host=127.0.0.1 ansible_port=2222
+vagrant2 ansible_host=127.0.0.1 ansible_port=2200
+vagrant3 ansible_host=127.0.0.1 ansible_port=2201
+
+>ansible vagrant2 -a "ip addr show dev eth0"  //test
+
+Behavioral inventory parameters:
+
+1.ansible_host:
+Hostname or IP address to SSH to(Default: Name of host)
+
+2.ansible_port:
+Port to SSH to(Default:22)
+
+3.ansible_user:
+User to SSH as(Default:Root)
+
+4.ansible_password:
+Password to use for SSH authentication(Default : None)
+
+5.ansible_connection:
+How Ansible will connect to host(Default:smart)
+
+6.ansible_private_key_file:
+SSH private key to use for SSH authentication(Default: None)
+
+7.ansible_shell_type:
+Shell to use for commands (Default:sh)
+
+8.ansible_python_interpreter:
+Python interpreter on host (Default:/usr/bin/python)
+
+9.ansible_*_interpreter:
+Like ansible_python_interpreter for other languages.(Default: None)
+
+
+
+
+
+
+
+

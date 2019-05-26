@@ -1,0 +1,44 @@
+Apache Nifi supports powerful and scalable directed graphs of data routing,transformation and system mediation logic.
+Important features:
+Can create data pipeline which scales across cluster.
+Guaranteed delivery/No data loss
+Supports data buffering,back ressure,priority queuing
+drag drop interface.
+Implements all common integration patterns routing,filtering,transforming etc.
+Lots of templates available online to reuse.
+
+What it is not good for:
+Distributed computing
+Complex event processing
+Joins,rolling window,aggregation operations.
+
+Good for basic transforming,enriching as ETL.Should avoid when compution logic is complex and expensive(Use Spark/Flink instead).
+
+Building blocks:
+1.FlowFile:
+  It is basically the data
+  Comprises of two element:  a)Content=>data itself,  b)Attributes=>matadata(key-value) 
+  Always Gets persisted to disk (not memory) after creation
+  
+2.Processor:
+  Applies a set of transformations and rules to FlowFiles(data) to generate a new FlowFile.
+  Any Processor can process any FlowFile.
+  They are all running parallel in different threads.
+   Processor can update,add or remove FlowFile attributes    and/or  change  FlowFile content
+
+3.Connector(buffer between Processor):
+  Connects Processors
+  Queue of FlowFiles that are yet t be processed by the next Processor.
+  Can define Priorities,backpressure etc  
+  
+>cd $NIFI_HOME/bin
+>./nifi.sh run
+
+localhost:8080/nifi
+Ctrl+c  to stop nifi
+
+
+
+  
+
+

@@ -1,0 +1,147 @@
+>sudo yum install openssl
+OR
+>sudo apt-get install openssl
+
+Generate key value-pair
+>openssl genrsa -out example.key 2048
+It will generate RSA key 2048bit long.
+example.key =>our private key
+
+create csr for key
+>openssl req -new -key example.key -out example.csr
+
+
+Now we can generate cretificate from CSR. Generally this step is done  by some CA,but we can self sign it.
+Here we are self signing with our own privatekey,in real life it will be signed by private key of CA
+>openssl x509 -req -days 365 -in example.csr -signkey example.key -out example.crt
+This certificate has a validity of 365 days
+
+======================
+Some of the abbreviations related to certificates.
+
+    SSL – Secure Socket Layer
+    CSR – Certificate Signing Request
+    TLS – Transport Layer Security
+    PEM – Privacy Enhanced Mail
+    DER – Distinguished Encoding Rules
+    SHA – Secure Hash Algorithm
+    PKCS – Public-Key Cryptography Standards
+
+
+Create new Private Key and Certificate Signing Request
+>openssl req -out geekflare.csr -newkey rsa:2048 -nodes -keyout geekflare.key
+
+Create a Self-Signed Certificate
+>openssl req -x509 -sha256 -nodes -days 730  -newkey rsa:2048 -keyout gfselfsigned.key -out gfcert.pem
+
+Verify CSR file
+>openssl req -noout -text -in geekflare.csr
+
+Create only RSA Private Key
+>openssl genrsa -out private.key 2048
+
+Generate new RSA key and encrypt with a pass phrase based on AES CBC 256 encryption:
+>openssl genrsa -aes256 -out example.key [bits]
+
+Print textual representation of RSA key:
+>openssl rsa -in example.key -text -noout
+
+Print public key or modulus only:
+>openssl rsa -in example.key -pubout
+>openssl rsa -in example.key -noout -modulus
+
+Remove Passphrase from Key
+>openssl rsa -in certkey.key -out nopassphrase.key
+
+Encrypt existing private key with a pass phrase:
+>openssl rsa -des3 -in example.key -out example_with_pass.key
+
+Verify Private Key
+>openssl rsa -in certkey.key –check
+
+Verify Certificate File
+>openssl x509 -in certfile.pem -text –noout
+
+Verify the Certificate Signer Authority
+>openssl x509 -in certfile.pem -noout -issuer -issuer_hash
+
+Check Hash Value of A Certificate
+>openssl x509 -noout -hash -in bestflare.pem
+
+Usually, certificate authority will give you SSL cert in .der format, and if you need to use them in apache or .pem format then the above command will help you.
+Convert DER to PEM format
+>openssl x509 –inform der –in sslcert.der –out sslcert.pem
+
+Convert PEM to DER format
+>openssl x509 –outform der –in sslcert.pem –out sslcert.der
+
+Convert Certificate and Private Key to PKCS#12 format:
+>openssl pkcs12 –export –out sslcert.pfx –inkey key.pem –in sslcert.pem
+
+If you need to use a cert with the java application or with any other who accept only PKCS#12 format, you can use the above command, which will generate single pfx containing certificate & key file.
+Tip: you can also include chain certificate by passing –chain as below.
+>openssl pkcs12 –export –out sslcert.pfx –inkey key.pem –in sslcert.pem -chain cacert.pem
+
+Create CSR using an existing private key
+>openssl req –out certificate.csr –key existing.key –new
+
+Check contents of PKCS12 format cert
+>openssl pkcs12 –info –nodes –in cert.p12
+
+Convert PKCS12 format to PEM certificate
+>openssl pkcs12 –in cert.p12 –out cert.pem
+
+Test SSL certificate of particular URL
+>openssl s_client -connect yoururl.com:443 –showcerts
+ To validate the SSL certificate of particular URL from the server. This is very handy to validate the protocol, cipher, and cert details.
+
+Check PEM File Certificate Expiration Date
+>openssl x509 -noout -in certificate.pem -dates
+
+Check Certificate Expiration Date of SSL URL
+>openssl  s_client -connect secureurl.com:443 2>/dev/null | openssl x509 -noout –enddate
+nother useful if you are planning to monitor SSL cert expiration date remotely or particular URL
+
+Check if SSL V2 or V3 is accepted on URL
+To check SSL V2
+>openssl s_client -connect secureurl.com:443 -ssl2
+
+To Check SSL V3
+>openssl s_client -connect secureurl.com:443 –ssl3
+
+To Check TLS 1.0
+>openssl s_client -connect secureurl.com:443 –tls1
+
+To Check TLS 1.1
+>openssl s_client -connect secureurl.com:443 –tls1_1
+
+To Check TLS 1.2
+>openssl s_client -connect secureurl.com:443 –tls1_2
+
+
+https://medium.freecodecamp.org/openssl-command-cheatsheet-b441be1e8c4a
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
