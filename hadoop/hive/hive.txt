@@ -20,7 +20,7 @@ Hive does not support row level update or delete.
  With hive we should make queries like summary or aggregation and should not pull individual records as it will not give any performance benefit.
    
 RDBMS use schema on write,but hive uses schema on read(it enforces all schema constrains while reading).
-There is no data check in write operations.
+There is no data check in write operations. 
 Since hive is unaware of schema during write it does not support row level update or delete. 
 For same reason it also dont have support for primary key,foreign key,unique,not null.
 In case of schema mismatch while reading hive tries its best to fix it by padding with null.
@@ -285,30 +285,376 @@ If databsse is not specified table directory is created directly inside warehous
 
 hive table may be composed of multiple file(union of all file content is the content of table).
 ============
-till 20
+When er fire insert into query a new MR job is launched.
+insert into query may have one or multi row,in both cases a new file is created inside table directory(table content is union of all files).
+we can see the content of each table files using >hadoop fs /user/hive/warehouse/{database}/{table}/{filename} //for external table location can be different
+
+Note:
+ in hive default field delimiter is not comma ','. so you may see many NULL when doint >select * from <table name>
+ so for csv we need to do >alter table <tablename> set serdeproperties('field.delim'=',');
+ Now >select * from <table name>;   will parse them correctly and give expected result.
+
+
+Execute hive queries from outside hive shell(from system terminal):
+>hive -e 'from student select firstname,email where gender ="M";'
+syntax >hive -e '<query to be executed on hive shell>'
+
+we can also pass a sql file which has multiple queries using -f option:
+>hive -f abc.sql
+===================
+Hive Functions:
+Built in functions of hive
+It adds a lot more functiobality as opposed to traditional sql
+There are 3 types of hive functions (depending upon the type how data is processed):
+1.Standard Functions:
+It take a row/columns in a row as arguments.
+It returns a single row for each row
+eg. select concat(frstname," ",lastname) from employee;
+other examples pow(),sqrt(),exp(),length,reverse(),regexp_replace()
+
+2.Aggregate Functions:
+takes multiple rows as input and return a single result
+these functions are generally used with a group by clause
+eg. select productname ,sum(revenue) from sales_data group by productname;
+other eg.sum(), count(),avg()
+
+3.Table generating functions:
+Takes one row as input and outputs multiple rows.
+These functions gererally operate on collection data types like array,maps,structs
+eg. select explode(array(1,2,3)); //will output 1 row for each array element
+---------------------
+case..when statement:
+computing a column based on conditions.
+rule:
+employee will get extra vacations 
+                                 if tanure <2 ,then 0 days
+                                 if tanure 2-3 ,then 2 days
+                                 if tanure >2 ,then 3 days
+corresponding sql query:
+from employee select ename
+case when tanure<2 then 0
+     when tanure>=2 and tanure<=3 then 2
+     when tanure>3 then 3  
+end as extra_vacation_days;
+------------------
+size(): size of elements for array and maps
+select size(array(1,2,3)) ;  o/p: 3
+select size(map("name","tony","age",30)) ;  o/p: 2
+
+cast(): converts datatype
+select cast("25" as bigint); //string to bigint,you can pass column name inplace of "25". it will return null if casting fails
+====
+RDBMS vs HIVE
+suppose we have three rdbms entities:
+Employee,Address and Subordinates
+
+Employee:
+----------------------------
+EmpId  |EmpName  |AddressId
+----------------------------
+1       tony      1
+----------------------------
+Address:
+------------------------------
+AddressId|Street     |City
+------------------------------
+1         parkstreet  kolkata
+------------------------------
+
+Subordinates:
+-----------------------------
+EmpId   | SubordinateId
+----------------------------
+1        3
+1        4
+1        8
+---------------------------
+
+We need two joins 2 tables to fetch address by emp name
+We need two joins 2 tables to fetch subordinate names for an employee
+
+In RDBMS joins can be made more efficient by introducing indices and constraints(which is not the case for hive)
+
+Hive tries to reduce the number of disk seeks ie. scans of tables as much as possible
+In hive we can store the same information in a single table to avoid joins
+
+EmployeeDetails:
+-----------------------------------------
+EmpId |ename   |Address   |subordinates
+-----------------------------------------
+1      tony     <STRUCT>    <ARRAY>(eg. jack,jill,bill)
+----------------------------------------
+This way we can read data with single scan of single table
+
+The data is read in a nested form and then broken apart during the processing phase.
+explode() built in function can help in breaking this nested structure( list,maps etc) into individual rows.
+
+eg. select explode(subordinates) from employeeDetails where ename="tony" 
+jack
+jill
+bill
+
+what if we want to include manager name in result?
+following will throw error because ename has 1 row but explode(subordinates) has three:
+select ename,explode(subordinates) from employeeDetails where ename="tony" 
+
+the result of explode() is actually like a table,which needs to be joined back to original table.This is achieved using "Lateral View"
+
+>select ename,exp.sub from employeeDetails where ename="tony" lateral view explode(subordinates) exp as sub;
+O/P
+tony jack
+tony jill
+tony bill
+
+exp => new generated table
+sub => a column in newly generated table exp.
+
+lateral view joins the new table with original table,uses inner join by default.
+If an emp has null subordinates that emp will be excluded
+---------------------
+hive>show functions //list of functions
+hive> describe function concat; //get documentation for a function
+hive> describe function extended concat; //get detailed documentation for a function
+hive>!clear;  //use ! to run system command,clear linux command to clean the console
+
+-----------
+subqueries:
+using one query inside another
+we could calculate the union of 2 queries
+in hive we can also use subquery to populate a table via insert
+
+hive supports union,union all but does not support following set operations:
+minus
+intersect
+
+
+hive supports subqueries only in "form clause" and "where clause"
+
+in "where clause" hive supports subqueries  using "IN/EXISTS"  and "NOT" but not using '=' equality
+"IN/NOT IN" subqueries must only select a single column
+
+eg. we have two tables names and revenue
+>select names.symbol from names where names.symbol in (select symbol from revenue);
+=========
+till 28
 ============
 Hive Index:
 In RDBMS:
   constraints=> helps in maintaining integrity
   indices => increase query speed
 
+constraints are not supported in hive
+
 index=> index is like a fast lookup from a value to the row numbers in the table that contains that value.
 
 hive allows index creation in two ways:
  1. build-in index
- 2. using an index handler class
+  hive has certain built in methods to create an index
+  bitmap index=>used with columns that have very few distinct values. 
+                eg. create index emp_index on table employees(ename) as 'BITMAP';
  
+  
+ 2. using an index handler class:
+   index handler classes are java classes,hive ships with some of them
+   More powerful,anyone can build their own custom index handler,this may be needed in case you want to optimize for a custom scenario.
+    eg. create index emp_index on table employees(ename) as 'orh.apache.hadoop.hive.ql.index.compact.CompactIndexHandler';
+
+Deferred Index: You can create an empty index and build the actual index at a later time.
+eg. create index emp_index on table employees(ename) as 'BITMAP' with DEFERRED REBUILD; //an index is created but empty
+
+alter index emp_index on employee REBUILD;
+
  TODO
  
  ===========
  Hive partitions:
-  splitting up of data in table.
+  partitions are just splits of all the data in a table.
   each partition is a separate directory.
-  a directory can have multiple data file in that partition.
+  each directory can have multiple data file in that partition.
   all partitions together make up the entire table.
-  the partition can be done based on a function applied on  the value of one or more column. 
+  the partition can be done based on the value of one or more column(called partition columns). 
+
+if we decide to make partition based on product column of sales-table,we can have a different partition for each unique product value.
+see partition1.png, here we have also removed product column as it is redundant(all entries in same partition has same product) 
+
+see partition2.png to see the directory structure.
+
+why do we partition table?
+For  improved performance
+Logical organization of data
+
+following only need to scan only one partition instead of scanning whole dataset 
+eg.select max(revenue) from sales-table where product='milk'
+
+we have to select partition columns very carefully depending upon the queries we would use in future.
+too many partition may optimize certain queries but give bad performance with other queries.
+For example consider order table in ecommerce,here partition by customer is not a very good idea.
+Thousands of unique customers will result in thousands of partitions.
+large No. of partitions= large No. of hadoop directories.
+This is a huge overhead for name nodewhich maintains file meta data for hadoop.  
+
+How to define partition in a table:
+create table sales_table(
+location varchar(30),                 //Note partition column is not specified here
+orderDate date,
+revenue decimal(10,2)
+)
+partitioned by (product varchar(30))
+ 
+we can partition by multiple columns:
     
-  
+create table sales_table(
+location varchar(30),                 
+revenue decimal(10,2)
+)
+partitioned by (
+orderDate date,
+product varchar(30)) 
+
+it will have directory structure as shown in partition3.png
+During query this table just treat it as if it has 4 columns
+Queries scanning lesser number of partitions will be faster
+---
+How do you put stuffs into table with partitions:
+create table sales_table
+(
+location varchar(30),
+product varchar(30),
+revenue decimal(10,2)
+)partitioned by (orderDate date);
+
+insert into sales_table
+partition(orderDate='2016-01-16')
+values
+('kolkata','nutella',7000.50),
+('mumbai','milk',5000.50),
+('kolkata','milk',6000.50); 
+
+
+if we have a lots of partitioning it becomes a headache.Then dymanic partitioning is the solution
+-----------
+Dynamic partitioning:
+this creates partitions in a partitioned table automatically
+we can load the entire data together and let hive create partitions.
+ 
+configure hive for dynamic partitioning using following commands(this works for current hive session only):
+hive>SET hive.exec.dynamic.partition = true;
+hive>SET hive.exec.dynamic.partition.mode =nonstrict;
+
+to make dynamic partitioning permanent we need to update hive-site.xml.
+
+there are two modes of dynamic partition:
+strict=>there should be atleast one non-dynamic partition
+nonstrict=>all partitions are allowed to be dynamic
+
+example:
+insert into sales_table
+partition(productId,orderDate='2016-01-16')
+values
+('kolkata',7000.50),
+('mumbai',5000.50),
+('kolkata',6000.50); 
+
+here productId=>dynamic partitioned as we are not specifying any value
+orderDate=>static partition
+----
+How do you put stuffs into table with dynamic partitions:
+
+lets move records from a non-partitioned table(sales_table_without_partition) to a dynamic partitioned table(sales_table)
+
+create table sales_table_without_partition
+(
+location varchar(30),
+product varchar(30),
+revenue decimal(10,2),
+orderDate date)
+);
+
+
+create table sales_table
+(
+location varchar(30),
+revenue decimal(10,2)
+)partitioned by (product varchar(30),orderDate date);
+
+insert into sales_data
+partition(product,orderDate)
+select location,revenue,product,orderDate //it is necessary to include the partition columns as the last columns(product,orderDate) in the query
+from sales_table_without_partition;
+
+It will result in directory structure as shown in partition4.png
+------------
+how to check what partitions exists in a table?
+>show partitions <table name>;
+we can also check inside hdfs
+=================
+Bucketing:
+Like partitioning it is another technique to split the data to gain better query performance.
+
+analogy:
+partitioning=>b-tree index
+bucket=>hashing
+
+buckets can apply to both partitioned and non-partitioned tables.
+
+too many partitions may overwelm namenode,infact hive restricts the max number of partitions to avoid this very scenario.
+Lets say you have a table with userIds,if you create partition based on userId, hive will not allow if it crosses max partition threshold.
+
+Bucketing  breaks the data into buckets(using hash function) so that we always know which bucket a user belongs to.
+Now to find the existance of a user we just need to look into one bucket.
+All rows with same value for bucketing cloumn will end up in the same bucket, we can use this feature for faster lookup.
+bucketing storage directory structure is shown in partition5.png
+
+Bucketing  allows rows in each bucket to be sorted by one or more columns,as a result join of each bucket is an efficient merge sort.
+advantage over partitioning:
+No. of buckets is fixed and not dependent on the possible values of column.
+
+eg.
+create table reviews(
+movieId int,
+reviewId bigint;
+review varchar(200),
+rating tinyint
+)
+clustered by (reviewId) into 4 buckets; //we are specifying 4 buckets on reviewId column 
+
+---------
+partitioning + bucketing
+
+create table sales(
+productId int,
+orderDate date,
+revenue decimal(10,2)
+)partitioned by (storeId int)
+clustered by (productId) into 4 buckets;
+
+Its directory structure is shown in partition6.png
+-----------
+creating a table with buckets that have sorted records:
+eg.
+create table sales(
+productId int,
+orderDate date,
+revenue decimal(10,2)
+)partitioned by (storeId int)
+clustered by (productId)
+sorted by (orderDate) into 4 buckets; //records inside the bucket is sorted by orderDate
+------------
+to populate the bucketed table we have to set following property:
+hive>SET hive.enforce.bucketing = true; //No need to set this from hive 2.X
+
+
+
+ 
+
+
+
+
+
+
+
+
+
 
 
   

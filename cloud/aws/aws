@@ -194,7 +194,7 @@ example:
 0.0.0.0/0        NAT
 --------------------------
 Going back to our web-apps VPC network.
-Lets configure routing,we acn add "web-app" filter to hide other VPC configurations.
+Lets configure routing,we can add "web-app" filter to hide other VPC configurations.
 
 First Create an Internet Gateway:
 Goto "Internet Gateways" on left menu and create one.

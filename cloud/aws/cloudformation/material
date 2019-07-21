@@ -1,0 +1,74 @@
+CloudFormation:
+Infrastructure as code.
+deploy your aws resources through reusable templates.
+A template is a simple text file that describes a stack.
+Stack -collection of resources you want to deploy as a group.
+json and yaml compatible. 
+
+Can be used for replicating your infrastructure to other regions
+Version control your infrastructure
+Cloudformation is free
+You pay for the resources created by cloudformation.
+
+Templates can include a maximum of 9 main sections:
+1.AWSTemplateFormatVersion: Template version you wish to use
+2.Description: Text describing the template,must alwaysfollow the format version.
+3.Metadata:Object that provide more info about template
+4.Parameters: Values you can pass in to your template at runtime.
+5.Mapping: Mapping of keys and associated values.
+6.Conditions: control the creation of resources based on conditions being met;
+ eg. Create different resources for test and prod env.
+7.Transform: Version of the AWS SAM model(for serverless apps)
+8.Resources(Required):the stack of resources to create. eg EC2 instances.
+9.Outputs:  Can describe values that are returned from API call or the console
+  eg. return the queue name of the SQS queue you have just created. 
+
+
+
+Functions:
+Fn::GetAtt=> Takes two parameters,the logical name of the resource and the name
+           of the attribute to be retrieved.
+Fn::FindInMap=> Pass the name of the map,the value used to find the mapped value,
+           and the label of the mapped value you want to return.
+Ref=>Returns a resource or value based on a logical name or a given parameter.
+Fn::Join=> function takes two parameters
+Fn::Select=> returns a single object from a list of objects by index
+Fn::GetAZs=>Returns the list of all availability zones in a region
+===============================
+upload aws-cloudformation-master-master folder in s3 which has many templates.
+CloudFormation>create new stack
+select template from s3 named "0-just-ec2.yaml" with following content:
+
+---
+Resources:
+  MyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: ap-south-1a
+      ImageId: ami-21815747
+      InstanceType: t2.micro
+
+This will create one ec2 instance with image:"ami-21815747" of type t2.micro in ap-northeast-1a AZ.
+Give a stack name say "introduction"
+You may add tags and complete creation of stack
+
+It will create ec2 instance.
+now if we delete the stack,it will also delete ec2 instance.
+=========================
+Commoon Options on create stack wizard:
+1.Tags
+ -all resources of this stack will share the provided tags
+2.Permissions
+  -providing Role ie. permissions that stack has.Similar to EC2 roles
+3.Notification Options.
+  -email or sms on any event
+4.Timeouts
+  -cloudformation should fail after a specific amount of time
+5.Rollback and failure
+  -on failure go back to its previous stable state
+6.Stack policy
+  -protect some resources. eg. prevent s3 bucket from deletion.
+
+===================
+
+

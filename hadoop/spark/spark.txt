@@ -73,10 +73,10 @@ x:Supports multiple types of computing: batch,streaming,SQL,ML,graph processing.
 
 
 
-Apache Spark APIs � RDD, DataFrame, and DataSet:
-Spark RDD APIs � An RDD stands for Resilient Distributed Datasets. It is Read-only partition collection of records. RDD is the fundamental data structure of Spark. It allows a programmer to perform in-memory computations on large clusters in a fault-tolerant manner.
+Apache Spark APIs  RDD, DataFrame, and DataSet:
+Spark RDD APIs  An RDD stands for Resilient Distributed Datasets. It is Read-only partition collection of records. RDD is the fundamental data structure of Spark. It allows a programmer to perform in-memory computations on large clusters in a fault-tolerant manner.
 
-Spark Dataframe APIs(since 1.3) � Unlike an RDD, data organized into named columns. For example a table in a relational database.
+Spark Dataframe APIs(since 1.3)  Unlike an RDD, data organized into named columns. For example a table in a relational database.
                        It is Immutable.
                        Declarative approach tells what to do rather than how to do
                        Introduced the concept of building optimized query plans that can be executed with the Spark Catalyst optimizer
@@ -167,6 +167,28 @@ System.out.println(textFile.getNumPartitions());
 The preceding code will return 1 as count of the partitions even if 2 has been provided as the value of numPartitions parameter explicitly.
 
 ===========================
+
+
+Some basic definitions of the terms used in handling Spark applications:
+
+Partitions : A partition is a small chunk of a large distributed data set. Spark manages data using partitions that helps parallelize data processing with minimal data shuffle across the executors.
+
+Task : A task is a unit of work that can be run on a partition of a distributed dataset and gets executed on a single executor. The unit of parallel execution is at the task level.All the tasks with-in a single stage can be executed in parallel
+
+Executor : An executor is a single JVM process which is launched for an application on a worker node. Executor runs tasks and keeps data in memory or disk storage across them. Each application has its own executors. A single node can run multiple executors and executors for an application can span multiple worker nodes. An executor stays up for the
+duration of the Spark Application and runs the tasks in multiple threads. The number of executors for a spark application can be specified inside the SparkConf or via the flag –num-executors from command-line.
+
+Cluster Manager : An external service for acquiring resources on the cluster (e.g. standalone manager, Mesos, YARN). Spark is agnostic to a cluster manager as long as it can acquire executor processes and those can communicate with each other.We are primarily interested in Yarn as the cluster manager. A spark cluster can run in either yarn cluster or yarn-client mode:
+
+yarn-client mode – A driver runs on client process, Application Master is only used for requesting resources from YARN.
+
+yarn-cluster mode – A driver runs inside application master process, client goes away once the application is initialized
+
+Cores : A core is a basic computation unit of CPU and a CPU may have one or more cores to perform tasks at a given time. The more cores we have, the more work we can do. In spark, this controls the number of parallel tasks an executor can run.
+
+
+
+===============
 
 Spark stream:
 Incoming

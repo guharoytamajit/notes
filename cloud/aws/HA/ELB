@@ -1,0 +1,145 @@
+Elastic Load Balancer:
+Running single machine is not reliable.
+Running multiple machine is in same AZ is better but still not robust.
+Running machines across multiple AZs is best.
+
+ELB distributes traffic across multiple instances.
+ELB exists in a single region.
+ELB cannot span multiple regions,but  can distribute traffic across multiple AZs in same region.
+To distribute load across multiple region use Route53
+ELB inherently secure,resilient,scalable.We dont have to manage it manually.
+ELB is an abstruction it may look like a single instance but behind the scene it has multiple nodes across multi AZs.
+It supports health checks.Using this be can detect unhealthy nodes and not fowward any traffic in that node.
+ELB integrates wery well with Auto scaling(AS) and Route53.
+New instances created by AS can be registered to ELB.If an instance is unhealthy ELB can inform the same to AS.
+we can use route53 to map our domainname to domainname of a ELB in a region.
+
+Three types of ELB:
+1.Classic
+2.Application
+3.Network
+ 
+Classic:
+We define a listener to ELB generally 80 and 443 port,so that it can receive requests. 
+We register set of EC2 instances to ELB
+We set how port will be forwarded to our application.If our app is running at 8080, we map port 80 to port 8080.
+So it has static port mapping
+
+Application ELB:
+We define a listener to ELB generally 80 and 443 port,so that it can receive requests. 
+Works on layer seven of OSI(Application layer)
+It can route traffic to different set of instances(target groups) depending upon URL.
+We need to define set Target Groups. 1 TG = n number of EC2 or just IP addresses or Containers or lambda
+example of route to target group mapping:
+/user/* => TG1  
+api.example.com => TG2
+Each targets(EC2 or containers) in Target Group listen to different port.
+So it has dynamic port mapping unlike classic ELB.It can route across different containers running on different ports on same EC2.
+
+
+Network ELB:
+We define a listener to ELB generally 80 and 443 port,so that it can receive requests. 
+Works on layer four of OSI(Transport layer)
+Like Application ELB, We need to define set Target Groups. 1 TG = n number of EC2 or just IP addresses or Containers or lambda
+Network ELB can be Faster than Application ELB.As it is not doing any content filtering(not doing anything in layer 5,6 and 7).
+We can configure like all tequests in port 80 will be forwarded to TG1,and all requests in port 443 will be forwarded to TG2.
+Network load balancers ip remains same which is not same for application or classic load balancer.
+This does not create problem for application LB as although ip may change but DNS name of Application ELB remains same.
+Con only work with TCP and TLS(not aware of HTTP(S) )
+ 
+AWS Certificate Manager(ACM):
+Can create/new/deploy certificates
+Creates free SSL certs(including wildcards)
+Certificates will automatically renew.
+Starfield root authority(amazon is the intermediate authority).Trusted by major browsers.
+We can import existing certificates(purchased from elsewhere eg verisign),But ACM will not be able to renew those certs(manual renew required).
+ACM can automatically deploy certs to ELB,CloudFront,API Gateway. 
+ACM cannot deploy certificate to EC2 instance.
+
+create load balancer:
+goto EC2 and select "load balancer" in left menu.
+create load Application ELB
+fill details:
+Name: mylb
+radio button:internet-facing(public ip) or internal(private, will not get a public ip)
+add listeners like 80,443(requires SSL cert)
+add AZ: select your VPC and add subnets to use.Choose atleast two subnets in different AZ to make it robust.
+add tags if you want.
+add security group.
+configure target group: name, type:EC2(instance) or IP or lambda, port:eg.8080,health check settings.
+add targets
+
+test by hitting dns name of our new load balancer
+============================================================================
+Auto Scale(AS):
+Can create self healing system
+replaces unhealthy instances.(could be marked unhealthy by hypervisor or ELB or programatically.then AS replaces it)
+maintain a  fixed-size fleet.
+Match supply with demand(can scale up or down if cpu/memory metrics(provided by cloudwatvh) cross threshold)
+works with cloudwatch(monitors different metrics)
+Supports events: SNS ,lambda
+
+It requires two configurations(for maintaining a fixed No. of instance) and two other optional components(for scaling up on event):
+1.Launch configuration(mandatory):
+what gets launched
+instance type
+volume
+AMI
+Userdata
+if public ip address on each instance needed .Generally no need to assign public ip as it will be behind a ELB.
+
+2.Auto Scale Group(mandatory):
+where it is launched
+Start No. of instance
+subnets/ AZs
+We could optionally bind instances with ELBs(actually adding all instances from this AS to a Target Group of ELB)
+Health check types(hypervisor ie. ec2 or ELB etc)
+
+
+3.Scheduled action(optional)
+Intervals 
+one time event.
+useful for known events
+predictable load
+
+4.Scaling policy(optional):
+scale based on load
+useful for unpredictable load
+need to be triggered via cloudwatch alarm or Manually or programatically
+
+example:
+AS can have a set of machines.ELB distributes load across those machimes.
+all there EC2 machines,AS and ELB is sending its matrics to cloud watch
+cloudwatch use those metrics to create alarm.eg if a number is too high/low an alam may be triggered.
+Alarm can be like "if cpu utilization is > 80% for more than 5 mins" for a CPU bound application
+Alarm will be different for CPU bound,Memory bound and I/O bound apps
+And we can use that alarm to trigger something else like auto scaling.
+It is better to write both scale up and scale  down alarm for cost saving.
+AS will also try to maintain a balance in number of instances across AZs. 
+ 
+========================================================
+CloudFront:
+Caching content at edge location for lower latency.
+both static and dynamic content.
+customize caching behavious(diffent types of content may be cached for different period and some may not be cached at all).
+It gets their own Custom Domain Name - CNAME or ALIAS
+Supports RTMP and HLS streaming.
+We need to configure "download distribution" which is the source for main static or dynamic resources eg S3 or ELB etc.
+
+
+
+=======================
+Route53:
+DNS translates human friendly domain names into ip address
+DNS is like internets phone book
+
+Domain registrar:
+Service that lets you register unique domain name that can not be owned by anyone else.
+This will allow you to register domain name under one or more Top Level Domain(TLD)
+
+Route53:
+-Highly  scalable and available DNS web service.
+-Domain name registration.
+
+
+
