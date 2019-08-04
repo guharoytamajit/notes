@@ -8,7 +8,7 @@ minikube dashboard
 
 minikube docker-env
 
-eval $(minikube docker-env)
+eval $(minikube docker-env)  //make  system docker point to minikube docker
 
 docker container ls 
 Or
@@ -21,7 +21,7 @@ docker container ls
 
 exit
 
-kubectl config current-context
+kubectl config current-context  //check if kubectl is pointing to minikube
 
 kubectl get nodes
 

@@ -303,9 +303,29 @@ Note:Configuration looks almost same as RS
 >kubectl create -f deploy/deployment.yaml
 
 >kubectl edit deployment my-deployment#changes made here will be applied. if you change image version rolling update will start, 
-#This actually creates a RS which can be confirmed by get RS
+#This actually creates a RS which can be confirmed by kubectl get RS,at last pods of new RS will replace all pods of old RS
 >kubectl get deploy,rs,pod
 >kubectl rollout undo  deploy/mydeployment# undo last update in case of error in new image version.
+
+
+>kubectl rollout status deployment/mydeployment
+>kubectl rollout history deployment/mydeployment
+>kubectl rollout describe deployment/mydeployment #you will be able to see how recreate is different from rolling update strategy
+>kubectl describe deployments
+
+
+>kubectl create -f deploy/deployment.yaml --record # due to --record flag you will be able to see scange cause column during kubectl rollout history command ie. the command which result in that change in versoning history.
+
+
+
+Deployment strategy:
+1.recreate: replace all older instance with new version instance
+2.rolling update(default): one old goes down one new comes up,repeat until all instances are new.
+
+deployment update can be triggered in one of the following ways:
+1.>kubectl apply -f deploy/deployment.yaml(after modifying the image version) #best option as yaml is also updated
+2.>kubectl edit deployment my-deployment#changes made here will be applied. if you change image version rolling update will start
+3.>kubectl set image deployment my-deployment nginx=nginx:1.7.1  #this approach is not good because yaml file is not updated
 
 ========stateful services====================
 Stateless Pods:
