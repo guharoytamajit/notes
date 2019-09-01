@@ -1,2 +1,3 @@
 transaction.commit() synchronises persistence context with database
 session.close() => detach state
+
