@@ -1,0 +1,299 @@
+DataWeave Language:
+in trasformation we can not only define payload but can also define variables and attributes
+we can keep dwl expression as inline in xml configuration, we can also define them as separate .dwl file
+
+examples:
+json to xml(with attribute):
+
+==============================
+{
+"poductId": 1,
+"name": "hp pavillion laptop",
+"images":["image1.jpg","image2.jpg","image3.jpg"]
+}
+--------------------------
+%dw 2.0
+output application/xml
+---
+root @(id: payload.poductId): {
+name : payload.name,
+images: {
+image: payload.images
+}
+}
+-----------------------------
+<?xml version='1.0' encoding='UTF-8'?>
+<root id="1">
+  <name>hp pavillion laptop</name>
+  <images>
+    <image>image1.jpg</image>
+    <image>image2.jpg</image>
+    <image>image3.jpg</image>
+  </images>
+</root>
+===============================
+
+json to xml exaple 2:
+==============================
+{
+"poductId": 1,
+"name": "hp pavillion laptop",
+"images":["image1.jpg","image2.jpg","image3.jpg"]
+}
+--------------------------
+%dw 2.0
+output application/xml
+---
+root @(id: payload.poductId): {
+name : payload.name,
+image: payload.images[0]
+}
+-----------------------------
+<?xml version='1.0' encoding='UTF-8'?>
+<root id="1">
+  <name>hp pavillion laptop</name>
+  <image>image1.jpg</image>
+</root>
+===============================
+
+json transformation example:
+===========================================
+[
+{
+"poductId": 1,
+"name": "hp pavillion laptop",
+"images":["image1.jpg","image2.jpg","image3.jpg"]
+},
+{
+"poductId": 2,
+"name": "mac laptop",
+"images":["image4.jpg","image5.jpg","image6.jpg"]
+
+},
+
+{
+"poductId": 4,
+"name": "iphone",
+"images":["image7.jpg","image8.jpg","image9.jpg"]
+}
+]
+----------------------------------------------
+%dw 2.0
+output application/json
+---
+payload map{
+productName : $.name,
+image: $.images
+}
+-----------------------------------------------
+[
+  {
+    "productName": "hp pavillion laptop",
+    "image": [
+      "image1.jpg",
+      "image2.jpg",
+      "image3.jpg"
+    ]
+  },
+  {
+    "productName": "mac laptop",
+    "image": [
+      "image4.jpg",
+      "image5.jpg",
+      "image6.jpg"
+    ]
+  },
+  {
+    "productName": "iphone",
+    "image": [
+      "image7.jpg",
+      "image8.jpg",
+      "image9.jpg"
+    ]
+  }
+]
+==================================================
+
+
+json array to xml array example:
+================================================
+[
+{
+"poductId": 1,
+"name": "hp pavillion laptop",
+"images":["image1.jpg","image2.jpg","image3.jpg"]
+},
+{
+"poductId": 2,
+"name": "mac laptop",
+"images":["image4.jpg","image5.jpg","image6.jpg"]
+
+},
+
+{
+"poductId": 4,
+"name": "iphone",
+"images":["image7.jpg","image8.jpg","image9.jpg"]
+}
+]
+------------------------------------------------------
+%dw 2.0
+output application/xml
+var myproducts= payload map{
+	product: {
+	productName: $.name,
+	pid: $.poductId
+	}
+}
+---
+products: {
+ (myproducts)
+}
+--------------------------------------------------
+<?xml version='1.0' encoding='UTF-8'?>
+<products>
+  <product>
+    <productName>hp pavillion laptop</productName>
+    <pid>1</pid>
+  </product>
+  <product>
+    <productName>mac laptop</productName>
+    <pid>2</pid>
+  </product>
+  <product>
+    <productName>iphone</productName>
+    <pid>4</pid>
+  </product>
+</products>
+=====================================================
+
+adding filter on previous example:
+===================================================
+[
+{
+"poductId": 1,
+"name": "hp pavillion laptop",
+"images":["image1.jpg","image2.jpg","image3.jpg"]
+},
+{
+"poductId": 2,
+"name": "mac laptop",
+"images":["image4.jpg","image5.jpg","image6.jpg"]
+
+},
+
+{
+"poductId": 4,
+"name": "iphone",
+"images":["image7.jpg","image8.jpg","image9.jpg"]
+}
+]
+-------------------------------------------------
+%dw 2.0
+output application/xml
+var myproducts= payload map{
+	product: {
+	productName: $.name,
+	pid: $.poductId
+	}
+}
+var filteredProduct=myproducts filter $.product.pid == 1
+---
+products: {
+ (filteredProduct)
+}
+------------------------------------------------
+<?xml version='1.0' encoding='UTF-8'?>
+<products>
+  <product>
+    <productName>hp pavillion laptop</productName>
+    <pid>1</pid>
+  </product>
+</products>
+====================================================
+similarly to sort produce in ascending order:
+(myproducts orderBy $.product.pid )
+
+and in descending order:
+(myproducts orderBy -$.product.pid )
+====================================================
+
+xml to JSON example:
+=====================================================
+<?xml version='1.0' encoding='UTF-8'?>
+<products>
+  <product>
+    <productName>hp pavillion laptop</productName>
+    <pid>1</pid>
+    <images>
+      <img>image1.jpg</img>
+      <img>image2.jpg</img>
+      <img>image3.jpg</img>
+    </images>
+  </product>
+  <product>
+    <productName>mac laptop</productName>
+    <pid>2</pid>
+    <images>
+      <img>image4.jpg</img>
+      <img>image5.jpg</img>
+      <img>image6.jpg</img>
+    </images>
+  </product>
+  <product>
+    <productName>iphone</productName>
+    <pid>4</pid>
+    <images>
+      <img>image7.jpg</img>
+      <img>image8.jpg</img>
+      <img>image9.jpg</img>
+    </images>
+  </product>
+</products>
+------------------------------------------------------
+%dw 2.0
+output application/json
+---
+payload.products.*product map ( product , indexOfProduct ) -> {
+	poductId: product.pid default 0,
+	name: product.productName default "",
+	images: product.images.*img
+}
+------------------------------------------------------
+[
+  {
+    "poductId": "1",
+    "name": "hp pavillion laptop",
+    "images": [
+      "image1.jpg",
+      "image2.jpg",
+      "image3.jpg"
+    ]
+  },
+  {
+    "poductId": "2",
+    "name": "mac laptop",
+    "images": [
+      "image4.jpg",
+      "image5.jpg",
+      "image6.jpg"
+    ]
+  },
+  {
+    "poductId": "4",
+    "name": "iphone",
+    "images": [
+      "image7.jpg",
+      "image8.jpg",
+      "image9.jpg"
+    ]
+  }
+]
+============================================================
+todo:
+lookup(example to call another flow)
+if(example to not display <images> tag is there is no <image> within)
+fun
+
+
+

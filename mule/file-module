@@ -1,0 +1,30 @@
+File module:
+
+
+"On new or updated file" =>triggers when a new file is created in a directory
+"list"=>list all the files of a given directory
+copy=>copy a file
+create directory=> create a new directory
+Delete=>delete a file
+Read=>obtain content and metadata of a file
+rename=>rename a file
+write=>create a file
+
+
+
+
+"On new or updated file" :
+options
+=>connector.working directory: base directory 
+=>Directory:input directory(relative to base directory)
+=>recursive :if set files indside sub directories are also considered
+
+scheduling strategy:(fixed or cron based)
+ if fixed we can further specify: scheduling frequency,start delay,timeunit
+ if cron based we can specify: expression and timezone
+
+Note:if no post action specified same file will be re-read every time it is triggered by scheduler
+  
+
+
+
