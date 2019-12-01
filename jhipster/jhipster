@@ -1,0 +1,26 @@
+
+
+>npm install -g yarn
+>yarn global add yo
+>yarn global add generator-jhipster
+
+>export PATH=$PATH:$HOME/.yarn/bin
+>mkdir jhipster-test
+>cd jhipster-test
+
+>yo hipster
+>yarn start
+hit localhost:9000  //backend is still not up
+>./mvnw 
+hit localhost:8080  //starts backend
+
+>jhipster entity <entityname> [options]
+>jhipster entity --help
+>jhipster entity Task
+
+Jhipster domain language(JDL):
+
+>npm install -g jhipster-uml
+>jhipster-yml my_file.jdl // yo jhipster:import-jdl my_file.jdl
+
+

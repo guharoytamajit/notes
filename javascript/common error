@@ -1,0 +1,23 @@
+Error: ENOSPC: System limit for number of file watchers reached, watch 
+------------------------
+solution:
+The meaning of this error is that the number of files monitored by the system has reached the limit!!
+
+Modify the number of system monitoring files
+
+Ubuntu
+
+sudo gedit /etc/sysctl.conf
+
+Add a line at the bottom
+
+fs.inotify.max_user_watches=524288
+
+Then save and exit!
+
+sudo sysctl -p
+
+to check it
+
+Then it is solved
+===================================================================

@@ -1,0 +1,86 @@
+Load balancers are servers that forward internet traffic to multiple  servers(eg ec2)
+Helps in scaling
+Makes our architecture more fault tolerant,as it can span more than one AZ in same region(HA across zones).
+ELB gives user single point of access(DNS) to your application,which may have multiple instances.
+Supports health checks,ELB will only forward traffic to healthy instances of your app.
+Provide SSL termination(HTTPS) for your websites.
+Enables sticky session using cookies.
+ELB can separate public traffic from private traffic(No need to expose app instances or DB  on internet)
+
+
+ELB is a managed load balancer(ie. AWS is responsible for its HA)
+ELB can be internal(no public ip) or external(with public ip)
+AWS supports 3 types of load balancers:
+1)Classic load balancer(v1 old generation) since 2009,new deprecated
+ -enables loadbalancing across multiple selected ec2 instances
+2)Application Load Balancer(v2 new generation) since 2016
+ -enables loadbalancing to multiple http apps ie. "target groups"
+ -works on layer 7
+ -supports hostname based and path based routing.
+ -can load balance across multiple apps running in same machine(eg. containers),
+ -For classic load balancer you would need two load balancer for two applications.So ALB saves money.
+ 
+Target Group(TG):group of instances of same applications+health check
+       TG can be of type instances or ip
+       TG has a set of targets and can be associated to load balancer
+
+eg: 
+path based routing:
+we can set all /user path request will to to user target group,/other path request will to to user other group
+
+host based routing:
+suppose your ELB has hostname of example.com, we can set all user.example.com request will to to user target group,other.example.com request will to to user other group
+ 
+
+3)Network Load balancer(v2 generation) since 2017
+ -forwards tcp,udp,tls requests(layer 4)
+ -around 4 times faster than ALB
+  
+
+
+Note:
+we have to make sure in security group of every app instance we give permisston to ELB to access those instances.
+
+
+
+=======================================================================
+
+Aoto Scaling Group(ASG):
+The goal of ASG:
+1)Auto scale up or down of ec2 instances depending upon load
+2)Ensure a defined minimum and maximum number of instance running.
+3)Automatically register new instance to load balancer.
+
+A ASG has the following attributes:
+1)A launch configuration:
+AMI + instance type, EC2 user data, EBS volume,Security Group,SSh key  pair
+
+2)Min ,Max and initial capacity
+3) Network and subnet information
+4)Load balancer information
+5)Add one or more Scaling policies(scale up or down based on some sloud watch event)
+
+It is possible to scale a ASG based on cloud watch alarm
+An alarm monitors a metric like "Avg. CPU"
+Metrices are calculated for the overall ASG instances.
+
+ 
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+

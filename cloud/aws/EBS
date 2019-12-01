@@ -1,0 +1,44 @@
+ec2 machines loses its root volume when it is manually termitted.
+Sometimes you need a way to store your instance data somewhere.
+An EBS volume is a network drive you can attach to your instance  while they run,where you can persist data
+EBS volume is a network drive(not a physical drive)
+So EBS volume can be easily detached from one EC2 and attached to another EC2 very quickly
+Its locked to an Availability Zone(AZ)
+To move a volume content across AZ we need to create snapshot
+EBS volume is characterized by  size in Gb , IPOS and throughput.And we will be billed not for the used capacity but for the provisioned capacity.These capacity can be changed any time we want.
+An ec2 instance can be attached to multiple EBS volume.
+
+
+EBS volume types:
+1)GP2(SSD)=>
+balance price and performance(Most common)
+1GB - 16 TB
+Has the concept of IPOS burst,IOPS can burst upto 10times the base performance,max 10000 IPOS.
+Max thoughput 160 MB/s
+
+
+2)IO1(high performance SSD)=>
+for mission critical low latency and high throughput requirement
+more IOPS and throughput than GP2
+Good option for high performance database
+4GB - 16 TB
+Max iops 32000
+Max throughput 500 MB/s
+
+3)ST1(HDD)=>
+low cost
+cannot be a boot volume(use any SSD variant for boot volume)
+Good for data wharehousing,log processing
+500GB - 16 TB
+max IPOS 500
+Not good for random read/write but good for sequential read/write. eg batch processing
+max throughput 500 MB/s(can burst)
+ 
+
+4)SC1(HDD)=>lowest cost
+500Gb- 16Tb size
+max IPOS 250
+max throughput 250 MB/s(can burst)
+
+
+   

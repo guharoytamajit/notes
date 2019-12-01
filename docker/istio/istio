@@ -1,0 +1,185 @@
+Istio is a service mesh
+Istio is not going to be replacement for k8s, its an extra layer of software deployed along side k8s.
+Any kind of software with distributed architecture(eg k8s) would benefit from service mesh
+
+What is service mesh:
+on k8s contains would directly communicate with each other
+With service mesh architecture,container will talk to each other via service mesh.
+the advantage here is service mesh is not only aware of all interaction(useful in telemetry) but they can also add some processing.
+see fig istio01.png
+
+mesh is aware of:
+which container is calling which container
+how much time it take for response
+what is the response content and code 
+
+How istio works:
+Istio adds a proxy container to every pods to intercept all network calls
+see figure istio02.png
+
+all proxies are collectively called "data plane" in istio,everything else(istio deployed in cluster) is called "control plane"
+see figure istio03.png and istio04.png
+control plane=>istio-telemetry,istio-pilot,istio-tracing etc
+
+---------------------------
+install minikube.
+
+>minikube delete
+>minikube start --memory 8000
+
+goto resources/warmup-exercise
+it has 4 files:
+1-istio-init.yaml              
+2-istio-minikube-reduced.yaml  
+3-kiali-secret.yaml
+4-application-full-stack.yaml
+
+first 3 are for installing istio  , last one is for deploying a sample app.
+>kubectl apply -f 1-istio-init.yaml 
+//will create istio-system namespace which has all control plane components
+//it will also create few "custom resource definition"(CRD),which is created by running few k8s jobs which can be viewed as:
+>kubectl get po -n istio-system  //we can see k8s jobs which creates custom k8s types for istio
+we should wait until above three jobs complete,before using istio
+>kubectl get crd //see all the "custom resource definition" installed by above jobs
+
+>kubectl apply -f 2-istio-minikube-reduced.yaml
+//it will create all istio control plane components
+//now wait until all pods are up,few containers may fail at first be we need to wait a bit
+>watch kubectl get po -n istio-system 
+
+when all pods are either completed or running then we may proceed.
+
+>kubectl apply -f 3-kiali-secret.yaml //this will install secret file for kiali
+
+In istio pod list you will see a sidecar injection pod, which is responsible for adding "data plane" proxy container to every pod
+"sidecar" is an extra component to your pod doing some extra help(helper container)
+sidecar is more generic term in istio by side car we refer to proxy container
+proxy can be also refered by envoy(more on envoy later)
+
+by default sidecar will not do anything,to enable sidecar injection to any namespace we have to add a label istio-injection=enable to that namespace.Now all pods in this namespace will have this istio proxy.
+
+Lets add this label in default kibernetes namespace:
+>kubectl describe ns default //get details of default name space
+>kubectl label namespace default istio-injection=enable  //adding label to default k8s namespace
+
+>kubectl get ns default -o yaml// verify if label has been attached.
+
+
+>kubectl apply -f 4-application-full-stack.yaml //deploy application
+>watch kubectl get po //see all application pods
+here you will see all pods now has two containers, extra container is the proxy container injected by sidecar-injector
+
+>kubectl get pods 
+NAME                                  READY   STATUS    RESTARTS   AGE
+api-gateway-5cfc685c78-xn456          2/2     Running   0          93s
+photo-service-96b79bf9d-4lmmn         2/2     Running   0          91s
+position-simulator-6885fc5c4f-f268s   2/2     Running   0          94s
+position-tracker-58fbf9984c-zwt8m     2/2     Running   0          94s
+staff-service-f799454fb-59c5q         2/2     Running   0          92s
+vehicle-telemetry-6c6487cddc-qbvfr    2/2     Running   0          92s
+webapp-796fb68c9b-8hvwd               2/2     Running   0          93s
+
+open web app
+>minikube ip
+ hit <ip>:30080
+
+
+look at jaegar and kiali dashboard
+----------------------
+Envoy:
+opensource edge and service proxy designed for cloud native application.
+Istio uses envoy for proxy(sidecar)
+envoy can also be used without istio,but it is very low level software and generally used with another software like istio
+
+envoy has no direct relation with kubernetes,istio creates "custom resource definition"(CRD) eg. virtualservices which translates into envoy configurations.This way Istio enables k8s engineer to use envoy without low level details.
+
+
+------------------
+Control plane:
+see istio05.png
+
+
+>kubectl get po -n istio-system //list control plane pods
+NAME                                      READY   STATUS      RESTARTS   AGE
+grafana-6fc987bd95-j7dsr                  1/1     Running     0          4h14m
+istio-citadel-679b7c9b5b-tnnmx            1/1     Running     0          4h14m
+istio-cleanup-secrets-1.3.0-c74xn         0/1     Completed   0          4h14m
+istio-galley-5b597b94bb-jqsrx             1/1     Running     0          3h38m
+istio-grafana-post-install-1.3.0-f4mng    0/1     Completed   0          4h14m
+istio-ingressgateway-7687c9bdfc-sjtmf     1/1     Running     0          4h14m
+istio-init-crd-10-1.3.0-7gdtk             0/1     Completed   0          4h20m
+istio-init-crd-11-1.3.0-b85zr             0/1     Completed   0          4h20m
+istio-init-crd-12-1.3.0-76j5n             0/1     Completed   0          4h20m
+istio-pilot-5d454cbb46-pr4h7              2/2     Running     0          4h14m
+istio-policy-5d964c9fcf-5vmpk             2/2     Running     6          4h14m
+istio-security-post-install-1.3.0-ccffm   0/1     Completed   0          4h14m
+istio-sidecar-injector-68f4668959-fcwn9   1/1     Running     0          4h14m
+istio-telemetry-5568bdc56f-d2khw          2/2     Running     6          4h14m
+istio-tracing-669fd4b9f8-85pcm            1/1     Running     0          4h14m
+kiali-94f8cbd99-fn4nv                     1/1     Running     0          4h14m
+prometheus-776fdf7479-g9thl               1/1     Running     0          4h14m
+
+
+
+Control plane components:
+
+Galley(istio-galley-5b597b94bb-jqsrx pod):
+Galley reads in our k8s yaml and transforms it into an internal structure that istio understands.
+This means that istio can work with non k8s softwares like consul.So when working with consul galley will translate consul configuration into an internal structure that istio understands.
+
+
+Pilot(istio-pilot-5d454cbb46-pr4h7   pod):
+As input it takes configuration in internal structure that istio understands from galley
+Pilot is responsible for converting the configuration into a format that envoy understands.
+It is also pesponsible for propogating the configurations to proxies(envoy)
+ 
+Citadel:
+Manages TSL certificates,to have secure communication between proxies.
+This means we can enable TLS/SSL across entire cluster
+
+Mixer(may be removed in the future)
+Takes care of policy check(eg upto 10 request per sec) and telemetry.
+In list of pod we see separate pods for telemetry and policy,so it is already divided into multi components
+==============================================
+telemetry:
+
+goto resources/1 Telemetry and install yaml one by one(you may need to wait for 1st 2 yaml)
+
+requirements:
+you need envoy proxy running on each pod you want to  monitor
+the comtrol plane needs to be running(check if telemetry pod running)
+you donot need istio specific yaml like VirtualService or Gateway to use telemetry
+
+
+kiali:
+check port where kiali is running
+>kubectl get svc -n istio-system
+ then hit <minikube ip>:port
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

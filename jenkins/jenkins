@@ -1,0 +1,136 @@
+What is Jenkins:
+The leading open source automation server, Jenkins provides hundreds of plugins to support building, deploying and automating any project.
+Mostly used for CI/CD
+
+install Jenkins:
+>docker pull jenkins/jenkins  #download jenkins image
+>docker images  #verify image got downloaded
+
+view where docker is saving all the files:
+>docker info|grep -i root  
+ Docker Root Dir: /var/lib/docker
+
+check how much space docker is taking:
+>sudo du -sh /var/lib/docker #if you delete any image size will be reduced
+
+create docker compose file for jenkins installation:
+>vi docker-compose.yml 
+version: '3'
+services:
+  jenkins:                                      #service name
+    container_name: jenkins
+    image: jenkins/jenkins
+    ports:
+      - "8080:8080"                             #{host port}:{container port}
+    volumes:
+      - $PWD/jenkins_home:/var/jenkins_home    #without volume no data will persist after container shudown. syntax=>{host machine path}:{container path}
+    networks:
+      - net                   #telling to make service jenkins a part of network net
+networks:
+  net:                        #telling to create a network called net
+
+
+>mkdir jenkins_home   #creating volume path in host machine ie.$PWD/jenkins_home
+create a user "jenkins" and make that user the owner of jenkins_home folder
+>sudo useradd jenkins
+>sudo passwd jenkins
+>sudo chown jenkins:jenkins jenkins_home -R  #recursively
+>sudo usermod -aG docker jenkins                 #add user jenkins to the group docker. so that we can run docker command as jenkins user
+
+>su jenkins  #we can check the current user by "id" or "whoami"
+
+start jenkins service:
+>docker-compose up  #docker-compose.yml  file should be present in PWD, we can use -d flag for detached mode
+>docker ps #check running jenkins container
+ open localhost:8080 to access jenkins
+
+check logs of jenkins:
+>docker logs -f jenkins  # -f {container-name},here jenkins is the container name
+
+to stop jenkins:
+>docker-compose stop
+
+restart a single service:
+>docker-compose restart jenkins
+
+delete jenkins service:
+>docker-compose down
+==================
+task1:
+create and run a simple job:
+go to "new item"
+create a new "freestyle project" named test-job
+go to "build">"add build step">"execute shell"
+enter "echo hello world!!"
+save and click "build now" and see build logs
+
+add another "add build step">"execute shell"
+enter
+'''
+name=tamajit
+echo hello $name, current user $(whoami) 
+'''
+
+execute build again
+Output:
+'''
+[test-job] $ /bin/sh -xe /tmp/jenkins124662844993990003.sh
++ name=tamajit
++ whoami
++ echo hello tamajit. current user jenkins
+'''
+Note: variables and build parameters can be accessed using '$' (eg. $name) and a command can be executed using '$()' (eg. $(whoami)) 
+===========
+task2:
+create a simple script,copy inside jenkins container,execute the script using jenkins job
+
+create a script file test.sh
+'''
+echo hello $1
+'''
+
+copy script to jenkins container:
+>docker cp test.sh jenkins:/tmp/test.sh   #syntax=> docker cp {file-to-copy} {container-name}:{container-file-path}
+
+edit "execute shell" of the job with
+'''
+/tmp/test.sh tamajit
+'''
+
+output:
+'''
+[test-job] $ /bin/sh -xe /tmp/jenkins4911634134169926327.sh
++ /tmp/test.sh tamajit
+hello, tamajit
+'''
+=============
+execute jobs in remote machine:
+1.so far all jobs were executed in jenkins container locally
+2.what if we want to delegate the execution of the job in a different slave machine/container
+
+We can create a slave container(remote_host) where ssh server is running.Now jenkins container will connect to it using ssh and delegate job execution
+
+see example2 folder cantaining docker-compose.yaml and other dependent files
+>docker-compose build  #create remote_host image
+>docker images #check if remote_host image is created
+>docker-compose up
+=====================
+Docker inside docker:
+ie.access docker from docker container
+
+>docker run -ti -v /var/run/docker.sock:/var/run/docker.sock docker
+>docker ps   #now both host machine and container will refer to the same docker
+Note:
+the container must have docker installed. here image named docker has docker installed
+
+===========================
+
+
+
+
+
+
+
+
+
+

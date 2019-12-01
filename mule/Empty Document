@@ -1,0 +1,54 @@
+Install GIT plugin into Studio - http://download.eclipse.org/egit/updates
+Install MUnit Object Comparison Plugin into Studio - https://raw.githubusercontent.com/rbutenuth/assert-object-equals-connector/master/update-site/
+Install Security updates - http://anypoint-enterprise-security-update-site.s3.amazonaws.com/1.8.0
+
+
+Http Listener is responsible for converting a http request to mule event(contains mule message(attributes,payload) and variables)
+http request has headers and body
+mule message contains attributes,payload
+
+Mule flow=> has Source(inbound endpoint),1 or more process and exception handling
+every endpoint inbound/outbound needs to have a connector configuration eg. http listener
+
+Mule message:
+payload can be accessed as #[message.payload] or #[message.payload]
+attributes can be accessed as #[message.attributes] or #[attributes]
+variables in mule event can be accessed as #[vars]
+
+
+for working with database we can create a docker postgres instance:
+>docker run --name some-postgres -e POSTGRES_PASSWORD=password -p 5433:5432  -d postgres
+
+
+Secure property:
+this is needed to be installed by search in exchange
+
+java -jar secure-properties-tool.jar \
+<method> \  //file,file-level,string
+<operation> \
+<algorithm> \
+<mode> \
+<key> \
+<input file> \
+<output file>
+
+
+>java -jar secure-properties-tool.jar //to see possible uses
+
+encrypt and decrypt all values in file:
+java -jar secure-properties-tool.jar file encrypt Blowfish CBC my-key db-dev.yaml db-secure-dev.yaml
+java -jar secure-properties-tool.jar file decrypt Blowfish CBC my-key  db-secure-dev.yaml db-dev2.yaml
+
+encrypt and decrypt whole fie:
+java -jar secure-properties-tool.jar file-level encrypt Blowfish CBC my-key db-dev.yaml db-secure-dev.yaml
+java -jar secure-properties-tool.jar file-level decrypt Blowfish CBC my-key db-secure-dev.yaml db-dev2.yaml 
+
+encrypt and decrypt a single value:
+>java -jar secure-properties-tool.jar string encrypt Blowfish CBC my-key my-secret-to-encrypt
+>java -jar secure-properties-tool.jar string decrypt Blowfish CBC my-key fTJITEYqKHm27/+n6Lai4UYCTn581d++
+
+common mistakes:
+secured properties has to be started with secure::  eg. ${secure::db.password}
+in yaml make sure if all encryptedvalues are enclosed in quotes. eg ![poZ8lCoTRVWMsTwfXGRrTw==] (Not OK),  "![poZ8lCoTRVWMsTwfXGRrTw==]"  OK 
+
+

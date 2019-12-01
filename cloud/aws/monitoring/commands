@@ -1,0 +1,53 @@
+check available and used memory:
+>free -h
+
+check used memory and cpu for each process:
+>top
+
+check I/O(disk performance):
+>iostat
+
+
+CPU:
+-heavily used by processing tasks eg. pi calculation
+-CPU performance will inprove if frequency is more
+-increasing the number of core will inly improve perfance if program is multi-threaded, if you have 4  cores and cpu utilization in top cammand shows 100% it is not using all cores,for 4 cores it should show 400% max.
+
+---
+Memory:
+-highly used by in memory computing softwares like apache spark  
+-If you out of memory error it is a good indication more memory is required,but make sure your program dont have any memory leak.
+
+---
+I/O performance parameters:
+1)Latency
+2)Sequential read/write speed
+3)Random read/write speed
+4)IOPS i/o operations per second
+
+I/O are heavily used for database,map-reduce(hadoop),website serving audio/video/image.
+RDBMS will benefit a lot improving I/O capacity because in every query it reads from disk.
+If IO is not good enough you will get timeout(as some operations will not be completed on time),system will also slow down or crush.
+
+----------------
+Newtorking:
+How fast a machine can send or receive message from another.
+It is measured in following aspects:
+1)Latency
+2)Throughput/bandwidth
+
+we can use "nload" or "iftop" command to find the current amount of network being used.
+Following App requires good networking :FTP server,Apache Kafka,Framework which needs lots of shuffling like apache spark or distributed filesystem.
+
+-------------'
+Burstable Instance(T2):
+Over all these machines has ok cpu performance,but when this machine has to process something unexpected ,it can burst and CPU can be very good.
+If cpu machine bursts it utilizes "burst credits" to handle sudden spike in load.
+If over all credit is gone the cpu becomes bad.
+If the machine  stops bursting,credits are accumulated over time.
+See "CPU credits" table for seeing in what rate credit is earned,and what is ax accumulation capacity. for different type of t2 instances.
+See CPU credit balance graph to trace when you need to upgrade t2 instance(if your instance often goes to zero cpu credit balance ie. it needs upgrade)
+
+T2 unlimited feature(deactivated by default) can be activated in any t2 instance type.
+
+

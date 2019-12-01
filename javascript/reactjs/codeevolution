@@ -1,0 +1,1222 @@
+What is react:
+=>An open source library(not framework) for building user interfaces(does not focus on other things like routing,http which frameworks do)
+=>Has component based architecture,Ui is made up of mutiple components,component may have children components(forming hierarchical structure).root component is used in index.js eg. ReactDOM.render(<App />, document.getElementById('root'));
+=>same componenents can be used in multiple places (increases reusebility)
+=>React is declarative: we tell react what we want then react will build the actual UI.
+------------------------------
+install node and VS code
+
+npm install -g create-react-app
+create-react-app my-app
+cd my-app
+npm start
+------------------
+alternative approach:
+npx create-react-app <project-name>
+//npx is a npm package runner,we can run this without installing create-react-app package
+-------------------
+components can be functional component or class component
+functional component is used if component is stateless,from react 16.8 stateful functionalcomponent possible using Hook)
+class component is used for creating stateful component,also provides lifecycle hooks.
+we should try to use functional componenent as much as possible,for following reasons:
+no need tu use 'this' keyword(which often results in cunfusion/error)
+
+from react 16.8 newly feature "Hooks" allows us to make functional components stateful and also allows us to  use other class component feature like lifecycle hooks.
+There is no breaking change in Hook and backward compatible
+
+
+-----------
+functional component example:
+
+function Welcome(props){
+return <h1>Hello</h1>
+}
+export default Welcome
+
+OR:
+
+const Welcome =() => return <h1>Hello</h1>
+export default Welcome
+
+----------------
+class component example:
+import React,{Component} from 'react'
+class Welcome extends React.Component{
+render(){
+return <h1>Hello</h1>              //multiline JSX has to be enclosed with()
+}
+}
+export default Welcome
+-----------------
+Note if we export class/funcion as default,it will allow us to import it as any name
+
+eg. inside parent component:
+import MyComponent from './Welcome'
+now use <MyComponent> to render
+---------
+instead we do named export(non default export),we have to import same name inside {}
+
+export const Welcome =() => return <h1>Hello</h1>
+
+eg. inside parent component:
+import {Welcome} from './Welcome'
+now use <Welcome> to render
+
+
+====================
+JSX(Javascript XML):
+XML like code  for creating components which is transpiled into javascript understood by browser
+Declarative approach and more readable.
+
+JSX example:
+<people>
+  <person id="1" >Tom</person>
+</people>  
+
+corresponding JS:
+
+React.createElement("people", null, React.createElement("person", {
+  id: "1"
+}, "Tom"));
+
+few exceptions in JSX:
+class(in html) is called className(in jsx)
+for(in html) is called htmlFor(in jsx)
+also need to use camelcase for properties like onclick(in html)=>onClick(in jsx),onchange=>onChange etc
+
+
+
+
+
+=========================
+Props:
+passing values from parent to child component.
+
+parent component:
+
+import React, { Component } from 'react';
+import Emp from './components/Employee'
+class App extends Component {
+  render() {
+    return (
+      <div>
+        <Emp age="1">Jim</Emp>
+        <Emp age="2">John</Emp>
+      </div>
+    );
+  }
+}
+----------
+props using function:
+
+import React from 'react'
+function Employee(props){
+return <h1>{props.children} age {props.age} </h1>
+}
+export default Employee
+----------
+props using class:
+
+import React, { Component } from 'react'
+class Employee extends Component {
+    render() {
+        return <h1>{this.props.children} age {this.props.age} </h1>
+    }
+}
+export default Employee
+----------
+Note:
+props are immutable and cannot be changed . eg this.props.age=20 //error 
+======================================
+Install following plugin in VS code:
+ES7 React/Redux/GraphQL/React-Native snippets
+
+it has got great react snippets which can save time
+rcc=>react class component
+rfc=>react function component
+rconst=>react class constructor 
+=================
+state:
+=>this varible helps to maintain the state of the component.
+
+props vs state:
+props is passed to child component,state is maintained within component
+props is passed as function parameters,state is defined in function body
+props are immutable,state can be changed using setstate
+props can be accessed using props(in FC ),this.props(in CC),state is accessed using useState hook(in FC) and this.state(in CC)
+
+example:
+import React, { Component } from 'react'
+export default class Message extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+          greet:"hi"
+        }
+    }
+
+     update = (msg)=>{
+        this.setState({greet:msg})
+    }
+    
+    render() {
+        return (
+            <div>
+                {this.state.greet}
+                <button onClick={()=>this.update('hello')}>Reply</button>
+            </div>
+        )
+    }
+}
+
+Note:
+we should modify the state directly only inside constructor (this.state ={})
+if we modify state directly in any other place although the value is changed it will not update in view,so we should use this.setState() to update state elsewhere. 
+-------------------------
+updating state where current value is dependent on previous value:
+
+example:incrementing value of counter on every click
+
+import React, { Component } from 'react'
+export default class Counter extends Component {
+    constructor(props) {
+        super(props)
+
+        this.state = {
+            value: 0
+        }
+    }
+
+    update() {
+        // this.setState({greet:3})
+        this.setState({value: this.state.value+1},()=>console.log(this.state.value))//this callback will be called after update
+        //console.log(this.state.value) //this may show backdated value as setState method works asynchronously
+    }
+    render() {
+        return (
+            <div>
+                Count-{this.state.value}
+                <button onClick={()=>this.update()}>increment</button>
+            </div>
+        )
+    }
+}
+
+-----------
+The above program has a bug for example if we add a new method to increment the value by 3:
+
+  update3() {
+       this.update()
+       this.update()
+       this.update()
+    }
+
+It will not work and increment by only 1,as all this.update() will be fired at the same time asynchronously
+each update will not be aware of its previous updated value.
+
+The solution is pass a function instead of value in setState(),react will make sure it passes the previous value in input arguement.
+update update() method as follows:
+    update() {
+        this.setState((prevState)=>{return {value: prevState.value+1}})
+    } 
+
+
+Note props is also available as 2nd arguement:
+
+    update() {
+        this.setState((prevState,props)=>{})
+    }
+
+Summary Notes on state:
+1)Always make use of setState() and never modify the state directly
+2)Code has to be executed after the state has been updated? place the code in the callback which is the 2nd arguement to setState method
+3)When you have to update state based on previous state value pass in a function as arguement instead of regular object
+
+===============
+destructuring props and state:
+
+Before destructuring:
+
+import React from 'react'
+function Employee(props){
+return <h1>{props.children} age {props.age} </h1>
+}
+export default Employee
+--------------
+same component after destructuring props:
+
+import React from 'react'
+function Employee({age,children}){
+return <h1>{children} age {age} </h1>
+}
+export default Employee
+
+OR:
+
+import React from 'react'
+function Employee(props){
+    const {children, age} = props
+return <h1>{children} age {age} </h1>
+}
+export default Employee
+---------
+similarly in class we can destructure props as:
+
+import React, { Component } from 'react'
+class Employee extends Component {
+    render() {
+        const {children, age} = this.props
+        return <h1>{children} age {age} </h1>
+    }
+}
+export default Employee
+-------------
+similary we can destructure state as well
+=========================
+
+Event handling:
+
+on function components(call function inside function):
+
+import React from 'react'
+export default function Message() {
+    function clicked() {
+        console.log('clicked!!')
+    }
+    return (
+        <div>
+            <button onClick={clicked}>Click</button>
+        </div>
+    )
+}
+
+onClick should not have method call() but only method name (onClick={clicked()}),else it will be executed during load
+-----------
+on class components(call method inside class):
+
+import React, { Component } from 'react'
+
+export default class Message extends Component {
+    clicked() {
+        console.log('clicked!')
+    }
+    render() {
+        return (
+            <div>
+                <button onClick={this.clicked}>click</button>
+            </div>
+        )
+    }
+}
+
+similarly we need to pass method reference but not call method ie. onClick={this.clicked()}
+====================
+Binding event handlers in react:
+
+import React, { Component } from 'react'
+
+export class Message extends Component {
+    constructor(props) {
+        super(props)
+    
+        this.state = {
+             msg:'hello'
+        }
+    }
+    clicked(){
+        console.log(this)
+        this.setState({msg:'good bye'})
+    }
+    
+    render() {
+        return (
+            <div>
+                {this.state.msg}
+                <button onClick={this.clicked}>Click</button>
+            </div>
+        )
+    }
+}
+
+export default Message
+-----------
+
+Above code will give the following error:
+"Cannot read property 'setState' of undefined"
+The reason is this is undefined inside class method
+
+There are multiple solutions to bind this inside method call:
+1)Using bind() method                
+<button onClick={this.clicked.bind(this)}>Click</button>
+
+Note:bind method can take more more than one parameters.1st arg defines the context object of method and remaining parameters will be passed as arguements in method call.
+
+Every click will cause component re-render so this approach is not very efficient if DOM is heavy
+
+  
+2)We can use arrow function on onClick():
+<button onClick={()=>this.clicked()}>Click</button> 
+
+3)Binding in constructor
+add following line in constructor
+this.clicked=this.clicked.bind(this)
+
+4)define method as arrow method:
+    clicked=()=>{
+        console.log(this)
+        this.setState({msg:'good bye'})
+    }
+
+Approach number 3 and 4 will give better performance
+2nd Approach is good for passing parameters which we will see next
+===================
+Method as props:
+child to parent communication:
+
+import React, { Component } from 'react'
+import Child from './Child'
+export default class Parent extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            msg: ''
+        }
+        this.update=this.update.bind(this) //instead of this we can alternatively  define update as fat arrow
+    }
+    update(data) {
+        this.setState({ msg: data })
+    }
+
+    render() {
+        return (
+            <div>
+                {this.state.msg}
+                <Child updateMethod={this.update}></Child>
+            </div>
+        )
+    }
+}
+----------------------
+Note instead of defining :
+
+"this.update=this.update.bind(this)"  in constructor
+
+we could use 2nd approach to define onClick as follows:
+
+<Child updateMethod={(a)=>this.update(a)}></Child>
+---------------------
+import React from 'react'
+
+export default function Child(props) {
+    return (
+        <div>
+            
+            <button onClick={()=>props.updateMethod('hello')}>button</button>
+        </div>
+    )
+}
+
+==========================================
+Conditional rendering:
+Writing if-else inside jsx is not valid
+
+Approach1: use if-else outside jsx:
+
+import React, { Component } from 'react'
+export class Message extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+             isNight:true
+        }
+    }
+    render() {
+        let message=''
+        if(this.state.isNight){
+            message=<h1>Good Night</h1>
+        }else{
+            message=<h1>Good Morning</h1>
+        }
+        return (
+            <div>
+                {message}
+            </div>
+        )
+    }
+}
+export default Message
+---------------
+Approach2: use ternary operator :
+
+import React, { Component } from 'react'
+
+export class Message extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+             isNight:false
+        }
+    }
+    render() {
+        return (
+            <div>
+            {this.state.isNight?<h1>Good night</h1>:<h1>Good morning</h1>}
+            <div>How are you?</div>
+            </div>
+        )
+    }
+}
+
+export default Message
+------------
+Approach 3: use short circuit(only if no else)
+
+import React, { Component } from 'react'
+
+export class Message extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+             isNight:true
+        }
+    }
+    render() {
+        return (
+         this.state.isNight && <h1>Good night</h1>
+        )
+    }
+}
+export default Message
+---
+
+=================
+List Render:
+
+import React, { Component } from 'react'
+
+export class NameList extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            nameList:["jack","jim","robin"]
+        }
+    }
+    render() {
+        return (
+            <div>
+        {this.state.nameList.map((name)=><h2>{name}</h2>)}
+        </div>
+        )
+    }
+}
+export default NameList
+------------------------
+List Person:
+
+import People from './components/People'
+class App extends Component {
+  render() {
+    return (
+      <div>
+        <People />
+      </div>
+    );
+  }
+}
+
+export default App;
+------
+import React, { Component } from 'react'
+import Person from './Person'
+
+export default class People extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            people: [
+                { name: "jack", age: 27 },
+                { name: "jill", age: 29 },
+            ]
+        }
+    }
+
+    render() {
+        return (
+            <div>
+                {
+                    this.state.people.map((person) => <Person attr={person}></Person>)
+                }
+            </div>
+        )
+    }
+}
+
+OR:
+
+    render() {
+   const personList=this.state.people.map((person) => <Person attr={person}></Person>)
+        return <div>{personList}</div>
+    }
+------
+import React from 'react'
+
+export default function Person({ attr }) {
+    return (
+        <div>
+            {attr.name}, {attr.age} years old
+        </div>
+    )
+}
+========================
+Above code will give following warning:
+"Each child in a list should have a unique "key" prop."
+
+To fix this we have to pass a key attribute to the list,its value should be unique as well
+
+{
+this.state.people.map((person) => <Person key={person.name} attr={person}></Person>)
+}
+
+Note: this key attribute will not be available inside Person component as props as it is for reactjs internal use,for better performance. With this react will be able to partially update view without re-rendering all content.
+===========================
+Styling ans CSS:
+Options for styling:
+1.css styling
+2.inline styling
+3.css module
+4.css in JS libraries(styled components)
+-----------------
+add following in settings.json in vs code to enable emmet in reactjs js file.
+file>preferences.settings
+
+
+ "emmet.includeLanguages": {
+        "javascript": "javascriptreact"
+     }
+------------------
+1)css styling:
+
+StyleSheets.js
+----------------
+import React from 'react'
+import './mystyle.css'
+export default function StyleSheets() {
+    const myclass=1==1?'primary':'secondary'
+    return (
+        <div className={myclass}>
+           hello
+        </div>
+    )
+}
+--------------------
+mystyle.css
+--------------------
+.primary{
+    color: red;
+}
+.secondary{
+    color: blue
+}
+.bg-green{
+    background-color: green
+}
+---------------------
+for applying multiple class together we can use es6 template string:
+
+        <div className={`${myclass} bg-green`}>
+           hello
+        </div>
+---------------------
+2)inline styling
+
+import React from 'react'
+import './mystyle.css'
+export default function StyleSheets() {
+    const myclass={
+        fontSize: '70px',
+        color: 'green'
+    }
+    return (
+        <div style={myclass}>
+           hello
+        </div>
+    )
+}
+ note: here css attribute has to be camelcase(not "-" separated which is used in original css).  ie. font-size  => fontSize
+-----------------------
+3)css module :
+available from dependency "react-scripts" >=2
+
+css modele has an extension of "module.css" and is imported as "import styles from '/filename.module.css'"
+Advantage of using css module is classes are locally scoped by default(cannot be used in child components unless explicitly imported in clild component)
+
+--------------------
+App.js
+-----------------------
+import React from 'react'
+import StyleSheets from './components/StyleSheets'
+import './appStyles.css'
+import styles from './appStyles.module.css'
+
+class App extends Component { 
+  render() {
+    return (
+      <div>
+       <div className={styles.error}>Error</div>
+       <div className="success">Success</div>
+       <StyleSheets/>
+      </div>
+    );
+  }
+}
+export default App;
+--------------------
+StyleSheets.js
+----------------
+import React from 'react'
+import styles from '../appStyles.module.css'
+export default function StyleSheets() {
+ 
+    return (
+        <div >
+           Inside style sheets:
+           <div className={styles.error}>Error(appStyles.module.css has to be explicitly imported in child to use)</div>
+       <div className="success">Success(appStyles.css is not explicitly imported but still we can use class success in child)</div>
+        </div>
+    )
+}
+-----------------------
+appStyles.module.css
+-------------------------
+.error{
+    color: red
+}
+-----------------
+appStyles.css
+------------
+.success{
+    color: green
+}
+========================================================================
+Form :
+see fig1.png
+
+import React, { Component } from 'react'
+export default class Form extends Component {
+    constructor(props) {
+        super(props)
+
+        this.state = {
+            username: 'default',
+            comment:'no comment',
+            skill:'react'
+        }
+    }
+    updateUsername = (event) => {
+        this.setState({ username: event.target.value })
+    }
+
+    updateComment = (event) => {
+        this.setState({ comment: event.target.value })
+    }
+    updateSkill = (event) => {
+        this.setState({ skill: event.target.value })
+    }
+    handleSubmit=form=>{
+        alert(`${this.state.username}  ${this.state.comment}  ${this.state.skill}`)
+        form.preventDefault() //without this form will refresh to default values
+    }
+
+    render() {
+        return (
+            <div>
+               <div> <pre>{JSON.stringify(this.state,null,2)}</pre></div>
+                <form action="" onSubmit={this.handleSubmit}>
+                    <div>
+                        <label >Username:</label>
+                        <input type="text" value={this.state.username} onChange={this.updateUsername} />
+                    </div>
+                    <div>
+                        <label >Comment:</label>
+                        <textarea value={this.state.comment} onChange={this.updateComment} />
+                    </div>
+                    <div>
+                        <label >Skill:</label>
+                        <select type="text" value={this.state.skill} onChange={this.updateSkill} >
+                            <option value="angular">Angular</option>
+                            <option value="react">React</option>
+                            <option value="vue">Vue</option>
+                        </select>
+                    </div>
+                    <button type="submit">Submit</button>
+                </form>
+            </div>
+        )
+    }
+}
+====================
+Lifecycle Cycle Methods:
+
+1.Mounting: When an instance of component is created and inserted into DOM.
+-constructor(props): called when ever a new component is created.
+              good place to initialize state(can directly modify state) and binding the event handlers
+              Here do not cause side effects. eg. HTTP requests  
+
+-static getDerivedStateFromProps(props,state) returns newState or null: Used when the state of the component depends on changes in props over time. 
+                                               Can be used for setting state
+                                               does not have access to 'this' since this is static
+                                               Here do not cause side effects. eg. HTTP requests  
+           
+-render(): only required method
+           reads props and state and return JSX
+           Here do not cause side effects. eg. HTTP requests 
+           after this children components lifecycle are also executed
+            
+-componentDidMount: Invoked immediately after a component and all its children components have been rendered to the DOM
+                    Perfect place to make side effect changes like http call 
+
+2.Updating:When the component is being re-rendered as a rest of changes in props or state.
+-static getDerivedStateFromProps: already covered before. called every time a component is re-rendered.
+                                   
+-shouldComponentUpdate(nextProps,nextState):  returns boolean,if false no re-rendering takes place
+                                              For performance optimization
+                                               Here do not cause side effects. eg. HTTP requests  
+   
+-render: 
+-getSnapshotBeforeUpdate(previousProps,previousState): called right before changes of virtual DOM are to be reflected to DOM
+                                                      may return null or a value. if a value is returned it will passed as 3rd arguement in next method componentDidUpdate()
+-componentDidUpdate(prevProps,prevState,snapshot): called after re-rendering is finished(DOM loaded)
+                                                    Perfect place to make side effect changes like http call 
+
+3.Unmounting:When the component is being removed from DOM.
+-componentWillUnmount():method is invoked after component is unmounted and destroyed
+                        here we can do things like cancel ajax,unsubscribe,invalidate timers
+                        Do not call setState here as it will not be rendered again
+
+4.Error Handling:When there is an error during rendering.
+These 2 methods called when there is an error either during rendering,in a lifecycle method,on in the constructor of any child component
+-static getDerivedStateFromError(error): 
+-componentDidCatch(error,info):
+
+========================================
+Fragments:
+JSX allows us to have one parent element
+Fragments allows us to group child elements without adding extra elements
+
+import React from 'react'
+export default function FragmentDemo() {
+    return (
+        <React.Fragment>
+            <h2>Hello</h2>
+            <h2>world</h2>
+        </React.Fragment>
+    )
+}
+
+ <React.Fragment> is the temporary root tag,which will be removed before rendering
+===============================
+Pure Components:
+
+Regular Component:
+does not implement shouldComponentUpdate() it always returns true by default.So on state or props change each time it is re-rendered even if they are updated with the same value.
+
+Pure Component:
+implements shouldComponentUpdate() with a shallow props and state comparison.So now if state or props is updated with same value it will not be re-rendered.
+Shallow comparison is done on following items,if difference is found component is re-rendered:
+    prevState=>currentState
+    prevProps=>currentProps
+
+
+Shallow comparison:
+For primitives=> two privitives a and b will return true if they have same 1)value  2)type
+For complex types(array or object)=> returns true if both complex types refers the same object(copy of complex type with same values will return false)
+
+
+
+Example with one parent regular component and two child component one regular and one pure:
+
+import React, { Component } from 'react'
+import PureComp from './PureComp'
+import RegularComp from './RegularComp'
+export default class ParentComp extends Component {
+    constructor(props) {
+        super(props)
+
+        this.state = {
+            message: 'hello'
+        }
+    }
+    componentDidMount() {
+        setInterval(() => { this.setState({ message: 'hello' }) }, 2000)
+    }
+
+    render() {
+        console.log('*****rendering ParentComp*****')
+        return (
+            <div>
+                <PureComp msg={this.state.message} />
+                <RegularComp msg={this.state.message} />
+            </div>
+        )
+    }
+}
+
+import React, { PureComponent } from 'react'
+export default class PureComp extends PureComponent {
+    render() {
+        console.log('*****rendering PureComp*****')
+        return (
+            <div>
+                Pure component: {this.props.msg}
+            </div>
+        )
+    }
+}
+
+
+import React, { Component } from 'react'
+export default class RegularComp extends Component {
+    render() {
+        console.log('*****rendering RegularComp*****')
+        return (
+            <div>
+                Regular component: {this.props.msg}
+            </div>
+        )
+    }
+}
+
+
+Ouptut:
+*****rendering ParentComp*****
+*****rendering PureComp*****
+*****rendering RegularComp*****
+*****rendering ParentComp*****
+*****rendering RegularComp*****
+*****rendering ParentComp*****
+*****rendering RegularComp*****
+*****rendering ParentComp*****
+*****rendering RegularComp*****
+
+From output we understand pure component is rendered only first time but regular component re-renders when ever state/props is modified(even with same value)
+
+Notes on PureComponent:
+1)in previous example if parent was a pure component its child regular component would not have re-rendered
+2)do not directly mutate complex type(array/object) state in pure components because its reference will remain same and shallow comparison will return true and component will not re-render.
+instead copy complex type and then  update.
+
+===================================
+Memo:
+Same like PureComponents but for functional components(instead of class component).
+For creating memo just wrap fnctional component inside React.memo(<Functional Comp>).
+Memo was introduced in react v16.6
+It is actuallo a Higher Order Component(HOC)
+
+import React, { Component } from 'react'
+import MemoComp from './MemoComp'
+export default class ParentComp extends Component {
+    constructor(props) {
+        super(props)
+
+        this.state = {
+            message: 'hello'
+        }
+    }
+    componentDidMount() {
+        setInterval(() => { this.setState({ message: 'hello' }) }, 2000)
+    }
+
+    render() {
+        console.log('*****rendering ParentComp*****')
+        return (
+            <div>
+                <MemoComp msg={this.state.message} />
+            </div>
+        )
+    }
+}
+
+import React from 'react'
+function MemoComp({msg}) {
+    console.log('*****rendering MemoComp*****')
+    return (
+        <div>
+             Memo Component:
+            {msg}
+        </div>
+    )
+}
+export default React.memo(MemoComp)  //creating memo(pure component version for functional component), uses HOC to return an enhanced component.
+
+O/P
+*****rendering ParentComp*****
+*****rendering MemoComp*****
+*****rendering ParentComp*****
+*****rendering ParentComp*****
+*****rendering ParentComp*****
+*****rendering ParentComp*****
+*****rendering ParentComp*****
+
+=======================================================
+Refs:
+Enables to access DOM nodes in react.
+Example:
+
+import React, { Component } from 'react'
+export default class RefDemo extends Component {
+    constructor(props) {
+        super(props)
+    this.myRef=React.createRef()
+    }
+    componentDidMount(){
+        console.log(this.myRef)
+        this.myRef.current.focus()  //focusing in this input after dom is loaded
+    }
+
+    alertValue=()=>{
+        alert(this.myRef.current.value) 
+    }
+    
+    render() {
+        return (
+            <div>
+                <input type="text" /><br/>
+                <input type="text" ref={this.myRef}/>
+                <button onClick={this.alertValue}>See value</button>
+            </div>
+        )
+    }
+}
+---------------------------
+Example of Refs using callback reference(old way of using ref):
+
+import React, { Component } from 'react'
+export default class RefDemo extends Component {
+    constructor(props) {
+        super(props)
+        this.callbackRef = null
+        this.setCallbackRef = (element) => this.callbackRef = element
+    }
+    componentDidMount() {
+        if (this.callbackRef) {
+            this.callbackRef.focus()  //dom can be accessed directly no need for current.focus()
+        }
+    }
+    render() {
+        return (
+            <div>
+                <input type="text" /><br />
+                <input type="text" ref={this.setCallbackRef} />
+            </div>
+        )
+    }
+}
+======================================
+Adding ref of child from parent component example:
+
+import React, { Component } from 'react'
+import RefDemo from './RefDemo'
+
+export default class ParentComp extends Component {
+    constructor(props) {
+        super(props)
+
+        this.childRef = React.createRef()
+    }
+
+    focusText = () => {
+        this.childRef.current.focusInput()
+    }
+    render() {
+        return (
+            <div>
+                <RefDemo ref={this.childRef}></RefDemo>
+                <button onClick={this.focusText}>Focus</button>
+            </div>
+        )
+    }
+}
+
+
+import React, { Component } from 'react'
+export default class RefDemo extends Component {
+    constructor(props) {
+        super(props)
+        this.myRef = React.createRef()
+ 
+    }
+    focusInput=()=> {
+            this.myRef.current.focus()
+    }
+
+    render() {
+        return (
+            <div>
+                <input type="text" /><br />
+                <input type="text" ref={this.myRef} />
+            </div>
+        )
+    }
+}
+
+
+========================================
+Ref Forwarding:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=========================================
+Portal:
+enables to render child component outside parent component.
+----------
+MyComponent.js:
+
+import React from 'react'
+import ReactDOM from 'react-dom'
+function MyComponent() {
+    return ReactDOM.createPortal(
+        <div>hello</div>,
+        document.getElementById("my-root")  //this component will be rendered inside container with id="my-root" which is outside parent dom
+    )
+}
+export default MyComponent
+--------------------
+App.js:
+
+class App extends Component { 
+  render() {
+    return (
+      <div>
+       <MyComponent/>
+      </div>
+    );
+  }
+}
+export default App;
+
+------------------
+index:js:
+
+ReactDOM.render(<App />, document.getElementById('root'));
+serviceWorker.unregister();
+-------------
+index.html:
+
+    <div id="root"></div>
+    <div id="my-root"></div>
+
+=============================
+Error handling:
+two lifecycle methods:
+-static getDerivedStateFromError(error) returns new state: used to render a fallback UI after an error is thrown 
+-componentDidCatch(error,info): used to log the error information after error thrown
+
+Instead of showing end user stack trace we can show a fallback UI.
+
+Error Boundary:
+A class component that implements either one or both of the lifecycle methods getDerivedStateFromError and componentDidCatchbecomes an error boundary.
+
+Note:
+it will only catch error in lifecycle methods or constructors(it will not catch errors inside event handlers, then use regular try-catch insead of error boundary)
+
+
+import React, { Component } from 'react';
+import logo from './logo.svg';
+import './App.css';
+import ParentComp from './components/ParentComp';
+import MyComponent from './components/MyComponent';
+import Hero from './components/Hero';
+import MyErrorHandler from './components/MyErrorHandler';
+class App extends Component {
+  render() {
+    return (
+      <div>
+        list:
+        <MyErrorHandler>  <Hero heroName="superman" /></MyErrorHandler>
+        <MyErrorHandler>   <Hero heroName="joker" /> </MyErrorHandler>
+        <MyErrorHandler>   <Hero heroName="batman" /></MyErrorHandler>
+      </div>
+    );
+  }
+}
+export default App;
+--------------------
+import React from 'react'
+export default function Hero({heroName}) {
+    if(heroName==='joker'){
+        throw new Error('not a hero')    }
+    return (
+        <div>
+            {heroName}
+        </div>
+    )
+}
+-----------------------
+import React, { Component } from 'react'
+export default class MyErrorHandler extends Component {
+    constructor(props) {
+        super(props)
+        this.state = {
+            hasError: false
+        }
+    }
+
+    static getDerivedStateFromError(error) { //only called on error
+        {
+           return { hasError: true}      //return state on error
+        }
+    }
+    componentDidCatch(error, info) {  //only called on error
+        console.log(error)
+        console.log(info)
+    }
+    render() {
+      if(this.state.hasError){
+          return <div>not a hero</div>
+      }
+      return this.props.children  //render original component
+    }
+}
+
+
+Output:
+list:
+superman
+not a hero
+batman
+===================================
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+

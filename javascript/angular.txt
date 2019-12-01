@@ -902,8 +902,8 @@ A component has a lifecycle eg. create component,render component,destroy compon
 After creating a component/directive by calling its constructor, Angular calls the lifecycle hook methods in the following sequence at specific moments:
 
 ngOnChanges() : 	
-Called every time a data-bound input property changes. It’s called a first time before the ngOnInit hook. The hook receives a SimpleChanges object that contains 
-the previous and current values for the data-bound inputs properties. This hook gets called often, so it’s a good idea to limit the amount of processing it does.
+Called every time a data-bound input property changes. It's called a first time before the ngOnInit hook. The hook receives a SimpleChanges object that contains 
+the previous and current values for the data-bound inputs properties. This hook gets called often, so its a good idea to limit the amount of processing it does.
 Called before ngOnInit() and whenever one or more data-bound input properties change.
 
 

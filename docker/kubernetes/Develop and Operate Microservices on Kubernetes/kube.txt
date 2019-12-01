@@ -10,7 +10,7 @@
 >minikube dashboard
 
 
->eval $(minikube docker-env) #now your shell can talk to minikube
+>eval $(minikube docker-env) #now your shell can talk to minikube's docker
 
 kubectl get nodes
 

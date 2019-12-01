@@ -78,7 +78,7 @@ Permissions are represented using policy.
 If a User or Group has two policies one with allow and other with deny on a certain permission eg.deleteDynamoTable ,then deny policy will hold. 
 While defining policy * in ANR represents wildcard which represents all resource.
 
-AWS provideslots of policies,we can also make our own custom policy intwo ways:
+AWS provides lots of policies,we can also make our own custom policy intwo ways:
 1.Managed Policy(it can be reused)
 2.Inline Policy(it cannot be reused)
 

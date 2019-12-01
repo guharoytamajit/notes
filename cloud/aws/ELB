@@ -1,0 +1,36 @@
+Load balancers are servers that forward internet traffic to multiple  servers(eg ec2)
+Helps in scaling
+Makes our architecture more fault tolerant,as it can span more than one AZ in same region(HA across zones).
+ELB gives user single point of access(DNS) to your application,which may have multiple instances.
+Supports health checks,ELB will only forward traffic to healthy instances of your app.
+Provide SSL termination(HTTPS) for your websites.
+Enables sticky session using cookies.
+ELB can separate public traffic from private traffic(No need to expose app instances or DB  on internet)
+
+
+ELB is a managed load balancer(ie. AWS is responsible for its HA)
+ELB can be internal(no public ip) or external(with public ip)
+AWS supports 3 types of load balancers:
+1)Classic load balancer(v1 old generation) since 2009,new deprecated
+2)Application Load Balancer(v2 new generation) since 2016
+3)Network Load balancer(v2 generation) since 2017
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
