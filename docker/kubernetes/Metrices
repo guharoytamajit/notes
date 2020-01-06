@@ -1,0 +1,50 @@
+ Metrices:
+
+
+
+
+
+To record metrics we have to install metrics server:
+metrics is nothing but another pod which will run on kube-system namespace,its job is to gather metrics
+
+In minikube enabling metrics server is very simple,we just have to enable addon:
+>minikube addons list
+>minikube addons enable metrics-server
+
+>kubectl get pod,svc,deploy -n kube-system
+you will see a metrics-server pod,svc,deploy
+
+Wait for some time till some metrics is gathered(default timeperiod for gathering metrics is a minuite)
+
+>kubectl top pod                  #returns cpu and memory actual usage of all pod,which is updated every minuite
+
+>kubectl top node                 #returns totol cpu and memory actual usage of all nodes,which is updated every minuite
+------------------------
+
+metrics dashboard:
+>minikube addons enable dashboard
+
+>kubectl get all -n kube-system
+you will see pod,svc and deploy for kubernetes-dashboard
+
+>minikube dashboard                #to open dashboard
+
+Memory and cpu metrics details with graph can be seen in cluster menu.
+
+------------------------
+metrics-server is an replacement of heapster(deprecated).
+We can use heapster instead of metrics-server
+
+>minikube addons disable metrics-server
+>minikube addons enable heapster
+
+usage of heapster is same as metrics-server.
+
+
+
+
+
+
+
+
+

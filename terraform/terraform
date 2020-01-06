@@ -1,0 +1,123 @@
+download terraform executable and put it in path.
+
+Here we will be using aws provider so we need to install aws cli first
+install aws-cli:
+>sudo apt-get install awscli
+>aws --version    //check version
+> rm -v ~/.aws/config ~/.aws/credentials  //delete old configuration,if exists
+>aws help    //see available command
+>aws ec2 <subcommand> help  //see command and subcommand help
+
+
+Now create a aws user with admin access, and copy its access key and secret key.
+Now configure aws cli to use your aws account
+>aws configure //it will prompt for access key , secret key and default region
+--------------------
+
+What is terraform:
+A tool for provisioning infrastructure-as-code(IOC)
+Supports many providers like AWS,GCP,Azure etc.
+Enables us to provision resources in minuites
+
+
+# Configure the AWS Provider
+provider "aws" {
+region  = "ap-south-1"  
+}
+
+>terraform init //it will install aws plugin inside ".terraform" hidden directory
+
+
+resource "aws_instance" "myec2"{
+ami="ami-02913db388613c3e1"
+instance_type="t2.micro"
+tags={
+Name = "my-ec2-1"
+}
+}
+
+>terraform fmt //to format your tf file
+>terraform plan //dry-run
+>terraform apply //run and provision resource
+>terraform destroy //delete all created resources
+
+
+# Create a VPC
+resource "aws_vpc" "example" {
+  cidr_block = "10.0.0.0/16"
+tags={
+Name = "my-vpc-1"
+}
+}
+-----------------
+backend-config
+>terraform init -backend-config="infractructure-prod.config"
+
+
+>terraform plan -var-file="production.tfvars" -var="key=value" //we can pass inline variables
+
+
+>terraform apply -var-file="variable filepath" -var="key=value" //we can pass inline variables
+
+>terraform destroy -var-file="variable filepath" -var="key=value" //we can pass inline variables
+
+
+---------
+defining variable:
+
+variable "region" {
+  default     = "eu-west-1"  //optional
+  description = "AWS Region"  //optional
+  type = "string"            //optional, other types map,list
+}
+
+
+it can be reffered using "var.region"
+
+if a variable is neither have a default value nor passed inline as -var, its value will be asked as prompt during plan or apply command.
+
+if you want a resource to be created after another resourse is available then use "depends_on" and pass all dependencies as list.
+------------
+Terraform state:
+Terraform records everything it does in  state files
+By default it is saved locally with name terraform.tfstate
+We can configure AWS S3,Azure SA,Consul etc.For storing state remotely.
+eg.
+terraform{
+ backend "s3" {}
+}
+
+And pass the backend configuration as variable:
+>terraform init -backend-config="bucket=<s3 bucket name>"  -backend-config="key=remote_states/ec2_state.tfstate"  -backend-config="region=eu-west-1"
+
+or we can pass all backend config in a file:
+>terraform init -backend-config="infractructure-prod.config"
+
+==infractructure-prod.config==
+region="eu-west-1"
+key="layer1/infrastructure.tfstate"
+bucket="vpc-ec2-infra-terraform-state"
+
+We have to create above s3 bucket before using it.
+-------------
+For small configuration we can have ain.tf and variables.tf.
+
+for bigger project we can create structure like:
+infrastructure directore=>holding network resources like VPC,subnet,SG,RT
+platform directory      =>ec2 instances,auto scaling(ASG),
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+

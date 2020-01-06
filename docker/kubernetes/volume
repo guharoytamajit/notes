@@ -1,0 +1,70 @@
+pods are stateless
+One solution is you can keep state on external system like database or s3 and keep pod stateless.
+
+But sometimes you want to make pod stateful
+
+Approach 1:
+attach pod to persistant volume.
+
+persistance volume(PV):
+-can be provided as a file systen to kubernetes pods
+-lifecycle of PV is independent of pods(if pod is deleted volume still remains)
+-can be accessed by multiple pods at once or one to one(depending upon storage engine)
+
+Network Filesystem: multiple pod can access volume
+Network block device: one volume can be used by one pod only
+
+-----------
+Network Block Devices examples:
+aws EBS,AzureDisk,GCE Persistent Disk,Openstack Cinder,Rados block device(Ceph),iSCSI
+This has following properties:
+-Fast but can be used by one pod ata time.
+
+Network File system:
+AWS EFS,Azure Files,CephFS,NFS,GlusterFS.
+properties:
+-slower than block device bu can be used by multiple pods at a time.
+-----------
+Persiatance Volume: created by cluster operator(who need not be aware of application architecture)
+Refers to a specific Network block device or file system.
+
+Persistance Volume Claim(PVC): created by application operator(who need not be aware of storage architecture)
+Claims a PV for use in one or more pods
+
+
+Automatic Volume Provisioning:
+Creating PV and PVC in pair is a very repetitive task.
+We can avoid this by using storage class.
+
+cluster operator can define a Storage Class.
+When Application Operator creates a PVC,  "kubernetes volume provisioner" will use information defined in "Storage Class" to create a PV dynamically. it will also binf PV to PVC.
+we need to refer "Storage Class" in PVC definition.
+
+---------------------------
+Single stateful pod is not-volatile but not scalable either.Also not self healing as not backed by any controller.
+
+Stateful Set:
+They are controller like RC and replication set.
+Manages multiple pods and volumes.
+Ideal for stateful cluster apps, eg cassandra,mongodb
+Each stateful-set requires a headless service.
+
+Headless service:
+-Resolves stateful-set via DNS
+-Resolves individual members via DNS
+-No IP load-balancing,DNS only
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

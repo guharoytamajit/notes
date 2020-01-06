@@ -1,0 +1,106 @@
+Requests and Limits:
+
+Requests in partucular are very important if we want a well behaved cluster.
+In pods  or Deployment we can define requests and limit like this:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo
+spec:
+  containers:
+  - name: demo1
+  image: demo/demo1
+  resources:
+    requests:
+      memory: "16Mi"
+      cpu: "100m"
+    limits:
+      memory: "32Mi"
+      cpu: "200m"
+  - name: demo2
+  image: demo/demo2
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "200m"
+    limits:
+      memory: "128Mi"
+      cpu: "400m"
+
+
+ ---------------
+Requests and Limits are actually specified inside container definition and they are feature of container not pod
+---------------------------
+Requests:
+ Amount of resources "we think" each Container would require.During execution it may not comsume that much. 
+If request value not provided by defualt 0 memory and cpu requests will be considered.
+So even if actual resource consumption is more than requested resources, pods will continue to run if resource is available.
+Requests value is only important to resource scheduler,if requested resource of pod is not available in any node,then pod will be in pending state("kubectl get pods") instead of running.
+We should not over estimate this request resources values otherwise even if resource is available in node, additional pods will be in pending state or not scheduled(because total request limit exceeds node capacity  ) 
+if we do "kubectl describe pod <pending pod name>" in pending pod, in event section we will see "Failed Scheduling" with reason
+
+cpu: "200m"     =>  200 mill core or .2 core (cpu: .2)
+memory: "32Mi"  =>  32*1024 Ki(kilo-bytes)            
+
+Note:
+1Mi=1024Ki=1024*1024 bytes 
+1M=1000K=1000*1000 bytes
+if you specify just number without any unit in memory then it will be considered bytes eg. memory: "1000000"
+
+What is the advantage of defining requests resource?
+Resource scheduler will look into this and schedule the pod in a node which has enougn resource to run.
+
+
+
+>kubectl get nodes #get list of node names
+>kubectl describe node <node name>
+It will show all details of node like:
+Capacity,allocatable,list of pods running in this node and their requests and limits,Total cpu requests,Total cpu limits,Total memory requests,Total memory limits,events etc
+
+------------------------
+
+Limits:
+If the actual memory usage of the container at run time exceeds the limit defined,then container will be killed(pod will still remain there,container will attempt to restart)
+If the actual CPU usage of the container at run time exceeds the limit,then container will continue to run but the CPU will be clamped(ie. cpu will not be allowed to go over the limit)
+
+Memory Limits can be very useful to prevent memory leak
+=========================
+
+Keep Limits >= Requests 
+Main purpose of Requests and Limits to give signals to scheduler. 
+========================
+
+Quality of service(QOS) and Eviction: 
+
+Schudeler:
+distributes load(pods) across nodes,it tries to distribute load proportionally among nodes.
+
+QOS:
+if every container in a pod has a defined "request" and "limit" and their values are same, it will be tagged as "QoS:Guaranteed"
+if every container in a pod specifies a "request" but no "limit",it will be tagges as "QoS:Burstable".
+if every container in a pod does not define "request" and "limit",it will be tagges as "QoS:BestEffort".
+
+We can view QoS label of a pod as:
+>kubectl describe pod <name>
+
+QoS label decides which pod to evict if node is under pressure/resource shortage.
+
+Scheduler will evict "QoS:BestEffort" pods first to free resources,if that is not enough it will start evecting "QoS:Burstable".
+Eviction doesnt mean pod will be terminated for ever,it is basically rescheduled.
+
+Priority:Higher value more priority
+
+example:
+In a Node of 900mb capacity,one pod of  "QoS:Guaranteed" type with memory 500mb and priority:5 is running.
+Now  a new pos of  "QoS:Guaranteed" type with memory 500mb and priority:10 is scheduled.
+1st pod will be evicted because although both have "QoS:Guaranteed" type,but 2nd pod has higher priority. 
+
+ 
+
+
+
+
+
+
+

@@ -1,0 +1,63 @@
+image:
+  name: hashicorp/terraform:light
+  entrypoint:
+  - '/usr/bin/env'
+  - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
+stages:
+- layer_1
+- layer_2
+- destroy
+
+1-plan-infrastructure-layer:
+  stage: layer_1
+  when: manual
+  before_script:
+  - terraform --version
+  - cd infrastructure
+  script:
+  - terraform init -backend-config="infrastructure-prod.config"
+  - terraform plan -var-file="../production.tfvars"
+
+2-deploy-infrastructure-layer:
+  stage: layer_1
+  when: manual
+  before_script:
+  - cd infrastructure
+  script:
+  - terraform apply -var-file="production.tfvars" -auto-approve
+
+1-plan-application-layer:
+  stage: layer_2
+  when: manual
+  before_script:
+  - cd instances
+  script:
+  - terraform init -backend-config="backend-prod.config"
+  - terraform plan -var-file="../production.tfvars"
+
+2-deploy-application-layer:
+  stage: layer_2
+  when: manual
+  before_script:
+  - cd instances
+  script:
+  - terraform apply -var-file="production.tfvars" -auto-approve
+
+1-destroy-infrastructure-layer:
+  stage: destroy
+  when: manual
+  before_script:
+  - cd infrastructure
+  script:
+  - terraform init -backend-config="infrastructure-prod.config"
+  - terraform destroy -var-file="../production.tfvars" --force
+
+2-destroy-application-layer:
+  stage: destroy
+  when: manual
+  before_script:
+  - cd instances
+  script:
+  - terraform init -backend-config="backend-prod.config"
+  - terraform destroy -var-file="../production.tfvars" --force

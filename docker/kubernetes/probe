@@ -1,0 +1,36 @@
+
+Readiness probe: Tells if a pod is ready to serve requests
+Configured inside container.
+This is mandatory when using scaling.
+When your application scales up it may not be immediately available for taking requests,but service will still forward a few requests in new pods in round-robin order.
+
+With following command we can see new pod is not immediately available,so those requests will fail ultil the webserver starts up.
+>while true;do curl http://endpoint; done
+
+With readiness probe applied services will not send any request to new containers until it is ready(eg. an endpoint returns 200,it will keep checking after a configurable interval until it is ready)
+
+these events can be seen using "kubectl describe pod"
+
+--------------
+
+Liveness probe:This will continueously run during the lifetime of container(eg. an endpoint returns 200),it will keep checking after a configurable interval.
+If the check fails(failureThreshhold reached),it restarts the container
+==================
+parameters of readiness and liveness probe:
+1)initialDelaysSecond
+2)periodSeconds:default 10 secs, min 1sec.
+3)timeout: default 1 sec,minimum 1sec
+4)successThreshhold:default 1,No consicutive successto consider service is up and running.
+5)failureThreshhold:default 3
+
+
+
+
+
+
+
+
+
+
+
+

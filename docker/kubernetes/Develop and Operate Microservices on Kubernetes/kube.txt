@@ -265,6 +265,18 @@ in /etc/hosts
 
 Test it out by visiting myminikube.info , cheeses.all/stilton , cheeses.all/cheddar from your browser.
 
+
+For minikube nginx ingress is available as addon.
+For any other k8s cluster(aws,azure) is may not be available so we have to configure it 
+https://kubernetes.github.io/ingress-nginx/deploy/            (here do the prequisites setup first,then cloud specific setup)
+
+In AWS nginx-ingress will use loadbalancer, so there is no need to keep any other service of loadbalancer type.This was lots of cost is saved because each service with loadbalancer type would provision a cloud specific load-balancer.Instead we can have only one load-balancer for ingress.
+We can keep all services of type clusterIp and forward traffic to them from ingress.
+
+Ingress can be used for other purpose other than routing like authentication,tls setup.
+
+
+
 ===================Deployment====================
 Limitations of RS:
 New containers are created with image and existing are not updated
