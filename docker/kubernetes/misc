@@ -1,0 +1,112 @@
+
+kubectl or any GUI tool actually use API to interact with api-server(of k8s master)
+>kubectl proxy --port 8081
+open localhost:8081  you will see list of available API
+
+----
+>kubectl api-resources #list of k8s objects
+
+---------
+see possible values of an aobject
+>kubectl explain pod
+>kubectl explain pod.spec
+>kubectl explain pod.spec.containers
+
+===========================
+Docker image entrypoint vs Docker image CMD:
+entrypoint:cannot be overwritten in cammandline,extra arguments passed in command line will be appended
+eg entrypoint:["sleep"],cmd:["300"] , cmdArgument:None    =>  "sleep 300"
+   entrypoint:["sleep"],cmd:["300"] , cmdArgument:500     =>  "sleep 500"
+
+command: can be overwritten in command line.
+  eg. cmd:["bash"] ,cmdArgument:None    =>  "bash"
+      cmd:["bash"] ,cmdArgument:sh    =>  "sh"
+
+===================================
+Kubernetes container command vs Kubernetes container args:
+k8s command: same as docker entrypoint cannot be overwritten,further it will overwrite docker image entrypoint. 
+k8s args: same as docker args,can be overwritten in command line,it can overwrite docker image command(cannot overwrite but appends to docker image entrypoint)
+
+
+eg
+docker-entrypoint:"sleep"  , docker-command:3600, k8s.command:None, k8s.args:None   =>  "sleep 3600"
+docker-entrypoint:"sleep"  , docker-command:3600, k8s.command:"ping -c5 google.com", k8s.args:None   =>  "ping -c5 google.com"
+docker-entrypoint:"sleep"  , docker-command:3600, k8s.command:None, k8s.args:5000   =>  "sleep 5000"
+docker-entrypoint:"sleep"  , docker-command:3600, k8s.command:"ping", k8s.args:"yahoo.com"   =>  "ping yahoo.com"
+===========================
+Dockerfile expose:
+EXPOSE instruction informs docker that the container  listens on the specified network ports at runtime.
+the EXPOSE instruction does not actually publish the port(just like adocumentation)
+EXPOSE functions as a type of documentation between the person who builds the image and the person who runs the container,about the ports which are intended to be published.
+to publish the container  port use -p option
+>docker run -d --name nginx -p 80:80 nginx:latest 
+>docker ps #it will show the posts definedin EXPOSE (also EXPOSE by parent image),although the all actually may not be listening to that port in real,it is just for documentation.
+
+Hence to actually listen to a port -p is required,EXPOSE command is not required(it is just for documentaion)
+But keep in mind the actual running app should also listen in that specified port.
+-------------------
+exposing port from k8s pod:
+k8s Containerport is also primarily for information like dockeefile EXPOSE command
+It will not add a port or prevent a port from being exposed
+
+containers:
+- image:""
+  name:""
+  ports:
+  - containerPort: 8080
+
+====================
+label and selector:
+
+label are like tag:
+env=prod
+name=hello-world
+version=1.0
+>kubectl label pods pod1 env=prod
+>kubectl get pods --show-labels
+
+
+selectors:
+allows us to filter object based on labels
+eg env=prod
+
+>kubectl get pods -l env=prod
+>kubectl get pods -l env!=prod
+====================
+rollout:
+
+>kubectl rollout history deploy d1 #list all revisions
+>kubectl rollout history deploy d1 --revision 2  #display more details eg image version
+>kubectl rollout undo deploy d1 --to-revision=1  #roleback to revision1
+
+change image using command
+>kubectl set image deploy d1 <container_name>=nginx:1.9.1 --record 
+
+scale deployment:
+>kubectl scale deploy d1 --replicas 10
+
+deployment maxUnavailable vs maxSurge:
+
+maxSurge(max above desired):Max No. of pods that can be scheduled above original number of pods.default 25%
+maxUnavailable(max below desired):Max No. of pods that can be unavailable during update.default 25%
+
+Understanding:
+Full capacity has to be maintained=> maxUnavailable=0 and maxSurge=20%
+Update with no extra capacity,In place update. => maxUnavailable=10% and maxSurge=0 
+Here values can be specified as percentage or direct value
+
+pointers on deployment:
+Deployment ensures only a certain numbers of pods are down while they are being updated
+If you want fast rollout ,make use of maxsurge.
+If there might be resource quota in place and partial unavailability is acceptable maxUnavailable can be used.
+
+
+
+
+
+
+  
+
+
+
+

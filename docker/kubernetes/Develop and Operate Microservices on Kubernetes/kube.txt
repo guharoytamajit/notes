@@ -87,6 +87,9 @@ po/my-service-hrnr4   1/1       Running   0          4m        app=my-service
 po/my-service-jr2rn   1/1       Running   0          4m        app=my-service
 po/my-service-krwhp   1/1       Running   0          4m        app=my-service
 
+# List all pods running on node srv01
+>kubectl get pods --field-selector=spec.nodeName=srv01
+
 >kubectl scale  rs/my-service --replicas=10 #create 10 pods
 
 >kubectl label po/my-service-krwhp app-  #remove app label
@@ -97,6 +100,18 @@ If any pod is deleted(or even label is changes) rs will create one,it will try t
 rs used selectors to search for matching labels and makes sure required number of replicas are there.
 	
 >kubectl delete rs -l app=my-service #delete rs by label
+============================================
+Events:
+Using kubectl get events will allow you to extract the events from the resource’s API directly.
+
+#Filter warning only
+kubectl get events --field-selector type=Warning
+
+#Filter no pod events only
+kubectl get events --field-selector involvedObject.kind!=Pod
+
+#Filter events for a single node named "minikube"
+kubectl get events --field-selector involvedObject.kind=Node,involvedObject.name=mi
 
 ========Service============================================
 Pods have IP address routable within cluster but no external connectivity.
@@ -379,7 +394,11 @@ spec:
   hostPath:          #Volume type. other options like awsElasticBlockStorage also present which has different sub options
     path: /data/my-volume
 	
-Note:Never use hostpath volume type in cluster environment.Instead use other volumes like awsElasticBlockStorage	
+Note:Never use hostpath volume type in cluster environment.Instead use other volumes like awsElasticBlockStorage
+hostpath is the path inside worker-node where pod is deployed(this path may not be present in worker-node which dont have pod which is using this volume)	
+with hostpath, if pod p1 and p3 is created in node1 and p2 is created in node2, file created by pod p1 can be accessed by p3 but not by p2 as it is in different node.
+hence hostpath is a solution for one node cluster only
+if  pv is ReadWriteMany but pvc is of type ReadWriteOnce,pvc will remain in pendind state and vever be created dur to accessModes mismatch.
 
 >cat pv/persistentvolumeclaim.yaml
 apiVersion: v1

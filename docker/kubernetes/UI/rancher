@@ -1,0 +1,45 @@
+rancher can manage multiple clusters(supports GKE,EKS,AKS etc)
+kubernetes-dashboard UI can be used to manage only one cluster 
+
+
+setup rancher:
+docker must be present,as rancher itself  runs inside a docker container
+we can create a user and add it to docker group,this will allow the user to execute docker commands without sudo
+>sudo gpasswd -a myuser docker
+
+install rancher
+>sudo docker run -d --restart=unless-stopped -p 80:80 -p 443:443  rancher/rancher
+the above rancher container doesnot have persistance,if we want we can add a volume "-v /opt/rancher:/var/lib/rancher". /opt/rancher=>host machine path must be present
+>docker logs -f <container name>  #check start up logs,it may take around 2 mins to start
+rancher ui can be accessed in localhost:80
+
+it will ask to set admin password, and server url(here you can enter ip of localhost for now)
+Now click on "add cluster",it will return one command which you have to run on your k8s cluster,then your cluster will be connected to rancher.
+eg curl --insecure -sfL https://192.168.0.105:8443/v3/import/c5vklt9lwhgckpshmwgfcw4jxtcvld9c4v2tmtl7pw6vj5x92mlj4s.yaml | kubectl apply -f -
+
+Running the above command will create a namespace "cattle-system" in k8s cluster  and install a number of k8s objects(service account,clusterrolebinding,clusterrole,deployment etc) in that namespace
+created resources:
+clusterrole.rbac.authorization.k8s.io/proxy-clusterrole-kubeapiserver created
+clusterrolebinding.rbac.authorization.k8s.io/proxy-role-binding-kubernetes-master created
+namespace/cattle-system created
+serviceaccount/cattle created
+clusterrolebinding.rbac.authorization.k8s.io/cattle-admin-binding created
+secret/cattle-credentials-35cdb43 created
+clusterrole.rbac.authorization.k8s.io/cattle-admin created
+deployment.apps/cattle-cluster-agent created
+daemonset.apps/cattle-node-agent created
+
+>kubectl -n cattle-system get all  #wait until all pods are up
+
+
+
+   
+
+
+
+
+
+
+
+
+

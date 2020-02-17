@@ -28,6 +28,9 @@ region  = "ap-south-1"
 >terraform init //it will install aws plugin inside ".terraform" hidden directory
 
 
+print all regions:
+>aws ec2 describe-regions
+
 resource "aws_instance" "myec2"{
 ami="ami-02913db388613c3e1"
 instance_type="t2.micro"
@@ -36,11 +39,17 @@ Name = "my-ec2-1"
 }
 }
 
+describe AMI:
+>aws ec2 describe-images --image-ids ami-02913db388613c3e1
+
 >terraform fmt //to format your tf file
 >terraform plan //dry-run
 >terraform apply //run and provision resource
 >terraform destroy //delete all created resources
 
+Install terraform autocompleter:
+>terraform -install-autocomplete
+>terraform -uninstall-autocomplete  #uninstall autocomplete
 
 # Create a VPC
 resource "aws_vpc" "example" {
@@ -77,10 +86,24 @@ it can be reffered using "var.region"
 if a variable is neither have a default value nor passed inline as -var, its value will be asked as prompt during plan or apply command.
 
 if you want a resource to be created after another resourse is available then use "depends_on" and pass all dependencies as list.
+
+generally we would create a tfvars file for  each environment and then use plan or apply command as:
+>terraform apply -var-file="test.tfvars"
+>terraform apply -var-file="prod.tfvars" 
+
+tfvars should be added in .gitignore,as we dont want our secrets to be exposed in repo
 ------------
 Terraform state:
 Terraform records everything it does in  state files
-By default it is saved locally with name terraform.tfstate
+By default it is saved locally with name "terraform.tfstate"
+There is also a backup of previous state terraform.tfstate.backup 
+When we execute "terraform apply" a new terraform.tfstate  and backup is written
+This is how terraform keeps track of remote state
+  -if the remote state changes and you hit "terraform apply" again, terraform will make changes to meet the correct remote state again.
+    eg. You terminate an instance that is managed by terraform,after "terraform apply"  it will be started again.  
+
+we can maintain terraform.tfstate in ve rsion control like git then we can tract the changes we have made
+
 We can configure AWS S3,Azure SA,Consul etc.For storing state remotely.
 eg.
 terraform{
@@ -93,25 +116,111 @@ And pass the backend configuration as variable:
 or we can pass all backend config in a file:
 >terraform init -backend-config="infractructure-prod.config"
 
-==infractructure-prod.config==
+==infractructure-prod.config=========
 region="eu-west-1"
 key="layer1/infrastructure.tfstate"
 bucket="vpc-ec2-infra-terraform-state"
+-------------------------------------
 
 We have to create above s3 bucket before using it.
+
+What happens when terraform.tfstate is removed?
+Ans: terraform doesn't recreate the terraform tfstate file itself automatically. You can use terraform import to manually recreate the terraform.tfstate.
+     Or First  manually delete all provisioned resources and then recreate everything(state+resources) from scratch
+
+What happens if 2 people are working on the same infrastructure with terraform using a git repository (e.g. github), but not sharing the terraform.tfstate?
+Ans:You might get error because terraform doesnt know the remote state of the other person.You'll need to share the terraform.tfvars using consul or S3 to enable collaboration.
+
+What happens if you use S3 as a remote state repository for your terraform.tfstate and 2 people at the same time use terraform apply?
+Ans:Terraform can do locking to avoid this situation,but you have to anable this. You can enable S3 locking using dynamoDB. 
+
 -------------
-For small configuration we can have ain.tf and variables.tf.
+For small configuration we can have main.tf(resource and provider) and variables.tf.
 
 for bigger project we can create structure like:
 infrastructure directore=>holding network resources like VPC,subnet,SG,RT
 platform directory      =>ec2 instances,auto scaling(ASG),
 
+===================================================
+
+
+Datasource:
+For certain providers (like aws) terraform provides datasources
+Datasources provide you with dynamic information
+ -A lot of data is available by aws in structured format using their API
+ -Terraform also exposes them using datasource
+Example: List of ami, list of availability zones, all ip addresses used by aws
+
+"variables are static but datasource is dynamic"
 
 
 
+===================
+>terraform show  //shows terraform state in a friendly format
+>terraform taint "resource_type"."resource_name"  #mark the resource for re-creation even if resource is already present,resource will be recreated on next "terraform apply"
+>terraform plan #verify if resource will be re-created after applying taint
+
+>terraform graph # see dependencies among resources
+
+what if we already have a resource in aws but its state is not there in terraform.tfstate? we can update our state using "terraform import":
+To test this delete a resource details from terraform.tfstate now if we do "terraform plan" you will see terraform is planning to recreate that resource(as it is not present in state)
+But we already have that resource in aws. So here we can use "terraform import" to put ou state in sync with what is already provisioned.
+>terraform import aws_instance.instance1 <aws instance id eg. i-0bda86d34b8>
+
+=======================================
+Interpolation:
+In terraform we can interpolate other values using ${..}
+we can use simple math functions,variables,use condition(if-else),resource  
+eg. ${var.variable_name}, ${var.myMap["myKey"]},  ${var.myList},  ${var.myList[0]},${2 + 3 * 4},   ${aws_instance.instance1.id} , ${data.template_file.rendered},
+    ${file("mykey.pub")}
 
 
- 
+
+Condition(if-else):
+syntax : CONDITION ? TRUE value1 : FALSE  value2
+operators: ==,!=,>,>=,<,<=,&&,||,!
+
+eg. 
+resource "aws_instance" "i1"{
+ count = "${var.env == "prod" ? 2 : 1}" 
+} 
+
+===================
+common build-in functions:
+basename(path) => returns the filename of the path
+coalesc("","abc",...) => returns first non-empty string
+coalesclist([],[1],...) => returns first non-empty list
+element(list,index) =>returns single element from list
+format("server-%03d",count.index+1)   =>format string eg server-001
+formatlist(format,args)  
+index(list,element) =>return index of element in list
+list("a","b","c")  =>creates list
+join("",list("a","b","c")) => returns a string,values of list appended delimited by passed delimiter
+split(":","a:b:c")  => ["a","b","c"] 
+lookup(map("key","default"))
+lower("ABC") =>"abc"
+upper("abc")  => ABC
+map("k1","v1","k2","v2")   =>{"k1"="v1","k2"="v2"}
+merge(map1,map2,...)  =>union of maps
+replace("aabb","a","b")  => "bbbb"
+substr("abcde",-3,3) =>"cde"   args: string,start-index,length
+slice(list("a","b","c"),0,2)  =>  ["a","b"]
+timestamp()  => RF 3339 timestamp
+uuid()   
+values(map) => return values of map
+
+to expeeriment with built-in functions "terraform console" is the best place:
+>terraform console
+======================
+for loop:
+[for s in ["a","b","c"] : upper(s)]
+
+
+=============================================
+Modules:
+Terraform modules are powerful way to reuse code
+You can either use external module or write modules yourself
+
 
 
 

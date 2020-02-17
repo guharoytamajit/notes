@@ -35,19 +35,23 @@ Their role is to start and manage containers
 
 2.Kubelet:
 Responsible for the running state of each kubernetes node
-It receives commands from master and work on them
+It receives commands from master and work on them(eg starts docker container, >docker run ..)
 It makes sure all containers running in that node are healthy
 Also takes care of starting stopping and maintaining application containers as instructed by control plane
 Constantly monitor the state of the workload,if it finds not in desired state,it re-deploys them on same node
 It does so by relaying informations to and from services running in control plane(master) as well as interacting with etcd database.
 
 3.Kube-proxy:
+kube-proxy is primary responsible for forwarding request from ClusterIP to PodIP(kube-proxy itercepts the service request and forward that request to one of the pod,it internally uses iptables)
+kube-proxy also takes care of implementing a form of virtualIP for Services. 
 manages individual host subnetting and makes services available to other components
 Implemented as a network proxy
 Supports service abstruction and other networking operations
 Its main responsibility is to route traffic to the appropriate containers based on IP and port of incoming request
 Also implemented as a loadbalancer and can do primitive load balancing
 Makes sure networking environment is predictable and accessible(also keep it isolated when necessary)
+
+
 
 
  

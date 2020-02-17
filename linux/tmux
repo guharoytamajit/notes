@@ -1,0 +1,129 @@
+Installing Tmux on Ubuntu and Debian
+>sudo apt install tmux
+Installing Tmux on CentOS and Fedora
+>sudo yum install tmux
+
+-----
+Starting Your First Tmux Session:
+>tmux
+>tmux new
+>tmux new-session
+
+
+Detach Sessions
+>c-b +d
+
+Create Sessions With Names:
+>tmux new -s [session-name]
+
+View Sessions:
+>tmux ls
+>tmux list-sessions
+
+Attach session:
+>tmux attach -t 0
+
+In Tmux terminal, we check Tmux sessions by hitting Ctrl + b + s
+Hit Esc or q to exit the information.
+
+Switch to any window of any session:
+ctrl+b +s the use arrows
+
+Rename Sessions:
+>tmux rename-session [-t session-name] [new-session-name]
+
+
+Kill Sessions:
+>tmux kill-server
+>tmux kill-session -t [session-name]
+
+Attach Sessions:
+>tmux attach -t [session-name]
+
+Create/Close Windows:
+>Ctrl + b + c
+To kill the current window, in the Tmux terminal, we hit Ctrl + b + &
+
+We rename the current window by hitting Ctrl + b + ,
+
+Select Windows:
+>Ctrl + b + <window id>
+
+Sometimes it is also convenient to use Ctrl + b + n to move to the next window, or Ctrl + b + p to move to the previous window.
+
+C-b z: make a pane go full screen. Hit C-b z again to shrink it back to its previous size
+C-b C-<arrow key>: Resize pane in direction of <arrow key>4
+Ctrl+b w Choose window from a list
+
+
+Create/Close Panes:
+ To split the pane vertically, we hit Ctrl + b + %
+ To split the pane horizontally, we hit Ctrl + b + "
+ To close the current pane, we we hit Ctrl + b + x
+ To toggle between panes in the window, we simply hit Ctrl + b + ↑/↓/←/→
+Ctrl+b ; Toggle between the current and previous pane
+
+pane broadcast:
+Ctrl-B + : 
+setw synchronize-panes on
+clear history
+Ctrl-B + :
+setw synchronize-panes off
+
+
+
+----------------------
+Tmux Resurrect Usages
+Installation
+To install Tmux Resurrect, it is recommended to install Tmux Plugin Manager first. Please check the GitHub repo for installation instructions.
+
+
+
+Then we add new plugin Tmux Resurrect to Tmux by adding set -g @plugin 'tmux-plugins/tmux-resurrect' to ~/.tmux.conf. An example of the ~/.tmux.conf would be
+
+$ cat ~/.tmux.conf 
+# List of plugins
+set -g @plugin 'tmux-plugins/tpm'
+set -g @plugin 'tmux-plugins/tmux-sensible'
+set -g @plugin 'tmux-plugins/tmux-resurrect'
+
+# Other examples:
+# set -g @plugin 'github_username/plugin_name'
+# set -g @plugin 'git@github.com/user/plugin'
+# set -g @plugin 'git@bitbucket.com/user/plugin'
+
+# Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
+run -b '~/.tmux/plugins/tpm/tpm'
+Finally we install the plugin by hitting Ctrl + b + I in the Tmux terminal. We would see the following information if the installation was successful.
+
+                                                                         [0/0]
+TMUX environment reloaded.
+Done, press ESCAPE to continue.
+Save and Restore Tmux Environment
+To save the Tmux environment, we hit Ctrl + b + Ctrl + s in the Tmux Terminal. If the save was successful, a message of Tmux environment saved! would pop up.
+
+
+
+To restore the Tmux environment, we hit Ctrl + b + Ctrl + r in the Tmux Terminal. If the restore was successful, a message of Tmux restore complete! would pop up.
+
+
+
+All the sessions, windows, and panels would be saved and restored with Tmux Resurrect. Some of the running commands, such as htop, would be restored as well.
+====================
+
+Customizing Tmux
+When Tmux is started, it reads its configuration parameters from ~/.tmux.conf if the file is present
+
+
+~/.tmux.conf
+# Improve colors
+set -g default-terminal 'screen-256color'
+
+# Set scrollback buffer to 10000
+set -g history-limit 10000
+
+# Customize the status line
+set -g status-fg  green
+set -g status-bg  black
+======================
+

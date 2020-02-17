@@ -1,0 +1,332 @@
+Ansible inventory:
+location /etc/ansible/hosts
+
+here we can list all the target machines eg:
+-----------
+192.168.0.102
+192.168.0.103
+192.168.0.104
+-----------
+
+or we can group target machines by name(by default a group name "all" is created which includes all hosts):
+----------
+localhost
+192.168.0.101
+[web]
+192.168.0.102
+192.168.0.103
+
+[another]
+192.168.0.102
+---------- 
+
+we can also provide alias:
+----------
+web     ansible_host=192.168.0.102
+web2    ansible_host=192.168.0.103
+db      ansible_host=192.168.0.104
+----------
+
+like ansible_host there are other inventory parameters like: 
+ansible_connection:how ansible connects to the target server(eg ssh,winrm(windows),localhost)
+ansible_port: by default it is port 22 for ssh, but it can be changed 
+ansible_user: login to target using which user?
+ansible_ssh_pass: login password(useful if we have not created public-private key)
+
+
+-------------
+web     ansible_host=192.168.0.102   ansible_connection=ssh     ansible_user=root
+web2    ansible_host=192.168.0.103   ansible_connection=winrm   ansible_user=admin
+db      ansible_host=192.168.0.104   ansible_connection=ssh     ansible_ssh_pass=seret
+localhost  ansible_connection=localhost
+------------
+
+we can also define username as:
+----------------
+[web]
+pi@192.168.0.102
+pi@192.168.0.103
+
+[another]
+pi@192.168.0.102
+---------------
+
+
+we can create separate inventory file then we have to pass inventory file inline:
+>touch inventory.txt
+--------------
+web     ansible_host=192.168.0.102
+web2    ansible_host=192.168.0.103
+db      ansible_host=192.168.0.104
+------------
+>ansible web1 -m ping -i inventory.txt
+Note we can also use regex eg. web*
+
+The above command may fail to work if you have never lodded in that machine using ssh because the first time we connect through ssh we get prompt if we want to proceed?
+we can disable this check(which is not recommended) by updating "host_key_checking = false" in /etc/ansible/ansible.cfg
+
+final example:
+---------------
+web1 ansible_host=server1.company.com ansible_connection=ssh ansible_user=root ansible_ssh_pass=Password123!
+web2 ansible_host=server2.company.com ansible_connection=ssh ansible_user=root ansible_ssh_pass=Password123!
+web3 ansible_host=server3.company.com ansible_connection=ssh ansible_user=root ansible_ssh_pass=Password123!
+
+# Database Servers
+db1 ansible_host=server4.company.com ansible_connection=winrm ansible_user=administrator ansible_ssh_pass=Password123!
+
+[web_servers]
+web1
+web2
+web3
+
+[db_servers]
+db1
+-----------------
+======================================================================================================================================================================================
+Playbook:
+A single YAML file
+defines the set of activities(tasks) to be run on host
+
+task: action to be performed on host. eg execute command,run script,install package, shutdown/restart.
+
+playbook can have multiple play(name,hosts(single or group defined in inventory),tasks(has name,module etc))
+order of tasks in play matters as they are executed one afer another 
+--------playbook.yml-----------------------------
+-
+  name: Execute command to display date on web_node1
+  hosts: web_node1
+  tasks:
+    -
+      name: Execute a date command
+      command: date
+-
+  name: Execute a command to display hosts file contents on web_node2
+  hosts: web_node2
+  tasks:
+    -
+      name: Execute a command to display hosts file
+      command: cat /etc/hosts
+------------------------------------------------
+
+>ansible-playbook playbook.yml
+>ansible-playbook --help
+
+===========================================================================================================================================================================================
+Modules:
+Ansible modules are group based on their use
+System(user,group,hostname,iptables,Lvg,Lvol,Make,Mount,Ping,Timezone,Systemd,Service)
+Command(command,expect,raw,script,shell)
+File(acl,archive,copy,file,find,Lineinfile(to add/remove configuration),replace,stat,template,unarchive)
+Database(mongodb,mssql,mysql,postgres)
+Cloud(amazon,azure,google,openstack,vmware,docker,digitalocean)
+Windows(win_copy,win_command etc)
+==============================================================================================================================================================================================
+Variables:
+Example1(using variable from inventory):
+------inventory---------------------------------------------------
+localhost ansible_connection=localhost nameserver_ip=10.1.250.10 snmp_port=160-161
+
+--------playbook refering inventory variable-----------------
+  name: Update nameserver entry into resolv.conf file on localhost
+  hosts: localhost
+  tasks:
+    -
+      name: Update nameserver entry into resolv.conf file
+      lineinfile:
+        path: /etc/resolv.conf
+        line: 'nameserver {{ nameserver_ip }}'
+
+    -
+      name: Disable SNMP Port
+      firewalld:
+        port: '{{ snmp_port }}'
+        permanent: true
+        state: disabled
+----------------------------------
+
+Using variable example 2:
+-----------------------------------
+  name: Update nameserver entry into resolv.conf file on localhost
+  hosts: localhost
+  vars:
+    car_model: "BMW M3"
+    country_name: USA
+    title: "Systems Engineer"
+  tasks:
+    -
+      name: Print my car model
+      command: echo "My car's model is {{ car_model }}"
+
+    -
+      name: Print my country
+      command: echo "I live in the {‌{ country_name }}"
+
+    -
+      name: Print my title
+      command: echo "I work as a {‌{ title }}"
+------------------------------------
+
+Note: if variable is not appended with string then wrap {{}} with '
+ '{{title}}'
+============================================================================================================================================================================
+Condition(execute task conditianally using when):
+
+example1:
+-----inventory------
+# Web Servers
+web1 ansible_host=server1.company.com ansible_connection=ssh ansible_user=root ansible_ssh_pass=Password123!
+web2 ansible_host=server2.company.com ansible_connection=ssh ansible_user=root ansible_ssh_pass=Password123!
+web3 ansible_host=server3.company.com ansible_connection=ssh ansible_user=root ansible_ssh_pass=Password123!
+
+# Database Servers
+db1 ansible_host=server4.company.com ansible_connection=winrm ansible_user=administrator ansible_ssh_pass=Password123!
+--------------------
+
+----playbook--------
+-
+  name: Execute a script on all web server nodes
+  hosts: all_servers
+  tasks:
+    -
+      service: name=mysql state=started
+      when: ansible_host=='server4.company.com'
+---------------------
+
+example2:
+-----playbook---------------
+  name: Am in an Adult or a Child
+  hosts: localhost
+  vars:
+    age: 25
+  tasks:
+    -
+      command: echo "I am a Child"
+      when: age > 0 and age < 18
+
+    -
+      command: echo "I am an Adult"
+      when: age >= 18
+------------------------------
+
+example 3:
+-----playbook---------------
+-
+  name: Add name server entry if not already entered
+  hosts: localhost
+  tasks:
+    - shell: cat /etc/resolv.conf
+      register: command_output
+
+    - shell: echo "nameserver 10.0.250.10" >> /etc/resolv.conf
+      when: command_output.stdout.find('10.0.250.10') == -1
+---------------------------
+
+==============================================================================================================
+Loop:
+
+- hosts: all
+  user: root
+  vars:
+    users:
+      - username: galya
+        use_sudo: no
+      - username: kolya
+        use_sudo: yes
+
+  tasks:
+  - include_vars: users.yml
+
+  - name: Add users | create users, shell, home dirs
+    user: name={{ item.username }} shell=/bin/bash createhome=yes comment='create with ansible'
+    with_items: '{{users}}'
+==============================================================================================================
+Roles: This concept is same as terraform module, we can have role for mysql,nginx etc
+
+>ansible-galaxy search mysql   #search role
+>ansible-galaxy install mysql   #install role
+>ansible-galaxy install <role> -p ./myrole  #install role from local file path
+>ansible-galaxy list #list all installed roles
+
+
+--create role--------
+>ansible-galaxy init <role name>   #initialize our own role
+
+
+example : mumshad/ansible-training-answer-keys-2-master/Section_4_Roles
+
+if we have to setup a web app and its database we can create 2 roles:
+>ansible-galaxy init mysql
+>ansible-galaxy init webapp
+running "ansible init" is not mandatory we can create the roles directory structure ourself.
+
+we can use roles as:
+-----------------------
+  name: Deploy a mysql DB
+  hosts: db_and_web_server
+  roles:
+    - python
+    - mysql_db
+    - flask_web
+------------------------
+>ansible-config dump|grep ROLE  #view all role related configuration
+
+=====================================================================================================================================================================
+Host variables:
+
+we can keep host variables declared in inventory in separate file(one yaml for each host declared in inventory file) for better maintainability:
+
+eg :
+----previous inventory file-------
+[myweb]
+web1     ansible_host=192.168.0.102   ansible_connection=ssh     ansible_user=root
+web2     ansible_host=192.168.0.103   ansible_connection=ssh     ansible_user=root
+------------------------------
+
+-----new inventory file-------------
+web1
+------------------------------------
+
+----------host_vars/web1.yaml------------
+ansible_host: 192.168.0.102   
+ansible_connection: ssh     
+ansible_user: root
+-------------------------------------
+
+----------host_vars/web2.yaml------------
+ansible_host: 192.168.0.103   
+ansible_connection: ssh     
+ansible_user: root
+-------------------------------------
+Host variables are kept inside "host_vars" directory and yaml nash should be same as inventory host name.
+
+Simalar to Host variable we can define group variables inside "group_vars" directory. In above inventory file group name is"myweb"
+
+=====================================================================
+Include playbook:
+
+If we have to configure a db and a web app ,we can create two separate playbook(for better modularity) and include them in parent playbook,as shown below:
+
+ name: Deploy a web application
+  hosts: db_and_web_server
+  tasks:
+    - name: Install dependencies
+      apt: name={{ item }} state=installed
+      with_items:
+       - python
+       - python-setuptools
+       - python-dev
+       - build-essential
+       - python-pip
+       - python-mysqldb
+
+    - include: tasks/deploy_db.yml
+
+    - include: tasks/deploy_web.yml
+
+
+
+full example:  mumshad/ansible-training-answer-keys-2-master/Section_3_HostVars_Include/Exercise_5
+============================================================================================================================================================
+
+
+

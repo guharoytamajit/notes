@@ -54,17 +54,127 @@ Headless service:
 -Resolves individual members via DNS
 -No IP load-balancing,DNS only
 
+=================================================================================
+emptyDir volume:
+emptyDir are volumes that get created empty when a Pod is created.
+
+While a Pod is running its emptyDir exists. If a container in a Pod crashes the emptyDir content is unaffected. Deleting a Pod deletes all its emptyDirs.
+emptyDir are meant for temporary working disk space
+As the name says, it is initially empty.
+By default, emptyDir volumes are stored on whatever medium is backing the node. It is also accessible on the node. It is bind mounted into the container (sort of). The source directories are under /var/lib/kubelet/pods/PODUID/volumes/kubernetes.io~empty-dir/VOLUMENAME
+You can find the location on the host like this:
+
+>sudo ls -l /var/lib/kubelet/pods/`kubectl get pod -n mynamespace mypod -o 'jsonpath={.metadata.uid}'`/volumes/kubernetes.io~empty-dir
+
+----example1-------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myvolumes-pod
+spec:
+  containers:
+  - image: alpine
+    imagePullPolicy: IfNotPresent
+    name: myvolumes-container
+    
+    command: [    'sh', '-c', 'echo The Bench Container 1 is Running ; sleep 3600']
+    
+    volumeMounts:
+    - mountPath: /demo
+      name: demo-volume
+  volumes:
+  - name: demo-volume
+    emptyDir: {}   #The {} at the end means we do not supply any further requirements for the emptyDir .
+--------------
+
+emptyDir spec makes it available to all containers in the Pod.
+Every container in the Pod needs to specify where it wants to have the emptyDir mounted.
+All 3 containers can mount the same emptyDir at different mount points
+
+example2:  Pod with 3 Containers Sharing emptyDir Use
+----example2-------------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myvolumes-pod
+spec:
+  containers:
+  - image: alpine
+    imagePullPolicy: IfNotPresent
+    name: myvolumes-container-1
+    
+    command: ['sh', '-c', 'echo The Bench Container 1 is Running ; sleep 3600']
+    
+    volumeMounts:
+    - mountPath: /demo1
+      name: demo-volume
+
+  - image: alpine
+    imagePullPolicy: IfNotPresent
+    name: myvolumes-container-2
+    
+    command: ['sh', '-c', 'echo The Bench Container 2 is Running ; sleep 3600']
+    
+    volumeMounts:
+    - mountPath: /demo2
+      name: demo-volume
+
+  - image: alpine
+    imagePullPolicy: IfNotPresent
+    name: myvolumes-container-3
+    
+    command: ['sh', '-c', 'echo The Bench Container 3 is Running ; sleep 3600']
+    
+    volumeMounts:
+    - mountPath: /demo3
+      name: demo-volume
+
+  volumes:
+  - name: demo-volume
+    emptyDir: {}
+---------------------------------    
 
 
+example3: emptyDir Created in RAM 
+----example3--------------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myvolumes-pod
+spec:
+  containers:
+  - image: alpine
+    imagePullPolicy: IfNotPresent
+    name: myvolumes-container
 
+    command: ['sh', '-c', 'echo Container 1 is Running ; sleep 3600']
 
+    volumeMounts:
+    - mountPath: /demo
+      name: demo-volume
+  volumes:
+  - name: demo-volume
+    emptyDir:
+      medium: Memory     
+-----------------------
+>kubectl exec myvolumes-pod -i -t -- /bin/sh
+# df -h     #displays how much disk space is available
+Filesystem                Size      Used Available Use% Mounted on
+tmpfs                    64.0M         0     64.0M   0% /dev
+tmpfs                   932.3M         0    932.3M   0% /sys/fs/cgroup
+tmpfs                   932.3M         0    932.3M   0% /demo
 
+The default size of a RAM-based emptyDir is half the RAM of the node it runs on.
 
+Disadvantages:
+emptyDir volumes get deleted when a Pod gets deleted.
 
+If you need persistent volumes you use: PersistentVolume and PersistentVolumeClaim
 
+This is a 3 step process:
 
-
-
-
-
+You or the Kubernetes administrator defines a PersistentVolume ( Disk space available for use )
+You define a PersistentVolumeClaim - you claim usage of a part of that PersistentVolume disk space.
+You create a Pod that refers to your PersistentVolumeClaim
+======================================================================================
 

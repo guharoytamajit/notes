@@ -4,8 +4,10 @@ metadata:
   name: my-volume
 spec:
   capacity:
-    storage: 2Gi
+    storage: 1Gi
   accessModes:
-    - ReadWriteOnce
+#    - ReadWriteOnce
+    - ReadWriteMany
   hostPath:
-    path: //c/Users/temp
+ #   path: //c/Users/temp
+    path: /myvol2

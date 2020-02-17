@@ -1,0 +1,52 @@
+Information gathering:
+1)site
+2)get subdomains.  eg virustotal.com,subbrute,
+3)rank them by unpopular(easier to find bug)
+4)find programming language used,server info(tomcat,nginx,iis) eg >whatweb example.com
+5)check for openports and services.For example use >nmap ip -Pn
+
+============================
+Finding subdomains:
+subrute:
+clone this from github
+>,.subbrute.py google.com   #it will print all subdomains of google
+
+
+-----------------
+sublist3r:
+subrute was added in sublist3r
+download from git and install
+windows:
+>python.exe -m pip install -r requirements.txt
+linux:
+>sudo pip install -r requirements.txt
+
+ 
+To list all the basic options and switches use -h switch:
+python sublist3r.py -h
+
+To enumerate subdomains of specific domain:
+python sublist3r.py -d example.com
+
+To enumerate subdomains of specific domain and show only subdomains which have open ports 80 and 443 :
+python sublist3r.py -d example.com -p 80,443
+
+To enumerate subdomains of specific domain and show the results in realtime:
+python sublist3r.py -v -d example.com
+
+To enumerate subdomains and enable the bruteforce module:
+python sublist3r.py -b -d example.com
+
+To enumerate subdomains and use specific engines such Google, Yahoo and Virustotal engines
+python sublist3r.py -e google,yahoo,virustotal -d example.com
+
+-------------------------
+directory search:
+clone dirsearch from github.
+>./dirsearch.py -u testphp.vulweb.com -e php
+=============================
+
+Burpsuite:
+set proxy,configure firefox to point to this proxy.
+For intercepting https requests, add burpsuite Ca to firefox.preference>options>certificate>view>import
+

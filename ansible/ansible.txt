@@ -20,7 +20,7 @@ ansible all -i pi@192.168.0.102,pi@192.168.0.103 -m command --args 'sudo apt-get
 ansible-playbook lets us place Ansible configuration into files so we can reliably run the same set of commands over and over.
 
 =======================================
-we can skip entering hosts again and again by adding follwing inside /etc/ansible/hosts
+we can skip entering hosts again and again by adding follwing inside /etc/ansible/hosts(ansible inventory file)
 
 [web]
 pi@192.168.0.102

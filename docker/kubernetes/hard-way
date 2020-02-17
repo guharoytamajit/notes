@@ -1,0 +1,15 @@
+k8s cluster from scratch:
+
+using kubeadm:
+kubeadm allows us to quickly provision a secure k8s cluster.
+
+
+1)create to VM one for master another for worker node.
+
+install docker on each machine:
+>yum -y install docker
+>systemctl start docker
+>systemctl enable docker
+
+
+

@@ -1,0 +1,18 @@
+>docker-compose up -d
+>docker-compose ps
+
+>docker-compose exec ansible bash
+from ansible container you should be able to ping other containers:
+#ping 172.28.1.2  (or target1)
+#ping 172.28.1.3  (or target2)
+#ssh-keygen
+#ssh-copy-id -i pi@171.28.1.2
+#ssh-copy-id -i pi@171.28.1.2
+
+
+to stop and remove containers:
+>docker-compose stop
+>docker-compose rm
+
+-------------------------
+

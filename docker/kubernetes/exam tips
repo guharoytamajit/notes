@@ -1,0 +1,53 @@
+>kubectl create deploy nginx --image nginx --dry-run -o yaml >mydeploy.yaml 
+-------------------
+check kubectl jsonpath selector  examples:
+kubectl get pods -o json
+kubectl get pods -o=jsonpath='{@}'
+kubectl get pods -o=jsonpath='{.items[0]}'
+kubectl get pods -o=jsonpath='{.items[0].metadata.name}'
+kubectl get pods -o=jsonpath="{.items[*]['metadata.name', 'status.capacity']}"
+kubectl get pods -o=jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.startTime}{"\n"}{end}'
+
+filter list:
+{.users[?(@.name=="e2e")].user.password}
+-------------------
+>kubectl -h
+>kubectl explain -h
+
+# Get the documentation of the resource and its fields
+>kubectl explain pods
+
+
+# Get the documentation of a specific field of a resource
+>kubectl explain pods.spec.containers
+
+------------------
+creating k8s object from scratch:
+
+>kubectl create -h
+view list of available objects that can be created.
+>kubectl create svc -h
+view list of options
+
+this way create object with --dry-run and save as yaml
+
+---------------------------
+Jobs:
+Job is responsible for creating one or more pods to run the instruction which have been specified.
+
+Regular Jobs: Run to completion
+CronJob: Scheduled
+------------------
+serviceaccount:
+Service accounts belongs to a namespace.
+When we create a new namespace a default service account is created.
+Each servica account has a secret
+pods are automatically mounted with the default service account.in /run/secrets/kubernetes.io 
+
+more info :  https://medium.com/better-programming/k8s-tips-using-a-serviceaccount-801c433d0023
+-------------------------
+change default namesace for all kubectl command:
+>kubectl config set-context --current --namespace=dev
+
+or use kubectx  and kubens binaries
+----------

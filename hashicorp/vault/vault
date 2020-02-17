@@ -1,0 +1,211 @@
+Vault:
+platform to secure store and tightly control access to tokens,password,certificates,encryption keys for protecting sensetive data and other secrets in dynamic infrastructure.
+Manage secrets and protects sensetive data:
+-username and password
+-api keys
+-certificates
+-tokens
+-encryption keys
+etc
+
+The goal is to keep all our on premise and cloud(aws,azure,gcp) secrets in a central place ie. vault,not it becomes our single source of truth.
+
+Benefits of using vault:
+1)store long lived static secrets
+2)dynamically generate secret upon request(or automate generation of certificates signed by CA)
+3)Vault can act as a root or intermediate Certificate Authority(CA)
+4)Provide encryption as a service
+5)extensible artecture(plugins), it allows use of plugin to support more features.
+6)centralize secrets across the organization
+
+ 
+Features:
+1)key-value store
+2)wide variety of secret engine
+3)manage leases on secrets
+4)revoke leases based on lease period
+5)management of access to secrets using policies(ACL)
+6)Namespaces- vault as a service(this is enterprise feature)
+7)Audit device which logs all interactions
+8)encryption as a service
+9)generate dynamic x.509 certificates(PKI)
+10)built-in high availability
+11)interact with it using http API,CLI or UI
+
+view OpensourceVsEnterprise.png to compare opensource and enterprise features offered by vault.
+======================================================
+Vault components:
+1)Storage Backends:
+Configures location for storage of vault data.
+Storage is defined in main vault configuration file with desired parameters
+Not all storage backends are created equal:
+  -some supports high availability(HA)
+  -Others have better tool for management & data protection
+The only Hashicorp supported backend is consul & file ,everything else is community supported
+
+2)Secret Engines:
+Store, generate(eg azure/aws keys) or encrypt data
+Many secrets can be enabled and used as needed
+Secrets engines are enabled and isolated at a "path"
+All interactions are done directly with the path itself
+
+
+3)Authentication Methods:
+Components that perform authentication to vault itself
+Responsible for assigning identity and policies to a user
+multiple authentication methods can be enabled depending upon your usecase
+Once authenticated, vault will issue a client token used to make subsequent vault requests(read/write)
+Default authentication for new install = tokens
+
+4)Audit Devices:
+Keeps detailed logs of all requests and responses to vault
+Audit logs are formatted using JSON
+Sensitive informations are hashed before logging
+Can (and should) have more than one audit device enabled
+Vault requires atleast one audit device to write the log before completing the vault requests -f enabled
+  $ vault audit enable file file_path=/var/log/vault_audit.log
+ 
+
+5)Vault Paths:
+Everything in vault is path based
+the path prefix tells vault which vault component a request should be routed
+secret engines and authentication methods are mounted at a specified path
+Paths available are dependent on the features enabled in vault,such as authentication method and secret engine
+System backend is the default backend in vault which is mounted at the /sys endpoint
+Permissions or policies are granted based upon the path.
+Some secret engine and authentication methods have some predefined paths beneath the mount point.
+  example:
+    -database/config/config name= connection information
+    -database/roles/role name=defines statement to execute to create the database credential
+    -database/creds/rolename = credential generation
+
+see sample_path_example.png
+see vault_components_diagram.png
+
+===========================================================================
+Data protection and vault initialization:
+
+How vault protects our data?
+It creates an encryption key,that is used to encrypt(and decrypt) all data stored inside vault.
+To protect the encrption key ,vault used a master key which is used to encrypt and decrypt encrption key
+The master key is stored in memory of vault node(master key is not stored in any persistance storage)  
+
+see how_vault_protects_data.png
+-------------------
+Vault Initialization:
+Initializing Vault prepares the backend storage to receive data
+Only need to initialize a vault cluster via a single node.
+Vault initialization is when vault creates the master key
+   -options to define threshold,key shares,recovery keys and encryption
+Vault initialization is where the root token(used for initial authentication) is generated and provided 
+
+>vault operator init
+
+De3mo1:
+put vault executable in path
+>vault  #shows manual
+>vault -autocomplete-install  #install vault command autocomplete4
+>exec $SHELL  #restart shell,without this autocomplete will not work,use tab for suggestions
+
+>vault server -dev   #starting vault server in dev mode, not for production
+root token and unseal keys will be printed,save them somewhere for later use
+
+>export VAULT_ADDR='http://127.0.0.1:8200'  #this will configure vault cli to talk to the dev server
+>vault status 
+-------------------
+Vault sealing and unsealing:
+Vaults starts in a sealed state for non dev mode,meaning it knows where to access the data and how but cant decrypt it.
+Almost no operation is possible when vault is in sealed state(only status check is allowed)
+Unsealing vault means that a node can construct the master key in order to decrypt and read the data.
+Master key is only stored in memory and not persisted.
+Sealing vault means vault "throws away" the master key and requires another unseal to perform any further operations.
+
+When would I seal a vault manually?
+-key shards are inadvertently exposed(eg. keys acciddentally published in github)
+-detection of a compromise or network intrusion
+-spyware/malware on vault nodes
+
+Options for unsealing a vault:
+1)key sharding(manual):
+uses shamir's secret sharing algorithm to break the master key into multiple key shards.
+these keys are distributed among different users
+mojority number of keys(threshold) are required to to reconstruct master key(which can decrypt encrypt key) 
+this is the default option for unsealing(no configuration needed)
+No single person should have access to all the key shards
+When initializing vault you can request the individual shards to be encrypted with different PGP keys
+key shards should not be stored online,idelly stored locally encrypted using PGP keys
+
+
+start vault in prod mode:
+
+----/etc/vault.d/vault.hcl-------------
+storage "consul"{
+ address = "http://127.0.0.1:8500"
+ path = "vault"
+}
+listener "tcp" {
+ address = "0.0.0.0:8200"
+ cluster_address = "0.0.0.0:8201"
+ tls_disable = "true"
+}
+api_addr = "https://10.0.10.195:8200"
+ui = true
+---------------------------------------
+
+>vault server -config=/etc/vault.d/vault.hcl
+>export VAULT_ADDR='http://127.0.0.1:8200'
+>vault status
+>vault operator init #initialize with  key sharding by default with 5 key shards and threshold of 3
+>vault operator init -key-shared=3 -key-threshold=2  #override default No. of shards and threshold
+in output unseal key shards will be printed with root token
+
+>vault operator unseal #it will ask for key shards,if threshold value is reached it will be unsealed
+
+
+
+2)Cloud Auto unseal:
+To automate the flow of unsealing
+cloud auto unseal options:
+   AWS KMS
+   Azure Key Vault
+   Google Cloud KMS
+   AliCloud KMS
+
+Auto unseal can use a cloud or on-premise HSM (or other vault cluster) to encrypt the master key and unseal vault
+  -vault configuration file identifies a particular key to use for decryption 
+	
+Cloud auto unseal automatically unseals vault upon service or node restart without additional intervention
+
+add following in hcl config file to use AWS KMS:
+seal "awskms"{
+ region = "REGION"
+ kms_key_id = "kms key"
+}
+
+3)transit unseal: 
+separate vault cluster to unseal our cluster.
+uses the transit secret engine of a different vault cluster
+supports key rotation
+the vault cluster must be highly available(beacuse any time yau may need to unseal).
+ 
+==========================================
+Vault Configuration:
+check slides inside "Vault Configuration" directory
+==========================================
+Deploy Vault:
+check slides inside "Deploy Vault" directory
+==========================================
+Accessing Vault:
+check slides inside "Accessing Vault" directory
+==========================================
+ 
+
+
+
+
+
+
+
+
+ 
+
