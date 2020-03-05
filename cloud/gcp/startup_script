@@ -1,0 +1,19 @@
+#! /bin/bash
+apt-get update -y
+apt-get install apache2 -y
+apt-get install php7.0 -y
+mv /var/www/html/index.html /var/www/html/index.php
+cat <<EOF > /var/www/html/index.php
+
+<html>
+ <body> Hello world!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! <br></br>
+ <?php
+ echo gethostname();
+ ?>
+<?php 
+$ip_server = $_SERVER['SERVER_ADDR'];  
+echo "<br>Server IP Address is: $ip_server"; 
+?> 
+</body>
+</html>
+EOF

@@ -1,0 +1,195 @@
+Every resource is part of a resource group and subscription.
+The concept of resource group(RG) is helpful in many ways like:
+1)we can delete all the resources belong to a RG at once
+2)we can add any permission to RG and all resources of that RG will get the permission.
+
+Subscription decides how you will be billed.
+You can have more than one subscription,during resource creation you have to select one of them.
+Subscription can be of many types like "pay as you go","standard support" etc.
+We can go to Home>Subscription and click on add button to see all options.
+==============
+Azure AD(active directory)
+like IAM of AWS
+Identity provider where you could define three entities User,Group(group of user not nested),Service Principle(like service account in k8s,like role in aws)
+
+When you create an azure account a directory is also created for you.
+==============
+Azure Monitoring:
+Dashboard>Monitor 
+
+Metrics=>eg CPU utilization
+Activity logs(events) =>eg VM restarted,resized,deleted
+Alerts=> Alerts based on Activity logs/Metrics + some rule .eg CPU utilization >90% or if someone stops a VM.
+      Action Groups: here you mention what to do when an alert is triggered eg. send mail,sms,call azure function.
+================
+AWS vs Azure equivalent services:
+https://docs.microsoft.com/en-us/azure/architecture/aws-professional/services
+===============
+Storage:
+----------
+Storage Account:
+An Azure storage account contains all of your Azure Storage data objects: blobs, files, queues, tables, and disks. The storage account provides a unique namespace for your Azure Storage data that is accessible from anywhere in the world over HTTP or HTTPS. Data in your Azure storage account is durable and highly available, secure, and massively scalable.
+
+The types of storage accounts are:
+
+    General-purpose v2 accounts: Basic storage account type for blobs, files, queues, and tables. Recommended for most scenarios using Azure Storage.
+    General-purpose v1 accounts: Legacy account type for blobs, files, queues, and tables. Use general-purpose v2 accounts instead when possible.
+    BlockBlobStorage accounts: Blob-only storage accounts with premium performance characteristics. Recommended for scenarios with high transactions rates, using smaller objects, or requiring consistently low storage latency.
+    FileStorage accounts: Files-only storage accounts with premium performance characteristics. Recommended for enterprise or high performance scale applications.
+    BlobStorage accounts: Legacy Blob-only storage accounts. Use general-purpose v2 accounts instead when possible.
+
+
+---------------
+
+Azure Blob storage(like aws Simple Storage Services (S3) ) :Object storage service, for use cases including cloud applications, content distribution, backup, archiving, disaster recovery, and big data analytics.
+
+
+Azure managed disks(like AWS Elastic Block Store (EBS) ): SSD storage optimized for I/O intensive read/write operations. For use as high-performance Azure virtual machine storage.
+
+Azure Files(like AWS Elastic File System) :Provides a simple interface to create and configure file systems quickly, and share common files. Can be used with traditional protocols that access files over a network.
+
+Azure Storage cool tier(like AWS S3 Infrequent Access (IA)):Cool storage is a lower-cost tier for storing data that is infrequently accessed and long-lived.
+
+Azure Storage archive access tier(like AWS S3 Glacier) :Archive storage has the lowest storage cost and higher data retrieval costs compared to hot and cool storage.
+
+Azure Backup(like aws AWS Backup): Back up and recover files and folders from the cloud, and provide offsite protection against data loss.
+------------------
+access key,SAS
+
+
+
+
+
+-------------------
+Replication
+
+Replication options for a storage account include:
+Locally-redundant storage (LRS): Data is replicated synchronously three times within the primary region.In same Availability Zone or datacenter
+
+Zone-redundant storage (ZRS): Data is replicated synchronously across three Azure availability zones in the primary region.
+
+Geo-redundant storage (GRS): Data is replicated synchronously three times in the primary region, then replicated asynchronously to the secondary region. For read access to data in the secondary region, enable read-access geo-redundant storage.
+
+Geo-zone-redundant storage (GZRS) (preview): Data is replicated synchronously across three Azure availability zones in the primary region, then replicated asynchronously to the secondary region. For read access to data in the secondary region, enable read-access geo-zone-redundant storage (RA-GZRS). 
+
+================
+Using Commandline(3 ways):
+Powershell
+Azure CLI
+Azure Cloud Shell(you need to have a storage account for storing session details)
+
+-----------------
+
+Availability set(AS):
+it has concept of fault domain and update domain for making our VMs more available.
+ for example if you set fault domain =3 ,so if you have 9 VM in single AS,each fault domain will have 3 VM.
+fault domain is for unpredictable failure eg power failure.
+
+update domain=>microsoft updates(eg new security update) VMs belong one update domain at a time.
+If wou have 9 VM and 9 update domain,during any planned update only one of them will be down at a time.
+
+This  fault domain and update domain are managed by azure, we can only define certain number of fault domain and update domain .We dont control which VM will be part of which update domain or fault domain.
+  
+
+Avalibility Zone(AZ)(Datacenter or set of data center):
+Avalibility Set(AS) VMs belongs to different servers of same AZ
+=========
+Virtual Network(VNET):
+Like AWS VPC
+has an address space
+Can have multiple subnets each having there address space
+This address space has private ip(not public),communication within VNET dont need to go through internet and so having private ip is enough.
+If a VM dont have a public ip it is not directly accessible from outside.
+For getting public ip for VM we need to request one,azure will give one of its public ip from its pool.this ip nas nothing to do with VNET CIDR(address space)
+
+By default communication Between VMs on different subnet is possible.because of default system route table.
+=============================================
+AKS:
+
+>az account show
+>az group create -n <rg name>  -l westeurope
+>az aks create -g <rg name> -n <cluster name> -x
+>az aks get-credentials -n <cluster name> -g <rg name> #it will update .kube/config
+
+Now we can run kubectl commands
+>kubectl get nodes
+>kubectl create -f abc.yaml
+>kubectl get services -w
+
+az aks get-credentials -n my-cluster1 -g my-test-rg1
+
+
+----
+>az aks create -g <rg name> -n <cluster name> -c 1 --generate-ssh-keys  #1 node
+>az aks get-credentials -n <name> -g <rg name> 
+
+>az aks browse
+>az aks upgrade
+>az aks scale -n <cluster name> -g <rg name> -c 3       # 3 agent/worker nodes or VM
+>az aks enable-addons
+
+
+===============
+Azure Container Instance(ACI):
+>az group create -n <rg name>  -l westeurope
+>az container create -g <rg name> -n <name> --image microsoft/aci-helloworld --cpu 1 --memory 1 --ip-address public --ports 80  --dns-name-label my-aci-demo
+we can use "fully qualified domain name" in responce to access this 
+
+check logs of container
+>az container logs -g <rg name> -n <name>
+
+===============
+create Azure Container Registry(ACR):
+>az group create -n <rg name>  -l westeurope
+>az acr create -g <rg name> -n <name> --sku Basic --admin-enabled true
+we will get login server in response
+
+login to new registry
+>docker login <loginServer>
+
+to push any local image to our remote container registry we have to tag it first:
+>docker tag myimage <loginServer>/myimage
+>docker push <loginServer>/myimage:latest
+
+
+=========================
+Azure Actice directory(AAD)
+A cloud version of windows active directory
+Enables IAM,SSO,SelfService.
+Creates a single identity for user and keep them in sync across the enterprise(instead of creating multiple identities for multiple apps for same user)
+Also allows to create group(user group),and give some access to user or group level 
+Single Sogn-on(SSO): dont have to authenticate each time using different apps.
+MFA
+SelfService: empower users to complete password reset themselves ,as well as request access to specific apps or services.
+
+Multiple subscriptions can trust the same Azure AD directory. Each subscription can only trust a single directory.
+
+If your subscription expires, you lose access to all the other resources associated with the subscription. However, the Azure AD directory remains in Azure. You can associate and manage the directory using a different Azure subscription.
+
+All of your users have a single home directory for authentication. Your users can also be guests in other directories. You can see both the home and guest directories for each user in Azure AD.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

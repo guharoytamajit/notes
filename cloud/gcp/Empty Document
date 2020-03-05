@@ -1,0 +1,1 @@
+>cpulimit -p <pid> -l 50

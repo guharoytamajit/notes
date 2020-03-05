@@ -38,7 +38,7 @@ ansible_ssh_pass: login password(useful if we have not created public-private ke
 web     ansible_host=192.168.0.102   ansible_connection=ssh     ansible_user=root
 web2    ansible_host=192.168.0.103   ansible_connection=winrm   ansible_user=admin
 db      ansible_host=192.168.0.104   ansible_connection=ssh     ansible_ssh_pass=seret
-localhost  ansible_connection=localhost
+localhost  ansible_connection=local
 ------------
 
 we can also define username as:
@@ -82,6 +82,27 @@ web3
 [db_servers]
 db1
 -----------------
+
+
+>ansible localhost -m copy -a "src=abc  dest=xyz" --check --diff
+
+--check  =>dry run
+--diff   =>desired vs current(this flag may not be available for all modules),we can use --diff without --check also.
+-----------------------
+view ansivle inventory details with vars
+>ansible-inventory --graph --vars
+--------------------
+console:
+>ansible-console localhost
+>ping    #executes module ping on supplied inventories,auto completion available
+>copy src=words2 dest=w3       #using copy module, auto completion available for both madules and their parameters
+-------------------
+documentation:
+>ansible-doc -h
+>ansible-doc -t module copy          #module is default type so here "-t module" is optional
+>ansible-doc -t connection ssh
+>ansible-doc -l|grep docker          #list all docker related modules
+
 ======================================================================================================================================================================================
 Playbook:
 A single YAML file
@@ -92,20 +113,22 @@ task: action to be performed on host. eg execute command,run script,install pack
 playbook can have multiple play(name,hosts(single or group defined in inventory),tasks(has name,module etc))
 order of tasks in play matters as they are executed one afer another 
 --------playbook.yml-----------------------------
--
-  name: Execute command to display date on web_node1
-  hosts: web_node1
+- name: Execute command to display date on web_node1
+  hosts: worker
   tasks:
-    -
-      name: Execute a date command
+    - name: Execute a date command
       command: date
--
-  name: Execute a command to display hosts file contents on web_node2
-  hosts: web_node2
+      register: shell_result
+    - debug:
+        var: shell_result.stdout_lines
+- name: Execute a command to display hosts file contents on web_node2
+  hosts: worker
   tasks:
-    -
-      name: Execute a command to display hosts file
+    - name: Execute a command to display hosts file
       command: cat /etc/hosts
+      register: shell_result
+    - debug:
+        var: shell_result.stdout_lines     
 ------------------------------------------------
 
 >ansible-playbook playbook.yml
@@ -270,6 +293,9 @@ we can use roles as:
 ------------------------
 >ansible-config dump|grep ROLE  #view all role related configuration
 
+
+
+
 =====================================================================================================================================================================
 Host variables:
 
@@ -284,6 +310,7 @@ web2     ansible_host=192.168.0.103   ansible_connection=ssh     ansible_user=ro
 
 -----new inventory file-------------
 web1
+web2
 ------------------------------------
 
 ----------host_vars/web1.yaml------------

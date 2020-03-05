@@ -1,0 +1,2 @@
+ansible_host: 172.42.42.102
+ansible_ssh_private_key_file: /home/tamajit/Desktop/me and opensource/kubernetes-master/vagrant-provisioning/.vagrant/machines/kworker2/virtualbox/private_key

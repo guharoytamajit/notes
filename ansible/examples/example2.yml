@@ -1,0 +1,13 @@
+- name: "Setting up cowsay repository"
+  hosts: ["master"]
+  tasks:
+   - yum:
+       name: "https://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/cowsay-3.04-4.el7.noarch.rpm"
+       state: present
+
+#- name: "Installing PMM client package"
+#      yum: pkg={{item}} state=installed
+#      with_items:
+#      - cowsay
+
+

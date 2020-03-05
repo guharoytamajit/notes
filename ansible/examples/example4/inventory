@@ -1,0 +1,5 @@
+[master]
+kmaster
+[worker]
+worker1
+worker2

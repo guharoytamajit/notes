@@ -1,0 +1,13 @@
+kmaster ansible_host=172.42.42.100   ansible_connection=ssh     ansible_user=vagrant ansible_ssh_pass=vagrant
+kworker1 ansible_host=172.42.42.101   ansible_connection=ssh     ansible_user=vagrant ansible_ssh_private_key_file="/home/tamajit/Desktop/me and opensource/kubernetes-master/vagrant-provisioning/.vagrant/machines/kworker1/virtualbox/private_key" cmd=date
+kworker2 ansible_host=172.42.42.102   ansible_connection=ssh     ansible_user=vagrant ansible_ssh_private_key_file="/home/tamajit/Desktop/me and opensource/kubernetes-master/vagrant-provisioning/.vagrant/machines/kworker2/virtualbox/private_key" cmd=pwd
+localhost    ansible_connection=local
+
+[master]
+kmaster
+
+[worker]
+kworker1
+kworker2
+#newhos
+newhost

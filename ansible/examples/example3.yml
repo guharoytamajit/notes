@@ -1,0 +1,15 @@
+- name: "print host"
+  hosts: ["localhost"] 
+  tasks:
+    - name: Print inventory.txt file
+      command: 'cat /home/tamajit/notes/ansible/examples/inventory.txt'
+      register: command_output
+
+- name: "update host"
+  hosts: ["localhost"] 
+  tasks:
+    - name: Update entry into inventory.txt file
+      lineinfile:
+        path: /home/tamajit/notes/ansible/examples/inventory.txt
+        line: 'newhost'
+      when: command_output.stdout.find('newhost') == -1
