@@ -1,0 +1,57 @@
+
+./scripts/image_build.sh glight  release-v2 
+docker images|grep glight
+docker tag glight:release-v2 guharoytamajit/glight:release-v2
+docker push  guharoytamajit/glight:release-v2 
+
+
+update docker-compose in bbb-install.sh
+in bbb VM:
+>cd ~
+>rm -r greenlight 
+
+
+>docker pull guharoytamajit/glight:release-v2
+make sure docker-compose is pointing to guharoytamajit/glight:release-v2
+
+
+
+
+docker-compose down
+docker-compose up -d
+
+to check greenlight error:
+>docker ps
+>docker logs <greenlight id>
+
+-------------------------
+bbb ./usr/share/bbb-web/WEB-INF/classes/bigbluebutton.properties
+change:
+defaultWelcomeMessage=Welcome !!  Use a headset to avoid causing background noise for others.
+defaultWelcomeMessageFooter=
+
+create user:
+docker exec greenlight-v2 bundle exec rake user:create["tamajit","tamajit@gmail.com","tamajit","admin"]
+
+
+
+---------------
+./bbb-install.sh  -s -- -v xenial-22 -s www.tamajitguharoy.xyz -e guharoytamajit@gmail.com -w -g
+
+./bbb-install.sh  -s -- -v xenial-22 -s www.advaitaexports.com -e guharoytamajit@gmail.com -w -g
+wget -qO- https://ubuntu.bigbluebutton.org/bbb-install.sh | bash -s -- -v xenial-22  -s www.advaitaexports.com -e guharoytamajit@gmail.com -w -g
+wget -qO- https://ubuntu.bigbluebutton.org/bbb-install.sh | bash -s -- -v xenial-22  -s www.advaitaexports.com -e guharoytamajit@gmail.com -w -g
+-------------------
+search command
+>grep -ril 'text to search' .
+
+>find . -name file-pattern
+
+---------
+Remove "bigbluebutton" from:
+/usr/share/meteor/bundle/programs/server/assets/app/config/settings.yml
+
+
+rm /var/www/bigbluebutton-default/default.pdf
+
+bbb-conf --restart

@@ -1,0 +1,63 @@
+suppose your pom.xml has version "0.2-SNAPSHOT"
+
+
+Release prepare dry run(dry-run => No. actual commits into SCM)
+>mvn release:prepare -DdryRun=true
+It will generate 4 files:
+it will create a file pom.xml.releaseBackup  which is basically a backup of pom.xml(version "0.2-SNAPSHOT")
+it will create a file pom.xml.tag with version "0.2"
+it will create a file pom.xml.next with version "0.3-SNAPSHOT"
+it will also create a release.property file like:
+--------------------------------
+#release configuration
+#Fri Apr 17 14:19:21 IST 2020
+scm.tagNameFormat=v@{project.version}
+project.rel.com.test\:maven-release-plugin-example=0.2
+scm.tag=v${releaseVersion}
+pushChanges=true
+scm.url=scm\:git\:https\://github.com/guharoytamajit/maven-release-plugin-example.git
+preparationGoals=clean verify
+remoteTagging=true
+projectVersionPolicyId=default
+scm.commentPrefix=[maven-release-plugin] 
+project.scm.com.test\:maven-release-plugin-example.connection=scm\:git\:https\://github.com/guharoytamajit/maven-release-plugin-example.git
+project.dev.com.test\:maven-release-plugin-example=0.3-SNAPSHOT
+project.scm.com.test\:maven-release-plugin-example.tag=HEAD
+project.scm.com.test\:maven-release-plugin-example.url=https\://github.com/guharoytamajit/maven-release-plugin-example
+exec.snapshotReleasePluginAllowed=false
+exec.additionalArguments=-P artifactory
+completedPhase=end-release
+--------------------------------
+
+
+>mvn release:clean 
+It will delete those 4 files pom.xml.releaseBackup ,pom.xml.tag ,pom.xml.next  and release.property.
+
+-------------------------------
+Release prepare:
+suppose your pom.xml has version "0.2-SNAPSHOT"
+>mvn release:prepare 
+After this the version of pom.xml will be updated to "0.3-SNAPSHOT"
+it will create a file pom.xml.releaseBackup  which is basically a backup of pom.xml(version "0.2-SNAPSHOT")
+it will also create a release.property
+pom.xml will be commited twice once with 0.2(tag), 2nd time with 0.3-SNAPSHOT,commits are pushed as well,  but pom.xml.releaseBackup and release.property remained untracker
+---------------------------------
+release:perform
+
+The latter part of the Release process is Performing the Release; this will:
+
+checkout release tag from SCM
+build and deploy released code
+This second step of the process relies on the output of the Prepare step – the release.properties.	
+------------------------
+
+logic:
+if(release==true){
+mvn release:clean release:prepare release:perform  //update snapshot to release,create tag,commit and push to github,build and deploy to artifactory,update to new snapshot,commit and push to github
+}else{
+mvn deploy    //deploy current snapshot to artifactory
+}
+
+
+
+

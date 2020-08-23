@@ -1,14 +1,15 @@
 kafka cluster have multiple nodes/brokers/servers
-broker can have multiple topics
-topic can have multiple partitions
+Kafka cluster can have multiple topics
+topic can have multiple partitions,distributed across the cluster
 kafka uses concept of partitioning for scaling
 partitions are replicated to provide a fault taularent system
 messages inside partition are ordered and can be identified by index
 a message can be uniquely identified by combination of(topic,partition,index)
 partitions of same topic are replicated across multiple nodes,but only one of them is leader for each partition
+replicas of partition tries to stay in sync with primary partition. If primary partition dies one of the in sync replica partition will become primary(zookeeper does this leader election) 
 All reads and writes goes to leader partition and replicas tries to sync itself, producer/consumer never interacts with replicas.
 For best scalibility different partition leader should be kept on different nodes
-producer api by default distribute(load balance) messages across different partitions but also enables us to send a message to a particular partition
+producer api by default distribute(load balance) messages across different partitions(if we dont provide any key) but also enables us to send a message to a particular partition(eg. by provding a key with original message)
 two or more consumers together can form a consumer group,each consumer in a consumer group will receive a part of data.
 each consumer in consumer group gets unique messages(no two consumer can get the same message in same consumer group)
 each consumer in consumer group can subscribe for one or more partition but not vice versa ie. 1 partition cannot be subscrribed by more than 1 consumer in same cg.
@@ -17,6 +18,46 @@ consumer group allows scaling
 each consumer and consumer group as a whole will receive all messages of topic it has subscribed for.
 messages in partitions are stored as log and not immeditely removed, so if consumer lost old messages  it can get them back by offset(index)
 kafka depends on zookeeper to maintain state of cluster
+Replication factor of a partition cannot be greater than number of nodes in cluster ,but single node can hold multiple partitions of a topic.
+Messages are ordered by index in a partition,but across partitions ordering is not guaranteed.each partition have separate index each starts with 0.
+Data is retained only for a limited time(1 week by default), but offsets in a partition  keeps on increasing they will never go back to 0.
+Once data is written to partition it cannot be changed(immutable)
+
+Producer writes data to topic,it automatically knows to which broker and partition to write to.
+In case of broker failure,Producers will automatically recover.
+Producer can choose to receive acknowledgement of data writes:
+acks=0   =>Producer won't wait for any acknowledgement(possible data loss if broker is down)
+acks=1(default)  =>Producer will wait for leader partition's acknowledgement(limited data loss)
+acks=all   => Leader + replicas acknowledgement(no data loss). but affects availability.
+Producer can send a key with original message,it can be of any type string,number etc. If key=null data is distributed in round-robbin manner across partitions of a topic.
+If key is set, message with same key will always go to same partition.
+If we want  guarenteed ordering we have to sent data to same partition for example in app like uber producer key can be car number, this way all gps location details  a a particular car will go to same partition this way ordering will also be guarenteed.
+
+Consumer consumes data from topic.In case of broker faulure it knows how to auto recover. 
+
+Consumer Offsets(Like bookmark for a Consumer):
+Kafka stores the offset index at which a consumer group(CG) has been reading in a topic named "__consumer_offsets"
+If a consumer dies and comes back it can see offset index and resume its work from where it left off(instead of re-processing old messages again)
+Consumer in a CG after processing a message updates this consumer offset(like bookmark where to resume) 
+There are delivery syntax for updating this offset by consumer:
+1)At most once: offsets are committed as soon as the message is received.If message processing goes wrong,the message will be lost(it won't read again as index is already increased)
+2)At least once(preferred): offsets are committed after the message is processed.If message processing goes wrong, the message will be read again. This can result in duplicate processing of message,so make sure your processing idempotent.
+3)Exactly once: Can only be achieved for "Kafka to Kafka workflows" using Kafka Streams API. For  "Kafka to External system workflows" use an idempotent consumer.
+
+Kafka Broker Discovery:
+Every kafka broker is also called a "bootstrap server", ie you only need to connect to one broker and you will be connected to the entire cluster.
+Each broker knows about all brokers,topics and partitions(metadata), regardlass of it is holding those data or not(because of Zookeeper).
+So a Consumer can connect to any broker and it will get information of all other brokers.Then consumer can directly connect the required broker.
+
+Zookeeper:
+manages broker(keeps list of them)
+Helps in performing leader election for partitions
+ZK sends notification to Kafka in case of changes(eg new topic,broker dies,broker comes up,delete topic etc)
+Kafka cannot work without ZK
+ZK are designed to work with odd number of servers(3,5,7)
+ZK cluster has master-slave architecture.Leader handles writes and follower nodes handles reads
+Note: with Kafka > v0.10 ZK no longer store consumer offset index
+
 ======================
 setup 2 node cluster:
 

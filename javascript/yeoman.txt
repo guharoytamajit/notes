@@ -1,9 +1,7 @@
 yoman custom gererator:
 
+https://medium.com/@vallejos/yeoman-guide-adea4d6ea1e3
 
-Note:
-our generator directory => c:/generator-app
-our test generater app location =>c:/myapp
 
 >mkdir generator-mygen
 >cd generator-mygen
@@ -12,7 +10,7 @@ our test generater app location =>c:/myapp
 >npm install yeoman-generator --save
 
  inside generator-mygen create:
-app/index.js   //entry point for our custom generator
+generators/app/index.js   //entry point for our custom generator
 
 
 index.js:

@@ -1,0 +1,13 @@
+>az account list-locations -o table
+>az vm image list -o table
+
+provider "azurerm"{
+    version = "2.2.0"
+    features {}
+}
+
+resource "azurerm_resource_group" "my_rg"{
+name = "myRG2"
+location = "westus2"
+
+}

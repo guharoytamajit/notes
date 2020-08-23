@@ -1,0 +1,40 @@
+Network namespaces are used by containers like docker to implement network isolation
+When we create a container we want it to me isolated from host machine(it does not see any processes in host or any other container )
+container only sees the processes run by it and thinks it  is running on its own host
+the host machine however has visibility of all the processes running on different container.
+
+
+we can list process using following command(both in container and host):
+>ps aux
+
+from host machine we will be able to see process running in container but with a different pid
+
+
+Our host has its own NIC eg eth0 connected to LAN,also it has its own:
+1)Routing table
+2)ARP table
+
+
+When a container is created ,a new network namespace is  created for it(for network isolation) 	 
+Container will have its own virtual NIC and its own: 
+1)Routing table
+2)ARP table
+
+
+Create a new network NS:
+>ip netns add <name>
+
+Lets create two network ns(we will refer it as NNS)
+>ip netns add red
+>ip netns add blue
+
+list NNS:
+>ip netns
+
+list interfaces of host:
+>ip link
+
+list interfaces of NNS:
+>ip netns exec red ip link
+OR
+>ip -n red link 

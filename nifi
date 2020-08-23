@@ -15,27 +15,72 @@ Joins,rolling window,aggregation operations.
 Good for basic transforming,enriching as ETL.Should avoid when compution logic is complex and expensive(Use Spark/Flink instead).
 
 Building blocks:
-1.FlowFile:
+1.FlowFile:(abstraction of data in nifi)
   It is basically the data
   Comprises of two element:  a)Content=>data itself,  b)Attributes=>matadata(key-value) 
   Always Gets persisted to disk (not memory) after creation
   
+lifecycle of flow file:
+FlowFiles are persisted on disk
+FlowFile are passed by reference, nifi will just pass the reference of a FlowFile to the next processor 
+new FlowFile created if  an existing FlowFile is transformed   or  new data is ingesed from source
+new FlowFile will not be created if attributes  are modified.
+
+
 2.Processor:
   Applies a set of transformations and rules to FlowFiles(data) to generate a new FlowFile.
   Any Processor can process any FlowFile.
   They are all running parallel in different threads.
    Processor can update,add or remove FlowFile attributes    and/or  change  FlowFile content
 
+Types of processors:
+data ingestion processor:getfile,getftp,gethttp,listenhttp,gethdfs,listhdfs,getmongo,gettwitter,getkafka
+data transformation processor:convertrecord,updaterecord,cnvertjsontoxml,encrypt,compress,replacetext,convertcharacterset
+data egress processor:putemail,putfile,putftp,putjms,putsql,putmongo,putkafka
+routing and mediation processor:controlrate,distributeload,validatexml,scancontent,scanattribute,routeoncontent,routeonattribute,detectduplicate
+database access processor:executesql,convertjsontosql,putsql,selecthiveql,listdatabasetable
+attribute extraction processor:evaluatexpath,evaluatejsonpath,extracttext,identifymimetype,logattribute,updateattribute,hashattribute,hashcontent
+system interaction process:executeprocess,executestreamcommand
+splitting and aggregation process:splittext,splitjson,splitrecord,splitcontent,mergecontent,segmentcontent,unpackcontent,queryrecord
+
+Common preperties of processor:
+id
+name
+"scheduling>run schedule" property with "0 sec" interval means continueous process(stream not batch)
+
+
+Process Group:
+set of Processors combined together to form process group
+Helps to maintain large and complex dataflow
+
 3.Connector(buffer between Processor):
   Connects Processors
   Queue of FlowFiles that are yet t be processed by the next Processor.
   Can define Priorities,backpressure etc  
+
+4.Controller Services:
+A shared service that can be used by a processor,eg . db connection,csv reader,json writer.
+	
   
 >cd $NIFI_HOME/bin
 >./nifi.sh run
 
 localhost:8080/nifi
 Ctrl+c  to stop nifi
+====================
+Dataflow vs datapipeline vs ETL:
+
+Dataflow: flow of data from source to destination
+Datapipeline:flow of data from source to destination,in between data may be transformed(processed). It can be a batch or stream process.
+ETL: ETL is datapipeline which happens in batch(not streaming)
+
+
+Relationships:
+Each Processor has 0 or more relationships defined for it.eg success,failure
+After a process has finished processing a flowfile ,it will transfer the flowfile to one of the relationships
+The flowfile creator needs to handle all the relationships of the processor or needs to terminate unhandled relationship.
+
+
 
 
 

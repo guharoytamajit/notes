@@ -51,6 +51,33 @@ Annotating the rule with “:soft” indicates that it is only a preference, not
 If an m4-large Node is available, the Pod will run there.
 If no m4-large Nodes are available, the Pod can still be scheduled elsewhere.
 
+
+kubectl label nodes <your-node-name> loadType=user
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: loadType
+            operator: In
+            values:
+            - user            
+  containers:
+  - name: nginx
+    image: nginx
+    imagePullPolicy: IfNotPresent
+  tolerations:
+  - key: "loadType"
+    value: user
+    operator: "Equal"
+    effect: "NoSchedule"
+
 ====================================
 pod affinity and pod anti affinity:
 

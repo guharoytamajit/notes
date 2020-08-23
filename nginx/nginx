@@ -1,0 +1,352 @@
+Install using package manager:
+
+
+Ubuntu:
+>apt-get update
+>apt-get install nginx   #install and start nginx
+>ps aux |grep nginx
+
+Centos:
+>yum install epel-release
+>yum install nginx   #only install,not start nginx
+>service nginx start
+>ps aux|grep nginx
+
+If we want to install any nginx module we have to build nginx from source
+==============================
+uninstall :
+
+>sudo apt-get remove nginx-full nginx-common
+>rm -rf /etc/nginx
+============================
+Install from source:
+http://nginx.org/en/download.html
+
+>wget http://nginx.org/download/nginx-1.18.0.tar.gz
+>tar -xzfv nginx-1.18.0.tar.gz
+>cd nginx-1.18.0
+
+it involves 3 steps
+1)configure (./configure)
+2)compile (make)
+3)install (make install)
+
+for building from source we may need to install few other dependencies:
+ubuntu:
+>apt-get install build-essential  
+>apt-get install libpcre3 libpcre3-dev zlib1g zlib1g-dev libssl-dev
+
+
+centos:
+>yum groupinstall "Development Tools"
+>yum install pcre pcre-devel zlib zlib-devel openssl openssl-devel
+
+
+>./configure  --help check all configuration options
+http://nginx.org/en/docs/configure.html
+
+1)configure:
+>./configure --sbin-path=/usr/bin/nginx  --conf-path=/etc/nginx/nginx.conf  --error-log-path=/var/log/nginx/error.log  --http-log-path=/var/log/nginx/access.log  --with-pcre --pid-path=/var/run/nginx.pid   --with-http_ssl_module
+--sbin-path =>where we want to keep nginx executable
+--conf-path =>which file we want to use as nginx configuration file
+--with-http_ssl_module=>one of the nginx bundled modues,for https support
+
+Nginx can have two types of modules:
+a)bundled modues:comes with nginx source
+b)3rd party modules: not developed and maintained by nginx
+
+2)compile:
+>make
+
+3)install :
+>make install
+
+
+>nginx  #start nginx
+>ps aux|grep nginx
+
+================================
+Install nginx as systemd service:
+
+https://www.nginx.com/resources/wiki/start/topics/examples/systemd/
+
+------------/lib/systemd/system/nginx.service------------
+[Unit]
+Description=The NGINX HTTP and reverse proxy server
+After=syslog.target network-online.target remote-fs.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+PIDFile=/var/run/nginx.pid 
+ExecStartPre=/usr/bin/nginx  -t
+ExecStart=/usr/bin/nginx 
+ExecReload=/usr/bin/nginx  -s reload
+ExecStop=/bin/kill -s QUIT $MAINPID
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+--------------------------------------------------------
+We may need to change a few path depending what we have  have passed in ./configure   eg PIDFile,ExecStartPre
+
+>systemctl start nginx
+>systemctl status nginx
+>systemctl stop nginx
+>systemctl restart nginx
+>systemctl enable nginx #start nginx each time during  boot 
+>systemctl reload nginx#  just reload new configuration without restarting
+
+=========================
+Nginx commands:
+>nginx  #start nginx
+>nginx -h  #help
+>nginx -v   #version
+>nginx -s stop   #send signal to stop
+>nginx -t          #test configuration syntax,must before deploying
+
+=============================
+Virtual hosts:
+
+
+
+events {
+}
+
+http{
+include mime.types;                    #important otherwise *.css file may be treated as plain text
+ server{
+  listen 80;
+  server_name 192.168.0.103;    #can be www.example.com or *.domain.in
+  root  /sites/demo;
+}
+}
+
+>systemctl reload nginx
+
+>curl -I  http://192.168.0.103/style.css    #It will return   /sites/demo/style.css
+
+------------------------------------------------------
+Routing using url:
+
+
+prefix match:
+
+ server{
+   location  /greet{    #match /greet, /greetings, /greet123/abc
+     return 200 "hello world!!"
+   }
+ }  
+ 
+ -------------------------------------------------------
+ Exact match:
+  server{
+   location = /greet{    #match only  /greet
+     return 200 "hello world!!"
+   }
+ }  
+ ---------------------------------------------------------
+  Regex match(Case sensetive):
+  server{
+   location ~ /greet[0-9] {    #match only  /greet1  ,/greet2 etc  but case sensetive
+     return 200 "hello world!!"
+   }
+ }  
+ 
+ ----------------------------------------------------------
+   Regex match(Not case sensetive):
+  server{
+   location ~*  /greet[0-9] {    #match only  /Greet1  ,/greet2 etc 
+     return 200 "hello world!!"
+   }
+ }  
+ ------------------------------------------------------------
+ Preferential prefix match:
+ 
+ server{
+   location ^~ /greet{    #like prefix but with higher priority incase of route tie
+     return 200 "hello world!!"
+   }
+ }  
+ 
+ -----------------------------------------------------------
+ What if there is tie in routing url on different location?
+
+ Order of precedence:
+1.exact match(=)
+2) preferential prefix(^~)
+ 3)regex(~*  or ~  first block is used)
+ prefix
+ 
+ ==========================================================
+ Variables:
+ there are two types of variables:
+ 1)nginx internal variables  eg.  $http,$uri,$args(  http://nginx.org/en/docs/varindex.html )
+ 2)user defined variables eg  "set $var1  'abc';"
+ 
+ 
+ server{
+   location  /greet{    #match /greet, /greetings, /greet123/abc
+     return 200 "$host\n$uri\$args"    #args is query string
+   }
+ }  
+ 
+ we can access individual query string as $args_{name}  eg.  we can get value of age query string as   $agrs_age
+
+---------------
+if block:
+ 
+ 
+events {
+}
+
+http{
+include mime.types;                    #important otherwise *.css file may be treated as plain text
+ server{
+  listen 80;
+  server_name 192.168.0.103;    #can be www.example.com or *.domain.in
+  root  /sites/demo;
+
+  if( $args_apikey != 1234){
+    return  401 " Unauthorized";
+  }
+  
+  set $weekend 'No';
+  
+  if(  $date_local ~ 'Saturday|Sunday' ){
+    set $weekend 'Yes;
+  }
+  
+  location  /is_weekend{   
+     return 200 $weekend;
+   }
+ }
+}
+
+================================================================
+Return  vs  Redirect  vs Rewrite
+
+
+
+Return:
+
+  location  /greet{   
+     return 200 "hello world";
+   }
+   
+   
+Redirect( url will change):   
+
+     location  /greet{   
+     return 307  /some/path;
+   }
+
+
+Rewrite(forward to another url but url will not change in browser):
+
+server{
+     rewrite  ^/user/(\w+)   /greet/$1;     # It will convert   /user/jhon   =>   /greet/jhon    ,but url still same
+ 
+ }
+ 
+Note: 
+ After rewrite url evalution starts again
+ There can be multiple rewrite ,if we want to make sure one rewrite is the final rewrite(after which we only care about url match,all other rewrite will be skipped) we can add "last" at the end:
+  rewrite  /abc  /xyz  last;
+-----------------------------------------------------------------------------------\
+Try Files:
+It has precedence over root path,even if written below root.
+
+ server{
+   root  /site/demo
+   try_files  path1  path2  final;    #paths are relative to the root directory,  final is the path to rewrite if none matches 
+   location  /greet{
+      try_files  path1  path2  final;  
+     return 200 "hello";
+   }
+ }  
+
+
+eg    try_files  /thumb.png    /default.png   /greet;     #here if thumb.png or default.png not found,url will be rewritten to /greet 
+        try_files  $uri    /default.png   /greet;                #before trying anything try the requesting url   
+        try_files  $uri    /default.png   /404_page_url;                #if none match forward to  our culsom 404 url page
+		
+------------------------------------------------------------------------------------		
+Named location:
+Last attribute of try_files  can be a name instead of path begin with @, it will match with   location with same name.
+
+server{
+   root  /site/demo;
+   try_files  $uri    /default.png   @my_named_location;
+   location  @my_named_location{
+     return 200 "Hello"   
+   }
+ }  
+
+==============================================================
+Overwrite error or access log path:
+
+   location  /my_named_location{
+   access_log /var/log/access1.log
+   access_log /var/log/access2.log
+   error_log /var/log/error1.log
+     return 200 "Hello"   
+   }
+
+
+Disable access log for a location:
+
+   location  /my_named_location{
+   access_log off;
+     return 200 "Hello"   
+   }
+
+more customization possible like specifying error level see  https://docs.nginx.com/nginx/admin-guide/monitoring/logging/
+		
+==========================================================================
+
+Directive types:
+1)Standard directive:
+Can only be declared once in the given context.Also supports inheritance.
+example
+  root /some/path;
+
+
+2)Array directive:
+it can be used mutiple times ,merged if declared on same level,if declared on multiple level overridden be more specific scope
+
+example   
+   access_log /var/log/access1.log
+   access_log /var/log/access2.log
+
+
+3)Action Directive:		
+Invokes some action,Inheritance does not apply as they stop the flow of application.
+
+example
+  return 200 "Hello";
+  rewrite  /abc  /xyz  last;
+  try_files  /thumb.png    /default.png   /greet;
+=================================================================================
+Master and Worker process:
+
+Master process: The actual nginx service,it spawns one or more worker processes
+Worker process: listens for and give response to client request.
+
+To set the number of worker process we can use worker_processes  directive.
+
+user <worker process owner user>
+worker_processes 2;
+events{}
+http{}    
+
+
+>systemctl reload nginx
+>ps aux|grep nginx     #check nomber of worker process running
+>system status nginx  #this will also show number of worker process running
+
+In ideal condition we set No. of worker process = No. of cpu cores
+we can automate this(= No. of cores) by setting  "worker_processes   auto;"
+
+check No of core:
+>nproc

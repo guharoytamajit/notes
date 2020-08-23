@@ -1,0 +1,26 @@
+
+
+
+download latest tar and set bin to path:
+export PATH=$PATH:/usr/local/go/bin
+
+
+create a file, hello.go:
+-----
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Printf("hello, world\n")
+}
+--------
+Note:  hello.go need not be inside a directory named main
+>go build hello.go
+>./hello
+
+
+
+
+
+

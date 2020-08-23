@@ -1,0 +1,55 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.test</groupId>
+	<artifactId>maven-release-plugin-example</artifactId>
+	<version>0.1-SNAPSHOT</version>
+	<scm>
+		<url>https://github.com/guharoytamajit/maven-release-plugin-example</url>
+		<connection>scm:git:https://github.com/guharoytamajit/maven-release-plugin-example.git</connection>
+      <tag>HEAD</tag>
+  </scm>
+	
+	<distributionManagement>
+    <snapshotRepository>
+        <id>snapshots</id>
+        <name>tamajit-snapshots</name>
+        <url>http://localhost:8081/artifactory/libs-snapshot</url>
+    </snapshotRepository>
+
+    <repository>
+        <id>central</id>
+        <name>tamajit-releases</name>
+        <url>http://localhost:8081/artifactory/libs-release</url>
+    </repository>
+
+</distributionManagement>
+	
+	<build>
+	 <pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.5.3</version>
+				<configuration>
+				   <!-- <tag>v${releaseVersion}</tag> -->
+					<tagNameFormat>v@{project.version}</tagNameFormat>
+					<autoVersionSubmodules>true</autoVersionSubmodules>
+					<!-- releaseProfiles configuration will actually force a Maven profile 
+						– the `releases` profile – to become active during the Release process. -->
+					<!--<releaseProfiles>releases</releaseProfiles> -->
+				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-scm-plugin</artifactId>
+						<version>1.8.1</version>
+					</dependency>
+				</dependencies>
+			</plugin>
+		</plugins>
+		 </pluginManagement>
+		 
+	</build>
+
+</project>

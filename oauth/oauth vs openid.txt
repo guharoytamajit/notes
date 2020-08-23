@@ -1,0 +1,23 @@
+
+The relation between OpenID Connect and OAuth 2
+
+The OAuth standard ensures that there is no unintended leakage of information about the resource owner to the client. For example, it is ensured that the client does not get hold of 
+the resource owner’s credentials. The OAuth standard ensures the privacy of the resource owner. However, there are cases, where the client should have the possibility to get access 
+to specific profile information of the resource owner.
+Usage Scenario
+
+There are cases, in which the client should have the possibility to get access to specific profile information of the resource owner, for example the resource owner’s name or address.
+ Of course, the access right to this information is only provided, if the resource owner explicitly consents to the delegation of the respective access rights to the client.
+
+The profile information about the resource owner is made accessible via APIs with a RESTful interface. OpenID Connect standardizes how such interfaces look like and how the data is 
+structured and organized. OpenID Connect extends the authorization code flow, introduces new tokens and standardizes some endpoints. OpenID Connect is a solution that can be applied 
+in many environments, on many devices and with many different products.
+
+ The important steps of an OpenID Connect Flow are:
+
+    Get an authorization code (very similar to the OAuth Authorization Code Flow)
+    Get both an OAuth token and a OpenID Connect token (similar to the OAuth Authorization Code Flow)
+    Access the userinfo endpoint
+
+To understand OpenID Connect in-depth it helps to have a visualization of the Flows. In the book OAuth 2.0 the OpenID Connect Flows are described as Sequence Diagrams. At the same 
+time you get an example of how the flow might look like when using OpenID Connect for real.

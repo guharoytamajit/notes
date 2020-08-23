@@ -1,0 +1,51 @@
+---------index.js----------------
+var Compute = require('@google-cloud/compute');
+var compute = Compute();
+exports.startInstance = function startInstance(req, res) {
+    console.log("query params:"+JSON.stringify(req.query))
+    var zone = compute.zone(req.query.zone);
+    var vm = zone.vm(req.query.vm);
+    var error=null;
+    var response=null;
+    if(req.query.state=='on'){
+    vm.start(function(err, operation, apiResponse) {
+        console.log('turning on '+req.query.vm+" in "+req.query.zone);
+        error=err;
+        response=apiResponse;
+        console.log("error: "+JSON.stringify(err))
+        console.log('api response:'+JSON.stringify(apiResponse));
+    });
+    } else if(req.query.state=='off'){
+    vm.stop(function(err, operation, apiResponse) {
+         console.log('turning off '+req.query.vm+" in "+req.query.zone);
+        error=err;
+        response=apiResponse;
+        console.log("error: "+JSON.stringify(err))
+        console.log('api response:'+JSON.stringify(apiResponse));
+    });
+    }
+    
+res.status(200).send(JSON.stringify(error));
+
+};
+
+
+----package.json----------
+{
+"name": "sample-http",
+"dependencies": {
+"@google-cloud/compute": "0.7.1"
+},
+"version": "0.0.1"
+}
+
+ 
+===========================================
+
+https://us-central1-bigbluebutton-project-281908.cloudfunctions.net/function-1?zone=asia-east1-b&vm=bbb-1&state=off
+
+
+
+
+https://us-central1-striped-temple-269311.cloudfunctions.net/function-1?zone=asia-east1-b&vm=bbb&state=off
+https://us-central1-striped-temple-269311.cloudfunctions.net/function-1?zone=asia-east1-b&vm=bbb&state=on

@@ -1,0 +1,60 @@
+Blocking channels:
+
+unbuffered := make(chan int)
+
+
+//no sender but receiver,hence blocked
+a:= <-unbuffered
+
+
+
+//sender present but no receiver,hence blocked
+unbuffered<-1
+
+
+//syncronized
+go func(){<-unbuffered}()
+unbuffered<-1
+---------------
+Channel with buffer:
+buffered := make(chan int,1) //buffer size =1
+
+//still blocking,as no data and receiver waiting
+a:= <- buffered
+
+//not blocked ,as channel has buffer of size=1
+buffered<-5
+
+// blocked again
+buffered<-8
+------------------
+Blocking breaks concurrency
+-blocking can lead to deadlocks
+-blocking can prevent scaling
+
+---------------------
+Closing channel:
+sends a special 'closed' message once,which states no more data 
+receiver will at some point see 'closed'
+if sender sends any new message to channel after it  receives 'closed' then panic occurs, closing twice will also result in panic.
+
+
+c:= make(chan int)
+close(c) //closing channel
+fmt.Println(<-c)// prints 0,false (why this output?)
+
+A receiver always returns two values:
+0 => as it is the zero value of int
+false=> as no more data   or    returned value is not valid, this returns true for all other cases
+
+---------------
+Select:
+like a switch statement  on channel operations
+The order of cases doesnot matter at all
+there is a default case too,called if channels in a al case are blocking
+hence using default we can make channels non-blocking
+the first non-blocking case is chosen (send and/or receive)  
+
+
+
+

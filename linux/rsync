@@ -1,0 +1,6 @@
+apt-get install inotify-tools
+
+
+while inotifywait -r -e modify,create,delete,move /tmp/from; do
+    rsync -avzr  /tmp/from/* /tmp/to
+done

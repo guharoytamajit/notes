@@ -4,6 +4,55 @@ Fabric:
 Hyperledger Fabric is a blockchain framework implementation .
 Allows us to use distributed ledger.
 Hyperledger Fabric allows components, such as consensus and membership services, to be plug-and-play. 
-Hyperledger Fabric leverages container technology to host smart contracts called “chaincode” that comprise the application logic of the system
+Hyperledger Fabric leverages container technology to host smart contracts called chaincode that comprise the application logic of the system
+
+We can think of fabric as "Decentralized system for exchange of value(Asset)"
+
+-----------------
+Asset:
+represents the value
+can be tangible eg car or intangible eg. stock ownership certificate,reward points
+
+
+use-case:
+in car industry we can have three entities car manufacturer,dealer,customer.
+manufacturer can have a book of records: 1)car created 2)ownership transferred to dealer
+dealer can have a book of records: 1)received car from manufacturer 2)ownership transferred to customer
+These book of records are called "Ledgers"
+Each entity can maintain their own ledger
+car manufacture may have baught different car parts from different entities,they all will have their own ledger,they inturn buy raw material from some other sources(which can have ledger too)
+now the customer can sell his car to another person soon this becomes hard to maintain
+Further different entities ledger may contradict as well,which is another bigger broblem
+Distributed ledger Tecnology(DLT) solves this problem
+
+DLT: each entity involved in exchanging value holds a replica of common book of records,now ledgers are consistent(each entity have a copy of ledger).
+
+challanges of DLT:
+1)consistency:maintaining consistencies across all copies of ledger
+2)privacy: we may not want to make this ledger public, or maybe we want to share this to only specific entities
+3)inter-operatibility
+
+Fabric is a DLT framework which takes care of above problems
+Decentralized: decentralization is achieved using distributed ledger(not maintain a single copy in a single place)
+It focuses on bulding non-public blockchain
+
+
+Fabric creates permissioned network ie. restricts who can access and do what on network ,in other words "network participants are known"
+In this network different users have a specific roles and they are allowed to perform specific actions.
+
+Chaincode:
+Business logc of allowed transaction or the transaction that can be executed against the assets, eg transfer of ownership
+
+Legder: records all transactions,also records state change of asset(eg. change of owner)
+
+fabric has a component called "Membership Service Provider",which makes this a permissioned network(all users are known and have a role)
+
+Member(Entity)
+
+-----------
+>npm install -g yo
+>npm install -g composer-cli
+>npm install -g generator-hyperledger-composer
+>npm install -g composer-rest-server
 
 

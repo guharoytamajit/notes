@@ -1,0 +1,202 @@
+Velero:
+opensource ackup solution for k8s
+we need a storage for keeping the backup
+here we will use minio for backup
+
+see: https://velero.io/docs/master/contributions/minio/
+
+Minio:
+MinIO is High Performance Object Storage released under Apache License v2.0. It is API compatible with Amazon S3 cloud storage service. 
+### Running minio container
+```
+docker pull minio/minio
+docker run --name minio -p 9000:9000 -v data:/data minio/minio server /data
+```
+
+open localhost:9000, default credentials is 'minioadmin:minioadmin'
+
+create a bucket named "velero", here backups will be stored
+
+### Grab access and secret key from /data/.minio.sys/config/config.json
+
+sudo apt-get install jq
+docker exec -it  minio cat /data/.minio.sys/config/config.json|jq .credentials
+
+
+
+### Download Velero 1.0.0 Release
+```
+wget https://github.com/vmware-tanzu/velero/releases/download/v1.3.2/velero-v1.3.2-linux-amd64.tar.gz
+tar zxf velero-v1.3.2-linux-amd64.tar.gz
+sudo mv velero-v1.3.2-linux-amd64/velero /usr/local/bin/  #set velero to path
+rm -rf velero*
+
+```
+
+
+
+>velero version
+Client:
+	Version: v1.3.2
+	Git commit: 55a9914a3e4719fb1578529c45430a8c11c28145
+<error getting server version: the server could not find the requested resource (post serverstatusrequests.velero.io)>
+
+we can see only velero client version is available,velero server is not yet available as velero is not yet insatlled in k8s cluster.
+
+### Create credentials file (Needed for velero initialization)
+```
+cat <<EOF>> minio.credentials
+[default]
+aws_access_key_id=minioadmin
+aws_secret_access_key=minioadmin
+EOF
+```
+This is required so that velero can connect to minio for storing or restoring backup.
+
+>cat minio.credentials 
+[default]
+aws_access_key_id=minioadmin
+aws_secret_access_key=minioadmin
+
+### Install Velero in the Kubernetes Cluster
+```
+velero install \
+    --provider aws \
+    --plugins velero/velero-plugin-for-aws:v1.0.0 \
+    --bucket velero \
+    --secret-file ./minio.credentials \
+    --use-volume-snapshots=false \
+    --backup-location-config region=minio,s3ForcePathStyle="true",s3Url=http://<ip of minio>:9000
+```
+Note:
+1)here we can use --provider aws  as minio is campatible with s3
+2)This example assumes that it is running within a local cluster without a volume provider capable of snapshots, so no VolumeSnapshotLocation is created (--use-volume-snapshots=false).
+
+>velero install \
+    --provider aws \
+    --plugins velero/velero-plugin-for-aws:v1.0.0 \
+    --bucket velero \
+    --secret-file ./minio.credentials \
+    --use-volume-snapshots=false \
+    --backup-location-config region=minio,s3ForcePathStyle="true",s3Url=http://192.168.0.104:9000
+
+>velero version
+Client:
+	Version: v1.3.2
+	Git commit: 55a9914a3e4719fb1578529c45430a8c11c28145
+Server:
+	Version: v1.3.2
+-------------------------------------
+In previos section minio has been deployed directly using docker in host machine, alternatively we can install inside k8s  as shown below:
+
+>kubectl apply -f https://raw.githubusercontent.com/vmware-tanzu/velero/master/examples/minio/00-minio-deployment.yaml
+>velero install \
+    --provider aws \
+    --plugins velero/velero-plugin-for-aws:v1.0.0 \
+    --bucket velero \
+    --secret-file ./credentials-velero \
+    --use-volume-snapshots=false \
+    --backup-location-config region=minio,s3ForcePathStyle="true",s3Url=http://minio.velero.svc:9000
+
+
+
+
+------------------------------------
+Test backup:
+First deploy few objects:
+
+cat <<EOF | kubectl apply -f -  
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-nginx
+spec:
+  selector:
+    matchLabels:
+      app: my-nginx
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        run: my-nginx
+    spec:
+      containers:
+      - name: my-nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-nginx
+  labels:
+    run: my-nginx
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+  selector:
+    app: my-nginx
+EOF
+
+
+Create a backup for any object that matches the app=my-nginx label selector:
+
+>velero backup create nginx-backup --selector app=my-nginx
+
+Create regularly scheduled backups based on a cron expression using the app=nginx label selector:
+>velero schedule create nginx-daily --schedule="0 1 * * *" --selector app=nginx
+OR
+>velero schedule create nginx-daily --schedule="@daily" --selector app=nginx
+
+Simulate a disaster:
+>kubectl delete namespace nginx-example
+
+Restore:
+>velero restore create --from-backup nginx-backup
+
+check restore status:
+>velero restore get
+
+If there are errors or warnings, you can look at them in detail:
+>velero restore describe <RESTORE_NAME>
+
+Clean up:
+>velero backup delete BACKUP_NAME
+
+Once fully removed, the backup is no longer visible when you run:
+>velero backup get BACKUP_NAME
+
+### Enable tab completion for preferred shell
+```
+source <(velero completion zsh)
+```
+
+------------------------
+example:
+Start the sample nginx app:
+
+kubectl apply -f examples/nginx-app/base.yaml
+Create a backup:
+
+velero backup create nginx-backup --include-namespaces nginx-example
+Simulate a disaster:
+
+kubectl delete namespaces nginx-example
+Wait for the namespace to be deleted.
+
+Restore your lost resources:
+
+velero restore create --from-backup nginx-backup
+
+--------------
+schedule:
+
+# Create a weekly backup, each living for 90 days (2160 hours),for web namespace:
+>velero create schedule NAME --schedule="@every 168h" --ttl 2160h0m0s  --include-namespaces web
+
+
+
+
+-----------------------------------

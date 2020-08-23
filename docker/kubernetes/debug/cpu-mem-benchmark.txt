@@ -1,0 +1,14 @@
+Perf:
+used to do performance analysis/profiling on linux server
+
+Get linux release info:
+>cat /etc/*release
+
+get version of your kernel:
+>uname -r
+4.18.0-25-generic
+
+install perf specific to your kernel:
+>yum install linux-tools-<kernel version>
+eg.
+>yum install linux-tools-4.18.0-25-generic

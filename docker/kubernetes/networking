@@ -1,0 +1,327 @@
+kube-proxy:
+Worker node has two major components 1)kubelet 2)kube-proxy
+
+
+kube-proxy is primary responsible for forwarding request from ClusterIP(service) to pod IP
+kube-proxy also takes care of implementing a form of virtual IP for services 
+So kube-proxy must me running in all the node.Otherwise pods of that node will not be reachable
+kube-proxy internally uses iptables
+
+"iptables -L"(list iptables) output of all worker nodes will be different before and after deploying a kubernetes Service.
+
+Login to any worker node
+>iptables -L
+>kubectl apply -f service.yaml 
+>iptables -L
+
+After every endpoint(pods)  associated or disassociated to a service using selector the value of "iptables -L"(list ip tables) will change
+>kubectl get ep  
+
+============================================================================================
+Networking revision:
+Switch: connects multiple machine and forms a network.
+an interface (nic) has to be conneced from each machine to switch 
+
+see network interface of a machine
+machine1> ip link
+machine2> ip link
+
+assign an address to interface (assume our network is 192.168.1.0/24):
+machine1> ip addr add  192.168.1.10/24 dev eth0
+machine2> ip addr add  192.168.1.11/24 dev eth0
+
+machine1 can now ping on machine2(vice-versa)
+machine1> ping 192.168.1.11
+
+A switch can only enable communication within the network.
+if machine1 wants to communicate with another machine machine3 in different network (say 192.168.2.0/24) it has to go via a router between two networks.
+
+Router can have many network ports connected to different switch belong to different networks ,router connects multiple networks.Each port of router has an ip address,each port gets ip from the  corresponding network.
+
+
+if machine1 wants to ping machine3 on different network, how does it know ip of the router?
+Answer:  Through gateway / route  
+  
+If a network is a room the gateway is a door to outside world(other network or internet).Each system should know where that door(gateway) is.
+
+To see exiting routes run:
+machine1 >route
+If there is no entry the request from machine1 cannot go out of the LAN.It can only reach machines in the same network.
+
+Configure route for machine1(192.168.1.10/24 )   to reach machine3(192.168.2.10/24)
+>ip route add 192.168.2.0/24 via 192.168.1.1                       #192.168.1.1 is the ip of router port connected to 192.168.1.0/24 network.
+This has to be configured in all the systems.
+
+Verify if route entry added
+>route
+
+Note: machine3 also should also have route defined so that rquest comes back to machine1 via router.
+  
+Suppose your router has a 3rd port 172.217.194.0 which is connected to internet.
+Now machine1 has to have the following route to connect to internnet.
+machine1> ip route add 172.217.194.0 /24 via 192.168.1.1  
+
+Or we can configure machine1 to have a default gateway of  192.168.1.1  (for all other path ie. 0.0.0.0/0 go to  192.168.1.1 )
+machine1> ip route add default via  192.168.1.1  
+
+You may have two routers one for internet connectivity other for private net communications,then you will two route entries for each router.
+
+If we are using a host(with 2 nic) as router to connect two different networks we have to do following setting,as packets are not forwarded from one interface to another in a host by default .
+This is mainly done for securith suppose eth0 is connected to private network and eth1 to publiic network,then we dont want any one from public network to easily send message to private network, unless explicitly allowed.
+>  echo 1 >/proc/sys/net/ipv4/ip_forward     #default value is 0
+To make this change permanent :
+----/etc/sysctl.conf---
+net.ipv4.ip_forward= 1
+
+================================================================
+DNS:
+
+configure dns server location:
+----/etc/resolv.conf----
+nameserver 192.168.1.100
+search  abc.com    xyz.com   #now  ping www  will also search for www.abc.com  ,www.xyz.com
+
+If two different entries found in /etc/hosts and /etc/resolv.conf for same same.Then entry in /etc/hosts  will get priority by default.
+
+You can have more than one nameserver per host,but we have to do the same for all machines in network which is difficult,so alternatively we can add a forward DNS entry(ip of another DNS server) in dns server hosted in 192.168.1.100, so that if  dns entry not found then it will forward the DNS in the other DNS server.
+======================================================================
+
+Linux Network Namespaces:
+Network Namespaces are used by container runtimes like docker to implement network isolation.
+Containers are separated from underlying hosts using namespaces.
+When you create a container you want to make sure it cannot see host processes or any other containers.
+
+
+hostmachine> ps aux
+container1> ps aux     #different
+
+
+create network namespace:
+>ip netns add red
+>ip netns add blue
+At this moment network namespace has only "lo"  network interface and no route or ARP entry
+
+list network namespaces:
+>ip netns
+
+exec a command inside network namespace(NNS)
+>ip netns exec <NNS> <command>
+
+list NIC of namespace 
+>ip netns exec red ip link
+Or
+>ip -n red link
+
+
+>ip netns exec red route
+>ip netns exec red arp
+
+add a virtual cable between red and blue namespace:
+>ip link add veth-red type veth peer name veth-blue  #add a cable
+>ip link set veth-red netns red          #plug  veth-red  side of cable in red NNS
+>ip link set veth-blue netns blue          #plug  veth-blue  side of cable in blue NNS
+
+assign ip to red and blue NIC
+>ip -n red addr add 192.168.15.1 dev veth-red
+>ip -n blue addr add 192.168.15.2 dev veth-blue
+
+activate NIC
+>>ip -n red  link set veth-red up
+>ip -n blue link set veth-blue up
+
+Now namespaces should be able to ping eachother:
+>ip netns exec red ping 192.168.15.2
+
+>ip netns exec red arm  #how you will see red NNS arp table can identify blue NNS
+
+delete virtual peer cable:
+>ip -n red link del veth-red   #on deleting one end other end is also deleted automatically.
+
+virtual peer cable can connect only two NNS,to connect multiple NNS we need virtual switch for NNS(we can use solutions like linux bridge or open-switch).
+using linux bridge as virtual switch
+>ip link add v-net-0 type bridge
+
+
+For our hostmachine v-net-0 is just like another NIC,we can see it using:
+>ip link
+>ip link set dev v-net-0 up
+
+ v-net-0  is like a switch for NNS but it is like a NIC for our hostmachine.
+ Lets connect out NNS to virtual switch v-net-0.
+  create new cable for connecting NNS to virtual bridge
+>ip link add veth-red type veth peer name veth-red-br  #veth-red-br end will be plugged on bridge(switch)
+ >ip link add veth-blue type veth peer name veth-blue-br 
+ 
+ 
+ >ip link set veth-red netns red  #plug  veth-red end of cable in red NNS
+  >ip link set veth-red-br master v-net-0  #plug veth-red-br end of cable on switch
+ 
+ Do same for blue NNS
+  >ip link set veth-blue netns blue  
+  >ip link set veth-blue-br master v-net-0  
+  
+  assign ip to red and blue NIC
+>ip -n red addr add 192.168.15.1 dev veth-red
+>ip -n blue addr add 192.168.15.2 dev veth-blue
+
+activate NIC
+>>ip -n red  link set veth-red up
+>ip -n blue link set veth-blue up
+
+Now namespaces should be able to ping eachother:
+>ip netns exec red ping 192.168.15.2
+
+We can also ping in any NNS from hostmachine, as host machine has a NIC which is connected to virtual switch, but we have to set ip first:
+>ip link addr add 192.168.15.5/24 dev v-net-0
+
+Now you can ping red NNS from host machine:
+>ping 192.168.15.1
+
+Note :
+From individual NNS we cannot reach outside
+
+
+Routing from red NNS(192.168.15.0/24) to another machine in host machine network(192.168.1.0/24):
+As host machine has 2 NIC and have an address from both network.
+
+First we have to add routing table and set hostmachine as gateway:
+>ip netns exec red ip route add 192.168.1.0/24 via 192.168.15.5
+
+Still ping not possible as destinition machine does not know ip of red NNS so it wont be able to sent back packet.
+we can use masquerate in hostmachine.
+>iptables -t nat  -A POSTROUTING -s 192.168.15.0/24  -j MASQUERADE   #this will replace from address of all packets from red NNS with its own ip 192.168.1.2
+Alternatively we could add  route entry in  192.168.1.3 to reach red NNS  192.168.15.1  via  hostmachine as gateway 192.168.15.5).But masquerate is more secured approach as outside network have no idea about internal NNS network.
+
+
+Now receiving machine will thing ip is coming from hostmachine(not from red NNS). Now ping will also work from red NNS to 192.168.1.3
+>ip netns exec red ping 192.168.1.3
+
+
+Reaching from outside machine into red NNS:
+Two options:
+1)add route table to reach red NNS via hostmachine as gateway(ip forwarding must be enabled)
+2)Alternatively using port-forwarding.
+
+
+>iptables -t nat -A 	PREROUTING --dport 80  --to-destination 192.168.15.1:80  -j DNAT
+
+request to 192.168.1.2:80 will be forwarded to  192.168.15.1:80 
+
+============================================================================
+Docker Networking:
+
+Docker not attached to any network
+>docker run --network none  nginx
+ Container cannot reach outside world,and no one from outside can reach the container.
+ 
+Attaching container to host network:
+>docker run --network host nginx 
+Nginx will be accessible from localhost:80
+
+>docker run  --network host nginx    #will be port bind error as port 80 is already in use
+
+
+Create an internal private network for container:
+>docker run --network bridge nginx
+By default bridge mode is used, each container will be connected to default bridge network called "bridge".
+
+
+see all network options:
+>docker network ls
+NETWORK ID          NAME                DRIVER              SCOPE
+779c8a6b3e0c          bridge              bridge              local
+15bf43353635          host                host                local
+
+host machine will have a new NIC called docker0	which is conned to docker default bridge("bridge")
+Actually docker internally runs a command similar to "ip link add docker0 type bridge" in host machine
+>ip link   
+
+Whenever a docker container is created docker internally creates a network namespace(NNS) for it.
+
+
+Below command will create a port-forwarding rule using iptables(iptables -t nat -A DOCKER  -j DNAT --dport 8090 --to-destination 172.17.0.3:80 ),from docker0 interface ip port 8090 to container ip port 80 
+> docker run -p 8090:80  nginx
+>curl <ip of docker0 interface>:8090
+
+
+>sudo iptables -t nat -vnL
+Chain PREROUTING (policy ACCEPT 290 packets, 97456 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    8   625 DOCKER     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ADDRTYPE match dst-type LOCAL
+
+Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain OUTPUT (policy ACCEPT 65 packets, 5472 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    2   120 DOCKER     all  --  *      *       0.0.0.0/0           !127.0.0.0/8          ADDRTYPE match dst-type LOCAL
+
+Chain POSTROUTING (policy ACCEPT 67 packets, 5592 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 MASQUERADE  all  --  *      !docker0  172.17.0.0/16        0.0.0.0/0           
+    0     0 MASQUERADE  tcp  --  *      *       172.17.0.3           172.17.0.3           tcp dpt:80
+
+Chain DOCKER (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 RETURN     all  --  docker0 *       0.0.0.0/0            0.0.0.0/0           
+    2   120 DNAT       tcp  --  !docker0 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8090 to:172.17.0.3:80
+
+
+
+>sudo iptables -t nat  -S DOCKER 
+-N DOCKER
+-A DOCKER -i docker0 -j RETURN
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 8090 -j DNAT --to-destination 172.17.0.3:80
+
+====================================================================
+CNI:
+
+
+All container solutions like docker,k8s,rkt,mesos internally creates network namespaces(containers) and attach to a virtual bridge(switch) ,They have few steps in common like:
+
+1)create network namespace
+2)create bridge network/interface
+3)create veth pair
+4)attach veth to NNS
+5)attach other veth to bridge
+6)assign ip addresses
+7)bring interface up
+8)set NAT - IP Masquerade
+
+Why code and develop same pattern again and again for all different technologies?
+It is better to create a standard approach that everyone can follow.
+
+Container CNI
+The Container Network Interface (CNI) is a container networking specification proposed by CoreOS and adopted by projects such as Apache Mesos, Cloud Foundry, Kubernetes, Kurma and rkt. 
+If multple technologies follow the same standard then inter-operatibility can be easily achieved.
+
+CNI comes with a set of plugins like bridge,vlan,ipvlan,macvlan,windows.
+
+Note:
+Docker does not implement CNI.It has its own set of standards called CNM(Container Network Model).
+Hence we cannot do like:
+>docker run --network=<any CNI campat plugin>  nginx
+
+Then how K8s seemlessly integrate to docker?
+1)It first creates a container in none network:
+>docker run --network=none nginx
+
+2)then explicitly connect it with bridge(switch) 
+
+========================================
+Kubernetes networking architecture:
+It consists of multiple master and worker nodes
+Each node (master or worker) must have atleast one interface connected to a network, each node interface must have ip from that network
+
+some ports should be open for normal working:
+1)kube-api-server listens on port 6443(kubelet,kubectl,kube-scheduler,kube-controller-manager all need to access kube-api-server)
+2)kubelet on worker and master node listens on 10250 port(kubelet can also be present on master)
+3)kube-scheduler on master nodes listen on port 10251
+4)kube-controller-manager on master nodes listen on port 10252
+5)Worker nodes expose services for external access on ports 30000-32767(see service nodeport)
+6)etcd server(in master or standalone) listens on port 2379 ,also need to open port 2380 so that etcd clients can talk to eachother.
+
+Pod also has a separate CIDR network:
+each pod has its own IP
+each pod should be able to communicate with other  pods in the same network.
+each pod in a  node should be able to communicate with pods on other nodes without NAT.

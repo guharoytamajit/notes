@@ -1,0 +1,21 @@
+ systemctl status systemd-resolved
+systemctl enable  systemd-resolved
+sudo rm  /etc/systemd/system/systemd-resolved.service
+ll /etc/systemd/system/systemd-resolved.service
+sudo systemctl daemon-reload
+systemctl status  systemd-resolved
+systemctl start  systemd-resolved
+systemctl status  systemd-resolved
+
+
+
+
+sudo rm /etc/resolv.conf 
+sudo ln -sf /run/systemd/resolve/resolv.conf  /etc/resolv.conf
+sudo systemctl restart resolvconf
+resolvconf -u
+
+
+sudo gedit /etc/resolvconf/resolv.conf.d/head
+
+dpkg-reconfigure resolvconf

@@ -93,6 +93,12 @@ This  fault domain and update domain are managed by azure, we can only define ce
 
 Avalibility Zone(AZ)(Datacenter or set of data center):
 Avalibility Set(AS) VMs belongs to different servers of same AZ
+
+
+Azure services that support Avalibility Zone(AZ) falls into two categories:
+1)Zonal services: you can pin the resource to a specific zone(eg VM,disks,ip address)
+2)Zone-redundant services: platform replicates automatically across zones(eg zone-redundant store, SQL database)
+Common services that supports AZ:  load balancer,vpn gateway,application gateway,express route,virtual machine scalesets
 =========
 Virtual Network(VNET):
 Like AWS VPC
@@ -103,6 +109,60 @@ If a VM dont have a public ip it is not directly accessible from outside.
 For getting public ip for VM we need to request one,azure will give one of its public ip from its pool.this ip nas nothing to do with VNET CIDR(address space)
 
 By default communication Between VMs on different subnet is possible.because of default system route table.
+
+Network security group(NSG):
+can be attached to a nic of vm or subnet
+
+ rules : priority(lower number means more priority),source and destination(ip,cidr,service tag,ASG),protocol(tcp,udp,any),port(range,any,csv),action(allow/deny)
+
+Default inbound rules: Allow traffic from any resource within vnet,traffic from loadbalancer are allowed,all other request denied
+
+here multiple rules are not merged.if a rule with priority 110 denies something, similar rule with priority 100 allows the same,then its will we allowed.
+
+if NSG is attached is attached to both vm and subnet,to allow a traffic both vm NSG and subnet NSG should allow it.
+if inbound traffic first subnet NSG is evaluated then VM NSG  
+for outbound traffic first VM NSG is evaluated then subnet NSG  
+Iside VM  goto "networking>effective security rules" to see combination of off NSG rules(VM + Subnet) for a vm
+
+Application Security Group(ASG):
+like label to VMs,group of Vms can belong to a ASG
+using this ASG as source/destination, we can define firewall rules.
+
+Service tag:
+Each Service tags refers to different azure services eg storage.
+using this Service tags as source/destination, we can define firewall rules.
+For example we can define a rule which allows VM/subnet to access storage over the internet.
+
+service endpoint:
+This is attached to a subnet,this allows a vnet VMs to acces different azure services without going through internet.
+
+service endpoint policy:
+
+================
+Load balancer(layer 4):
+It can load balance across VMs in same vnet
+Note:It cannot loadbalance across VMs belong to different vnet
+components:  frontend IP config,NAT rules,backend pool of VMs,health probes
+
+common uses:
+1)load balance requests across multiple servsrs
+2)allows port frowarding to get access to VMs inside vnet
+3)allows VMs to use public ip for making request on internet 
+   
+-----------------
+Application Gateway(layer 7 load balancer)
+Additional features:
+url based routing
+host based routing: supports multiple hosts
+rewrite http headers: add,update or remove http headers
+custom error page
+Web Application Firewall(WAF):Provides protection from common exploits and vulnerabilities eg XSS,SQL injection
+zone redundancy: spans multiple AZ
+connection draining: graceful removal of backend pool
+
+components:  frontend IP config,rules,backend pool of VMs,health probes,WAF,listeners
+
+
 =============================================
 AKS:
 

@@ -1,0 +1,31 @@
+Each aks has a "system nodepool", we can further attach a set of "user nodepool"
+
+
+Drain traffic from nodepool1(system) to nodepool2
+
+
+
+create user node pool:
+>az aks nodepool add -g <groupname> --cluster-name <name> --node-count 2 --kubernetes-version 1.15.10 --node-vm-size 'Standard_B4ms' --vnet-subnet-id <subnet-id> --name nodepool2
+
+
+>az aks nodepool add -g <groupname> --cluster-name <name> --node-count 2 --kubernetes-version 1.15.10 --enable-cluster-autoscaler --min-count 2 --max-count 2 --node-vm-size 'Standard_B4ms' --vnet-subnet-id <subnet-id> --name nodepool2
+
+
+Drain nodepool1 pods to nodepool2:
+>kubectl drain nodepool1_node0
+>kubectl drain nodepool1_node1
+
+
+Convert nodepool2 from user -> system:
+az aks nodepool update -g <group name> --cluster-name <cluster name> -n nodepool2 --mode system
+
+Delete nodepool1:
+az aks nodepool delete -g <group name>  --cluster-name <cluster name> -n nodepool1
+
+Check list of nodepool:
+az aks nodepool list --resource-group <group name>  --cluster-name <cluster name> -o table
+
+
+Forcefully Node delete(if required):
+kubectl delete node aks-nodepool1-13455381-vmss000000

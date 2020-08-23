@@ -8,7 +8,7 @@
 >mkdir jhipster-test
 >cd jhipster-test
 
->yo hipster
+>jhipster
 >yarn start
 hit localhost:9000  //backend is still not up
 >./mvnw 
@@ -22,5 +22,82 @@ Jhipster domain language(JDL):
 
 >npm install -g jhipster-uml
 >jhipster-yml my_file.jdl // yo jhipster:import-jdl my_file.jdl
+
+
+-----------------
+skip yo cache:
+when yeoman asks any question it remembers the answers by default in cache.
+So we can skip cache using "--skip-cache" arguement in any yo command
+
+>yo jhipster:aws --skip-cache
+---------------
+We can install new generators from jhipster marketplace(https://www.jhipster.tech/modules/marketplace/#/list).
+
+
+We cn install vuejs generator as shown below:
+>npm install -g generator-jhipster-vuejs #install
+>npm update -g generator-jhipster-vuejs  #update
+
+run:
+jhipster --blueprints vuejs
+
+To create a new Vue.js empty page, run
+
+jhipster --blueprint vuejs page
+----------------
+list installed yo generators:
+>yo --generators
+Available Generators:
+
+  jhipster
+    aws
+    aws-containers
+    azure-app-service
+    azure-spring-cloud
+    ci-cd
+    client
+    cloudfoundry
+    common
+    docker-compose
+    entity
+    entity-client
+    entity-i18n
+    entity-server
+    export-jdl
+    gae
+    heroku
+    info
+    kubernetes
+    kubernetes-helm
+    kubernetes-knative
+    languages
+    openapi-client
+    openshift
+    server
+    spring-controller
+    spring-service
+    upgrade
+    upgrade-config
+  jhipster-vuejs
+    client
+    common
+    entity-client
+    languages
+-----------------
+Now to see docs of jhipster ci-cd generator:
+>yo jhipster:ci-cd --help
+
+--------------
+Separating the front-end and the API server:
+jhipster --skip-client will only generate a back-end application (this is typically what JHipster microservices are)
+jhipster --skip-server [options] will only generate a front-end application (e.g. jhipster --skip-server --db=sql --auth=jwt)
+
+When working on the front-end, there are 2 directories you need to know:
+src/main/webapp is where the client application will be developed
+target/static is where your client application will be packaged
+
+
+
+
 
 

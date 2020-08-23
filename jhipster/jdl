@@ -1,0 +1,46 @@
+>jhipster --help
+Usage: jhipster [command] [options]
+
+command examples: ci-cd,import-jdl,app
+
+default command is "app"
+
+"yo jhipster:ci-cd --help"  same as "jhipster ci-cd --help"
+"jhipster app" same as "jhipster"
+
+>jhipster app --help                 #app cammand is responsible for generating an app,see options
+
+
+
+>jhipster  #select option an generate default temlate
+
+Run your Spring Boot application:
+>./mvnw
+
+Start your Webpack development server with:
+>npm start
+
+Lets create entity using jdl:
+
+---test.jdl---
+entity Product {
+    name String
+    price Integer
+}
+
+>jhipster import-jdl test.jdl
+
+It will generate the following:
+
+Product.json =>containing shema info of this entity
+ProductResource.java=> Controller
+ProductRepository.java=> Database Repo
+Product.java=>domain class,@Entity
+webapp/app/entities/product/*.ts   =>angular crud components
+webapp/app/shared/model/product.model.ts    =>domain class in client side
+other test and resources files
+--------------------------------
+Modify existing entity:
+edit
+<jhipster_root_folder>/.jhipster/Product.json  #added     "dto": "yes","pagination": "yes"   and "service": "yes"
+>jhipster entity product

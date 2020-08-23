@@ -1,0 +1,22 @@
+gg   #goto top begining og 1st line
+$ or e  #goto end of line
+^ or 0   #goto begining of line
+G   #goto last line's begining
+v  #start selecting  then use arrows to select how much you want to select, press v again to undo selection
+V   #select current line
+gg +  V + G  #select all
+d    #cut selected
+y  #copy selection
+P  #paste before cursor
+p  #paste after cursor
+:!<cmd>   #execute any linux command
+/<text>    #search use n for next match,N for previous match
+:%s/<old>/<new>/g    #replace all text
+w    #cursor to next word
+b   #cursor to previous word
+dd  #cut line
+:<number>   #jump to line
+: <up/down>  # use up arrow to see previous commands
+8|   #jump to 8th column
+
+

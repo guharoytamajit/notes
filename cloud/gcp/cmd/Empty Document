@@ -1,0 +1,20 @@
+  
+
+create project:
+>gcloud projects create tamajit123 --name test
+
+list project:
+>gcloud projects list   
+
+PROJECT_ID                    NAME                   PROJECT_NUMBER
+tamajit123                    test                   737241378535
+
+list vm in a project:
+>gcloud compute instances list --project=tamajit123
+
+select default project:
+>gcloud config set project tamajit123
+
+
+list vm of default project:
+>gcloud compute instances list

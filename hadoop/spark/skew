@@ -1,0 +1,4 @@
+https://datarus.wordpress.com/2015/05/04/fighting-the-skew-in-spark/
+
+ Find Each Partition Size for RDD:
+builder.rdd.mapPartitions(lambda it: [sum(1 for _ in it)])

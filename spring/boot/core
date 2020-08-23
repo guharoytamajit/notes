@@ -1,0 +1,68 @@
+AutoConfiguration:
+
+@EnableAutoconfiguration:
+Allows configuration classes to be scanned dynamically into application context
+usually based of jars loaded on classpath
+Driven off of spring.factories  in META-INF
+@AutoConfigureBefore  and @AutoConfigureAfter can be used to control order of configuration loading
+
+Conditional loading of configuration:
+@ConditionalOnClass
+@ConditionalOnBean
+@ConditionalOnProperty
+@ConditionalOnMissingBean
+on missing class or property
+Application type based
+Rsource(or file)  based
+Expression based(spring expl)
+
+
+
+Properties:
+preconfigured default properties for AutoConfiguration classes
+@EnableConfigurationProperties specifies the default property set
+Can always be overridden 
+----------------------------------
+
+Property based configuration:
+application.properties or application.yaml
+Environment variables
+Command line injection
+Cloud Configuration(config server,vault,consul)
+
+----------------------------
+Profile:
+
+multiple profile in a file
+
+application.yaml:
+
+spring:
+  profiles: dev
+server:
+  port: 8081
+---
+spring:
+  profiles: qa
+server:
+  port: 8082
+
+
+>mvn clean package
+>java -jar -Dspring.profiles.active=dev target/myapp.jar
+
+---------------------------------
+Spring Boot Actuator:
+
+By default Spring Boot Actuator has security on,we can disable it as(never do this in prod) :
+application.yaml:
+
+management:
+  security:
+    enabled: false
+
+
+It enables multiple endpoints:
+/env  =>shows all spring boot properties
+/health=>  if service up,disk status ,database status,rabbit-mq status etc(depending on project dependencies)
+/mappings=> url to bean method mapping(also actuator endpoints)

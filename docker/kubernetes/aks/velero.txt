@@ -1,0 +1,122 @@
+az ad sp create-for-rbac --skip-assignment
+
+{
+  "appId": "110d564c-2037-4520-93e2-2fd0b3656194",
+  "displayName": "azure-cli-2020-06-12-08-00-38",
+  "name": "http://azure-cli-2020-06-12-08-00-38",
+  "password": "hA1jmr1w4m-gG4jSMdvzcYR3j9KEcQttfZ",
+  "tenant": "cf6161cd-27ea-44d0-aca9-8199e6314072"
+}
+
+az aks create \
+    --resource-group  kubRg \
+    --name myCluster \
+    --generate-ssh-keys \
+    --vm-set-type VirtualMachineScaleSets \
+    --load-balancer-sku standard \
+    --node-count 1 \
+	--node-vm-size Standard_B2ms    --kubernetes-version 1.16.8   --enable-cluster-autoscaler  --min-count 1 \
+    --max-count 2 \
+    --service-principal 3696dd52-8541-4d6d-9adf-f8c47b324bd8  --client-secret  "KrPM-HMq.alqM~moocx-5SqJ1xQZbeV3tP"  \
+	--vnet-subnet-id   /subscriptions/563ac70a-e26c-48fd-a47c-8b4c35ef90cf/resourceGroups/myRg/providers/Microsoft.Network/virtualNetworks/spoke1/subnets/default  \
+	--network-plugin azure   \
+	--network-policy   azure \
+	--service-cidr 10.1.0.0/16  --dns-service-ip 	10.1.0.10 \
+	--max-pods 110 
+	
+	
+	az aks get-credentials \
+    --resource-group  kubRg \
+    --name myCluster 
+	
+az aks create \
+    --resource-group  kubRg \
+    --name myCluster2 \
+    --generate-ssh-keys \
+    --vm-set-type VirtualMachineScaleSets \
+    --load-balancer-sku standard \
+    --node-count 1 \
+	--node-vm-size Standard_B2ms    --kubernetes-version 1.16.8   --enable-cluster-autoscaler  --min-count 1 \
+    --max-count 1 \
+    --service-principal  8a440752-8ede-421d-800b-40fdba482377  --client-secret  "hKZEe.wFGCT88wVi3tZGlLdhmpi43Mak_Y"  \
+	--vnet-subnet-id   /subscriptions/563ac70a-e26c-48fd-a47c-8b4c35ef90cf/resourceGroups/netRg/providers/Microsoft.Network/virtualNetworks/spoke1/subnets/default2  \
+	--network-plugin azure   \
+	--network-policy   azure \
+	--service-cidr 10.1.0.0/16  --dns-service-ip 	10.1.0.10 \
+	--max-pods 110 
+
+
+az aks get-credentials \
+    --resource-group  kubRg \
+    --name myCluster
+
+
+
+# Prepare variables
+TENANT_ID=785f2bca-e45d-4527-a969-850bb4f65b12
+SUBSCRIPTION_ID=34344759-c3a1-4856-8752-b677209afd2b
+SOURCE_AKS_RESOURCE_GROUP=MC_cin-s03-uat-rsg-ibg-01_clst-cin-s03-dev-kub-velero_centralindia
+TARGET_AKS_RESOURCE_GROUP=MC_cin-s03-uat-rsg-ibg-01_clst-cin-s03-dev-kub-velero_centralindia
+BACKUP_RESOURCE_GROUP=cin-s03-uat-rsg-ibg-01
+BACKUP_STORAGE_ACCOUNT_NAME=stacins03ibgdevaks01
+
+# Create Azure Storage Account
+az storage account create \
+  --name $BACKUP_STORAGE_ACCOUNT_NAME \
+  --resource-group $BACKUP_RESOURCE_GROUP \
+  --sku Standard_GRS \
+  --encryption-services blob \
+  --https-only true \
+  --kind BlobStorage \
+  --access-tier Hot
+  
+ # Create Blob Container
+ az storage container create \
+   --name velero \
+   --public-access off \
+   --account-name $BACKUP_STORAGE_ACCOUNT_NAME
+   
+   AZURE_CLIENT_SECRET=`az ad sp create-for-rbac \
+  --name "velero-poc" \
+  --role "Contributor" \
+  --query 'password' \
+  -o tsv \
+  --scopes /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$BACKUP_RESOURCE_GROUP /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$SOURCE_AKS_RESOURCE_GROUP` /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$TARGET_AKS_RESOURCE_GROUP`
+  
+AZURE_CLIENT_ID=`az ad sp list --display-name "velero-poc" --query '[0].appId' -o tsv`
+
+cat << EOF > ./credentials-velero
+AZURE_SUBSCRIPTION_ID=${SUBSCRIPTION_ID}
+AZURE_TENANT_ID=${TENANT_ID}
+AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+AZURE_RESOURCE_GROUP=${SOURCE_AKS_RESOURCE_GROUP}
+AZURE_CLOUD_NAME=AzurePublicCloud
+EOF
+
+velero install \
+  --provider azure \
+  --plugins velero/velero-plugin-for-microsoft-azure:v1.0.0 \
+  --bucket velero \
+  --secret-file ./credentials-velero \
+  --backup-location-config resourceGroup=$BACKUP_RESOURCE_GROUP,storageAccount=$BACKUP_STORAGE_ACCOUNT_NAME \
+  --snapshot-location-config apiTimeout=5m,resourceGroup=$BACKUP_RESOURCE_GROUP \
+  --wait
+  
+  ----------------------------------------
+          # create a backup containing all resources
+        velero backup create backup1
+
+        # create a backup including only the nginx namespace
+        velero backup create nginx-backup --include-namespaces nginx
+
+        # create a backup excluding the velero and default namespaces
+        velero backup create backup2 --exclude-namespaces velero,default
+
+        # ignores snapshots of PersistentVolumes as part of the backup
+        velero backup create backup3 --snapshot-volumes=false -o yaml
+
+        # wait for a backup to complete before returning from the command
+        velero backup create backup4 --wait
+		
+		velero create schedule IBG  --schedule="@every 24h" --ttl 720h0m0s

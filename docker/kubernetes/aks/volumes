@@ -1,0 +1,512 @@
+Storage classes
+To define different tiers of storage, such as Premium and Standard, you can create a StorageClass.
+The StorageClass also defines the reclaimPolicy. This reclaimPolicy controls the behavior of the underlying Azure storage resource when the pod is deleted and the persistent volume may no longer be required. The underlying storage resource can be deleted, or retained for use with a future pod.
+
+In AKS, 4 initial StorageClasses are created.
+ 
+If no StorageClass is specified for a persistent volume, the default StorageClass is used. 
+
+>kubectl get sc
+NAME                PROVISIONER                AGE
+azurefile           kubernetes.io/azure-file   18h
+azurefile-premium   kubernetes.io/azure-file   18h
+default (default)   kubernetes.io/azure-disk   18h
+managed-premium     kubernetes.io/azure-disk   18h
+
+
+
+Very Important Note:
+Default reclaimPolicy is Delete for both azure-disk and azure-file.reclaimPolicy: Delete
+AKS supports two types of provisioners: azure-disk(only ReadWriteOne,better for intense IO operations) and azure-file(ReadWriteOne and ReadWriteMany ie multi pod may share)
+For statefulset use azure-disk
+
+azure file name has skuName(eg Premium_LRS) is combination of performance and replication type
+if you create a pvc with sc(azure-file,Premium_LRS) ,aks will create a new storage account of SKU:premium and replication:LRU, file share size will depend on size defined in pvc
+if now we create another pvc with sc(azure-file,Premium_LRS),it will not create a new SA but will create a new "file shares" in same SA.
+if now we create another pvc with sc(azure-file,Standard_LRS),it will create a new SA as it does not have a SA with sku:Standard
+
+azure disk has similar attribute like skuName called storageaccounttype,only name is different
+if you create a pvc with sc(azure-disk,Premium_LRS) ,aks will create a new disk on azure  SKU:premium and replication:LRU, size is dependent on size defined in pvc 
+if we create a pvc with sc(azure-disk,any) it will always create a new disk regardless of storageaccounttype, disk size is dependent on size defined in pvc 
+
+
+Existing SC vs Custom SC
+Pros:
+Existing SC has "allowVolumeExpansion: true",so we can chamge volume size later.This is not supported in custom SC
+Cons:
+Existing SC does not cover all combinations of SKU and replication(LRS only),so you may need to create your own custom SC
+Existing SC does not support using custom resource group,in Custom SC we can overrite default resourcegroup using parameters.resourceGroup. Default resource-group is MC_ RG.
+
+You cannot delete/update existing SC,changes will be reverted.Although adding labels are allowed in existing SC
+
+Replication options:
+Locally redundant storage (LRS)
+Zone-redundant storage (ZRS)
+Geo-redundant storage (GRS) or read-access geo-redundant storage (RA-GRS)
+Geo-zone-redundant storage (GZRS) or read-access geo-zone-redundant storage (RA-GZRS)
+-------------------------
+kubectl get sc azurefile -o yaml
+
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azurefile
+parameters:
+  skuName: Standard_LRS
+provisioner: kubernetes.io/azure-file
+reclaimPolicy: Delete
+
+--------------------------
+kubectl get sc azurefile-premium -o yaml
+
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azurefile-premium
+parameters:
+  skuName: Premium_LRS
+provisioner: kubernetes.io/azure-file
+reclaimPolicy: Delete
+
+-------------------------
+
+kubectl get sc managed-premium  -o yaml
+
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: managed-premium
+parameters:
+  cachingmode: ReadOnly
+  kind: Managed            //aks managed ie. dynamic volume
+  storageaccounttype: Premium_LRS
+provisioner: kubernetes.io/azure-disk
+reclaimPolicy: Delete
+
+
+---------------------
+kubectl get sc default  -o yaml
+
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: default
+parameters:
+  cachingmode: ReadOnly
+  kind: Managed                    //aks managed ie. dynamic volume
+  storageaccounttype: StandardSSD_LRS
+provisioner: kubernetes.io/azure-disk
+reclaimPolicy: Delete
+
+
+
+---------------------
+Custom SC:
+
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: managed-premium-retain
+provisioner: kubernetes.io/azure-disk
+reclaimPolicy: Retain
+parameters:
+  storageaccounttype: Premium_LRS
+  kind: Managed
+
+
+
+
+======================================================
+Dynamic:
+Dynamic(AKS manages creation and deletion of azure-file or azure-disk):
+Here you only neet to create a PVC with access-mode,SC and size. AKS will take care of rest.
+When you apply this pvc, you will see pv is also created and they are connected. 
+>kubectl get pv,pvc
+If provision type is azure disk aks will also create a secretfile, can be checked as >kubect get pv <pv-name> -o yaml
+Now to use this volume just refer pvc in your pod or deployment manifest.mount and use.
+
+-----------------------
+Static:
+Use existing Volume or user managed.
+For using azure-disk make sure aks SP has contributer role on azure-disk's RG.
+Now we can refer azure-disk from pod or deployment as:
+  volumes:
+      - name: azure
+        azureDisk:
+          kind: Managed
+          diskName: myAKSDisk
+          diskURI:<disk-id>
+
+
+For using azure-file make sure aks SP has contributer role on SA's RG.
+We also have to create a secret using SA  name and any access key
+Now we can refer azure-file from pod or deployment as:
+  volumes:
+  - name: azure
+    azureFile:
+      secretName: azure-secret
+      shareName: aksshare
+      readOnly: false
+
+Alternatively(only for azure-file) we can create a pv and pvc,new pvc will have azureFile section as:
+    azureFile:
+      secretName: azure-secret
+      shareName: aksshare
+      readOnly: false
+
+pvc and pv should have same non-existing SC name, and now refer pvc in pod or deployment manifest,mount and use.
+
+-------------------------------
+A PersistentVolumeClaim requests either Disk or File storage of a particular StorageClass, access mode, and size. 
+There is a 1:1 mapping of persistent volumes to PVC.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azure-managed-disk
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: managed-premium
+  resources:
+    requests:
+      storage: 5Gi
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nginx
+spec:
+  containers:
+    - name: myfrontend
+      image: nginx
+      volumeMounts:
+      - mountPath: "/mnt/azure"
+        name: volume
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: azure-managed-disk
+
+=================================================================
+An Azure disk can only be mounted to a single pod at a time. If you need to share a persistent volume across multiple pods, use Azure Files.
+ Azure disk =>ReadWriteOnce	
+For better performance use Azure Disk
+=================================================================
+
+Create a static(use existing user managed) volume using Azure Disks:
+
+create disk manually
+az disk create \
+  --resource-group MC_myResourceGroup_myAKSCluster_eastus \
+  --name myAKSDisk \
+  --size-gb 20 \
+  --query id --output tsv
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  containers:
+  - image: nginx:1.15.5
+    name: mypod
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    volumeMounts:
+      - name: azure
+        mountPath: /mnt/azure
+  volumes:
+      - name: azure
+        azureDisk:
+          kind: Managed
+          diskName: myAKSDisk
+          diskURI: /subscriptions/<subscriptionID>/resourceGroups/MC_myAKSCluster_myAKSCluster_eastus/providers/Microsoft.Compute/disks/myAKSDisk
+
+verify:
+kubectl describe pod mypod
+======================================================================
+Create a dynamic(ie. aks managed ) volume using Azure Disks:
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azure-managed-disk
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: managed-premium
+  resources:
+    requests:
+      storage: 5Gi
+
+kind: Pod
+apiVersion: v1
+metadata:
+  name: mypod
+spec:
+  containers:
+  - name: mypod
+    image: nginx:1.15.5
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    volumeMounts:
+    - mountPath: "/mnt/azure"
+      name: volume
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: azure-managed-disk
+
+verify:
+kubectl describe pod mypod
+------------------------------
+Back up a persistent volume:
+
+$ kubectl get pvc azure-managed-disk
+
+NAME                 STATUS    VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS      AGE
+azure-managed-disk   Bound     pvc-faf0f176-8b8d-11e8-923b-deb28c58d242   5Gi        RWO            managed-premium   3m
+
+
+
+$ az disk list --query '[].id | [?contains(@,`pvc-faf0f176-8b8d-11e8-923b-deb28c58d242`)]' -o tsv
+/subscriptions/<guid>/resourceGroups/MC_MYRESOURCEGROUP_MYAKSCLUSTER_EASTUS/providers/MicrosoftCompute/disks/kubernetes-dynamic-pvc-faf0f176-8b8d-11e8-923b-deb28c58d242
+
+
+ creates a snapshot named pvcSnapshot in the same resource group as the AKS cluster (MC_myResourceGroup_myAKSCluster_eastus)
+$ az snapshot create \
+    --resource-group MC_myResourceGroup_myAKSCluster_eastus \
+    --name pvcSnapshot \
+    --source /subscriptions/<guid>/resourceGroups/MC_myResourceGroup_myAKSCluster_eastus/providers/MicrosoftCompute/disks/kubernetes-dynamic-pvc-faf0f176-8b8d-11e8-923b-deb28c58d242
+
+---------------------------------
+Restore and use a snapshot:
+
+creates a disk named pvcRestored from the snapshot named pvcSnapshot:
+az disk create --resource-group MC_myResourceGroup_myAKSCluster_eastus --name pvcRestored --source pvcSnapshot
+
+
+Get the disk ID :
+az disk show --resource-group MC_myResourceGroup_myAKSCluster_eastus --name pvcRestored --query id -o tsv
+
+
+kind: Pod
+apiVersion: v1
+metadata:
+  name: mypodrestored
+spec:
+  containers:
+  - name: mypodrestored
+    image: nginx:1.15.5
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    volumeMounts:
+    - mountPath: "/mnt/azure"
+      name: volume
+  volumes:
+    - name: volume
+      azureDisk:
+        kind: Managed
+        diskName: pvcRestored
+        diskURI: /subscriptions/<guid>/resourceGroups/MC_myResourceGroupAKS_myAKSCluster_eastus/providers/Microsoft.Compute/disks/pvcRestored
+
+
+=========================================================================
+Create a static(ie. use existing user managed) volume using Azure Files:
+
+Before you can use Azure Files as a Kubernetes volume, you must create an Azure Storage account and the file share. 
+
+# Change these four parameters as needed for your own environment
+AKS_PERS_STORAGE_ACCOUNT_NAME=mystorageaccount$RANDOM
+AKS_PERS_RESOURCE_GROUP=myAKSShare
+AKS_PERS_LOCATION=eastus
+AKS_PERS_SHARE_NAME=aksshare
+
+# Create a resource group
+az group create --name $AKS_PERS_RESOURCE_GROUP --location $AKS_PERS_LOCATION
+
+# Create a storage account
+az storage account create -n $AKS_PERS_STORAGE_ACCOUNT_NAME -g $AKS_PERS_RESOURCE_GROUP -l $AKS_PERS_LOCATION --sku Standard_LRS
+
+# Export the connection string as an environment variable, this is used when creating the Azure file share
+export AZURE_STORAGE_CONNECTION_STRING=$(az storage account show-connection-string -n $AKS_PERS_STORAGE_ACCOUNT_NAME -g $AKS_PERS_RESOURCE_GROUP -o tsv)
+
+# Create the file share
+az storage share create -n $AKS_PERS_SHARE_NAME --connection-string $AZURE_STORAGE_CONNECTION_STRING
+
+# Get storage account key
+STORAGE_KEY=$(az storage account keys list --resource-group $AKS_PERS_RESOURCE_GROUP --account-name $AKS_PERS_STORAGE_ACCOUNT_NAME --query "[0].value" -o tsv)
+
+# Echo storage account name and key
+echo Storage account name: $AKS_PERS_STORAGE_ACCOUNT_NAME
+echo Storage account key: $STORAGE_KEY
+
+
+
+
+kubectl create secret generic azure-secret --from-literal=azurestorageaccountname=$AKS_PERS_STORAGE_ACCOUNT_NAME --from-literal=azurestorageaccountkey=$STORAGE_KEY
+
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  containers:
+  - image: nginx:1.15.5
+    name: mypod
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    volumeMounts:
+      - name: azure
+        mountPath: /mnt/azure
+  volumes:
+  - name: azure
+    azureFile:
+      secretName: azure-secret
+      shareName: aksshare
+      readOnly: false
+
+------------------
+Overriding Mount options:
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: azurefile
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: azurefile
+  azureFile:
+    secretName: azure-secret
+    shareName: aksshare
+    readOnly: false
+  mountOptions:
+  - dir_mode=0777
+  - file_mode=0777
+  - uid=1000
+  - gid=1000
+  - mfsymlinks
+  - nobrl
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azurefile
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: azurefile
+  resources:
+    requests:
+      storage: 5Gi
+
+
+
+
+Update your container spec to reference your PersistentVolumeClaim and update your pod. For example:
+
+...
+  volumes:
+  - name: azure
+    persistentVolumeClaim:
+      claimName: azurefile
+
+=====================================
+Create a dynamic(ie. aks managed ) volume using Azure Files:
+	
+Standard_LRS - standard locally redundant storage (LRS)
+Standard_GRS - standard geo-redundant storage (GRS)
+Standard_ZRS - standard zone redundant storage (ZRS)
+Standard_RAGRS - standard read-access geo-redundant storage (RA-GRS)
+Premium_LRS - premium locally redundant storage (LRS)
+
+Note:
+Azure Files support premium storage in AKS clusters that run Kubernetes 1.13 or higher, minimum premium file share is 100GB
+
+
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: azurefile
+provisioner: kubernetes.io/azure-file
+mountOptions:
+  - dir_mode=0777
+  - file_mode=0777
+  - uid=0
+  - gid=0
+  - mfsymlinks
+  - cache=strict
+parameters:
+  skuName: Standard_LRS
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azurefile
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: azurefile
+  resources:
+    requests:
+      storage: 5Gi
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: mypod
+spec:
+  containers:
+  - name: mypod
+    image: nginx:1.15.5
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    volumeMounts:
+    - mountPath: "/mnt/azure"
+      name: volume
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: azurefile
+
+
+
+
+
+

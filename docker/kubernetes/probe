@@ -19,12 +19,109 @@ If the check fails(failureThreshhold reached),it restarts the container
 parameters of readiness and liveness probe:
 1)initialDelaysSecond
 2)periodSeconds:default 10 secs, min 1sec.
-3)timeout: default 1 sec,minimum 1sec
-4)successThreshhold:default 1,No consicutive successto consider service is up and running.
-5)failureThreshhold:default 3
+3)timeoutSeconds: default 1 sec,minimum 1sec
+4)successThreshold:default 1,No consicutive successto consider service is up and running.
+5)failureThreshold:default 3
 
+understand the default behavior (interval: 10s, timeout: 1s, successThreshold: 1, failureThreshold: 3) of probes
+the default values mean that a Pod will become not-ready after ~30s (3 failing health checks)
 
+https://srcco.de/posts/kubernetes-liveness-probes-are-dangerous.html
 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app1
+  labels:
+    app: app1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app1
+  template:
+    metadata:
+      labels:
+        app: app1
+    spec:
+      containers:
+      - name: app1
+        image: guharoytamajit/echo:1.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: msg
+          value: "Hello from app1 "
+        - name: min_time_sec
+          value:  "5"
+        resources:
+          requests:
+            memory: "70Mi"
+            cpu: "100m"
+          limits:
+            memory: "200Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /systeminfo
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 3   
+          timeoutSeconds: 3
+          successThreshold: 1 
+          failureThreshold: 2
+        readinessProbe:
+          httpGet:
+            path: /systeminfo
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 60   
+          timeoutSeconds: 3
+          successThreshold: 1 
+          failureThreshold: 2          
+                    
+            
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1
+  labels:
+    app: app1
+  namespace: default  
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+  selector:
+    app: app1
+  type: NodePort
+
+===========================
+In above example deployment has a readinessProbe with initialDelaySeconds=60s and periodSeconds=60s
+If you application cannot boot in 60 seconds it will restart the container again and again and it will enter in CrashLoopBackOff
+
+What is a Kubernetes CrashLoopBackOff? 
+A CrashloopBackOff means that you have a pod starting, crashing, starting again, and then crashing again.
+
+A PodSpec has a restartPolicy field with possible values Always, OnFailure, and Never which applies to all containers in a pod. The default value is Always and the restartPolicy only refers to restarts of the containers by the kubelet on the same node (so the restart count will reset if the pod is rescheduled in a different node). Failed containers that are restarted by the kubelet are restarted with an exponential back-off delay (10s, 20s, 40s …) capped at five minutes, and is reset after ten minutes of successful execution. This is an example of a PodSpec with the restartPolicy field:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dummy-pod
+spec:
+  containers:
+    - name: dummy-pod
+      image: ubuntu
+  restartPolicy: Always
+
+===============================
+events:
+
+kubectl get events -o yaml|grep -A 5 'Deployment' 
+kubectl get events --field-selector involvedObject.kind=Deployment,involvedObject.name=app1
+      
 
 
 

@@ -1,0 +1,25 @@
+source=>https://alexei-led.github.io/post/k8s_node_shell/
+
+
+>chmod +x nsenter-node.sh
+>kubecdtl get nodes
+>./nsenter-node.sh <nodename>
+------------------------------------------------------
+
+or use https://github.com/mohatb/kubectl-wls/tree/master:
+kubectl-wls   (no need to give node name,it will ask from a list)
+
+---------------------------------------------------
+login from vm in same subnet(id_rsa will allog to login inside node as we have used --generate-ssh during cluster creation):
+
+
+    
+scp id_rsa user123@vm.public.ip:~
+
+    
+ssh user123@vm.publicip
+
+    
+ssh -i id_rsa azureuser@10.12.42.4
+
+

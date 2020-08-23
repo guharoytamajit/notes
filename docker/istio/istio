@@ -3,7 +3,7 @@ Istio is not going to be replacement for k8s, its an extra layer of software dep
 Any kind of software with distributed architecture(eg k8s) would benefit from service mesh
 
 What is service mesh:
-on k8s contains would directly communicate with each other
+on k8s containers would directly communicate with each other
 With service mesh architecture,container will talk to each other via service mesh.
 the advantage here is service mesh is not only aware of all interaction(useful in telemetry) but they can also add some processing.
 see fig istio01.png
@@ -131,7 +131,7 @@ This means that istio can work with non k8s softwares like consul.So when workin
 Pilot(istio-pilot-5d454cbb46-pr4h7   pod):
 As input it takes configuration in internal structure that istio understands from galley
 Pilot is responsible for converting the configuration into a format that envoy understands.
-It is also pesponsible for propogating the configurations to proxies(envoy)
+It is also responsible for propogating the configurations to proxies(envoy containers)
  
 Citadel:
 Manages TSL certificates,to have secure communication between proxies.

@@ -25,7 +25,7 @@ command: can be overwritten in command line.
 ===================================
 Kubernetes container command vs Kubernetes container args:
 k8s command: same as docker entrypoint cannot be overwritten,further it will overwrite docker image entrypoint. 
-k8s args: same as docker args,can be overwritten in command line,it can overwrite docker image command(cannot overwrite but appends to docker image entrypoint)
+k8s args: same as docker cmd,can be overwritten in command line,it can overwrite docker image command(cannot overwrite but appends to docker image entrypoint)
 
 
 eg

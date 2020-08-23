@@ -57,7 +57,8 @@ delete jenkins service:
 >docker-compose down
 ===============================
 Using docker:
->docker run -d -p 8080:8080 -p 50000:50000 -v /your/home:/var/jenkins_home jenkins/jenkins
+>docker run -d -p 8080:8080 -p 50000:50000 -v /home/tamajit/tmp/jenkins:/var/jenkins_home jenkins/jenkins
+/home/tamajit/tmp/jenkins
 ========================================
 Change default login page:
 >systemctl jenkins stop
@@ -217,7 +218,7 @@ Note: variables and build parameters can be accessed using '$' (eg. $name) and a
 task2:
 create a simple script,copy inside jenkins container,execute the script using jenkins job
 
-create a script file test.sh
+create a script file test.sh with content:
 '''
 echo hello $1
 '''

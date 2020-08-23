@@ -1,0 +1,25 @@
+Virtual Private Cloud(VPC):
+In gcp vpc is global(can span multiple regions)
+VPC has multi-tenancy ie. it can be shared across GCP projects.So VM of different projects in same VPC can talk to each other using private ip(if permitted by route-table and firewall)
+hard limit of instances(eg VM) in a single VPC is 7000 
+Each project in gcp can have upto 5 vpc(this is quota not hard limit)
+
+sebnets are not global,a single subnet can span multiple AZ in same region.
+every instances in vpc can 
+
+
+
+VPC=>global
+subnet=>region
+
+
+Note:GCP networks are collection of subnets which have their own ip ranges, subnet ip range do not have to fit into the larger network range. So VPC and subnet dont have hierarchical structure.
+
+Types of CPC Networks:
+1)Auto mode: Automatically sets up a single subnet in each region- can manually create more subnets.
+2)Custom mode: No subnet are set up by default,we have to manually configure all subnets.
+
+The default network is an auto-mode network,it has nnumber of routes and firewall rules preconfigured
+----------------------------------
+VM can have single primary private ip and multiple secondary private ip from different subnet
+public/private ip addresses can be static or ephemeral

@@ -23,7 +23,13 @@ Transformations just builds a DAG(logical execution plan) and dont do anything.
 Task will correspond to individual partitions of one of more RDDs with narrow dependencies.
 single task will operate on one hadoop input split.
 
-
+============================
+spark vs hadoop
+problems with hadoop:
+hadoop is very rigid,  we can only do map and reduce operations. Spark supports many other operations like join,filter,sort etc(sparks supports over 80 high level operators)
+in hadoop chain operation,the result of one map-reduce has to be saved in hard disk,then processed by another MR operation.(hard disk has high latency)
+Spark creates an execution plan,and runs lazily when required,hence its execution engine can make clever optimization at runtime eg if two operations are not-dependent on each other they can be run in parallel
+even if we deploy spark in single machine,it can still take advantage of multiple cores and do parallel processing
 
 ====Units of physical execution=============
 
@@ -185,8 +191,36 @@ yarn-client mode – A driver runs on client process, Application Master is only
 yarn-cluster mode – A driver runs inside application master process, client goes away once the application is initialized
 
 Cores : A core is a basic computation unit of CPU and a CPU may have one or more cores to perform tasks at a given time. The more cores we have, the more work we can do. In spark, this controls the number of parallel tasks an executor can run.
+================
+number of tasks in a stage is  partition size of RDD.(multiple narrow transforms of same partition will as part of same task)
+RDD has n number of partitions which are distributed across worker nodes
+Driver sends java operations(eg filter,sort) to workers this operations is applied on each partitions
+"When you create the SparkContext, each worker starts an executor". This is a separate process (JVM), and it loads your jar too.
+The executors connect back to your driver program. Now the driver can send them commands, like flatMap, map and reduceByKey in your example. When the driver quits, the executors shut down.
+A task is a command sent from the driver to an executor by serializing your Function object.The executor deserializes the command(this is possible because it has loaded your jar),and executes it on a partition
 
 
+summary:
+When a SparkContext is created, each worker node starts an executor. Executors are separate processes (JVM), that connects back to the driver program. Each executor has the jar of the driver program. Quitting a driver, shuts down the executors. Each executor can hold some partitions.
+When a job is executed, an execution plan is created according to the lineage graph.
+The execution job is split into stages, where stages containing as many neighbouring (in the lineage graph) transformations and action, but no shuffles. Thus stages are separated by shuffles.
+
+how many tasks ? The number of tasks should be equal to
+Sum of (Stage * #Partitions in the stage)
+
+https://stackoverflow.com/questions/37528047/how-are-stages-split-into-tasks-in-spark
+
+
+This might help you better understand different pieces:
+
+Stage: is a collection of tasks. Same process running against different subsets of data (partitions).
+Task: represents a unit of work on a partition of a distributed dataset. So in each stage, number-of-tasks = number-of-partitions, or as you said "one task per stage per partition”.
+Each executer runs on one yarn container, and each container resides on one node.
+Each stage utilizes multiple executers, each executer is allocated multiple vcores.
+Each vcore can execute exactly one task at a time
+So at any stage, multiple tasks could be executed in parallel. number-of-tasks running = number-of-vcores being used.
+
+the number of tasks in a stage is the number of partitions ( common to the consecutive rdds "glued" together )
 
 ===============
 

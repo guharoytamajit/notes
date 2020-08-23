@@ -1,0 +1,53 @@
+The agent section specifies where the entire Pipeline, or a specific stage, will execute in the Jenkins environment depending on where the agent section is placed.
+The section must be defined at the top-level inside the pipeline block, but stage-level usage is optional.
+
+You can Set a label under the Configuration of the Node. You can use a label in your pipeline like:
+
+pipeline {
+agent { label 'labelName' }
+(...)
+}
+
+
+'agent any'  means Execute the Pipeline, or stage, on any available agent.
+
+--------------------------------
+jenkins pipeline: agent vs node?
+
+
+The simple answer is, Agent is for declarative pipelines and node is for scripted pipelines.
+
+In declarative pipelines the agent directive is used for specifying which agent/slave the job/task is to be executed on. This directive only allows you to specify where the task is to be executed, which agent, slave, label or docker image.
+
+On the other hand, in scripted pipelines the node step can be used for executing a script/step on a specific agent, label, slave. The node step optionally takes the agent or label name and then a closure with code that is to be executed on that node.
+
+--------------------------------------------
+https://devopscube.com/setup-slaves-on-jenkins-2/
+
+
+
+One of the best features of Jenkins is its distributed nature. You can configure multiple build slaves for better segregation and scalability. For example, you might want to test a cross-platform code base with a different operating system. In this case, you can configure different OS slaves and run the job against them. Also, a distributed architecture will reduce the load on the master server.
+
+ssh plugin must be installed in jenkins
+
+On slave node:
+1)install ssh
+apt-get update && apt-get install -y openssh-server
+
+2)create user:
+sudo adduser jenkins --shell /bin/bash
+
+3)Create a “jenkins_slave” directory under /home/jenkins.
+
+mkdir /home/jenkins/jenkins_slave
+
+
+todo
+
+-----------------------------------------------------
+
+
+
+
+
+

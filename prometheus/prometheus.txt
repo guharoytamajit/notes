@@ -33,7 +33,7 @@ All data in prometheus is stored as time series
 Every time series is identified by "metric name"  and a set of key-value pairs called "labels".
 Time series actual data is called samples(could be float64 value or timestamp with millisecond precision etc)
 The notation of time series is often using the notation:
-  <metric-name>{<label name>=<label value>,....}
+  <metric-name>{<label name>=<label value>,....} value [timestamp]
   example:
   node_boot_time{instance="localhost:9100",job="node_exporter"}
   
@@ -43,3 +43,164 @@ The conf can be changed and applied without restarting  prometheus:
    -reload configuration can be done by  >kill -SIGNUP <pid>  
 You can also pass  parameters(flags) at startup time to ./prometheus( but these flag parameters cannot be changed without restarting prometheus)
 Configuration file can pe passed to ./prometheus using flag --config.file
+-------------------------------
+download prometheus https://prometheus.io/download
+
+>tar -xzf prometheus-*.linux-amd64.tar.gz
+>cd prometheus-*.linux-amd64/
+
+lets configure prometheus to monitor itself
+----prometheus.yml----
+global:
+  scrape_interval: 10s
+scrape_configs:
+ - job_name: prometheus
+   static_configs:
+    - targets:
+       - localhost:9090 
+
+
+>./prometheus
+
+hit http://localhost:9090
+
+in  status>target option you will see all the target endpoints
+
+see all metrics:
+http://localhost:9090/metrics 
+
+lets see a few metrics :
+up(if prometheus is up and running),process_resident_memory_bytes(memmory used by prometheus)
+
+we can search for all targets that are down as:  "up == 0"   in the expression browser
+
+The aboove  metrics are of gauge type
+Second core type of metrics is called counter,which keeps on increasing eg. "prometheus_tsdb_head_​samples_appended_total", the number of samples Prometheus has ingested.
+
+Counters are always increasing so its graph are a line climbing hill,which may not be always that useful.
+We can plat the rate of a counter metrics: 
+eg.  rate(prometheus_tsdb_head_samples_appended_total[1m]) =>which will calculate how many samples Prometheus is ingesting per second averaged over one minute 
+
+Metrics types:
+https://blog.pvincent.io/2017/12/prometheus-blog-series-part-2-metric-types/
+
+=========================================================================================================================
+Exporters:
+Not all system getting monitored by prometheus exposes metrics in Prometheus's format  over HTTP 
+
+
+An exporter is a piece of software that you deploy right beside the application you want to obtain metrics from. It takes in requests from Prometheus, gathers the required data from the application, transforms them into the correct format, and finally returns them in a response to Prometheus. You can think of an exporter as a small one-to-one proxy, converting data between the metrics interface of an application and the Prometheus exposition format.
+
+
+---------------
+Node exporter:
+The Node exporter exposes kernel- and machine-level metrics on Unix systems, such as Linux.
+It provides all the standard metrics such as CPU, memory, disk space, disk I/O, and network bandwidth. In addition it provides a myriad of additional metrics exposed by the kernel, from load average to motherboard temperature.
+
+Download and install Node exporter
+
+>tar -xzf node_exporter-*.linux-amd64.tar.gz
+>cd node_exporter-*.linux-amd64/
+>./node_exporter
+
+
+You can now access the Node exporter in your browser at http://localhost:9100/ and visit its /metrics endpoint.
+
+
+To get Prometheus to monitor the Node exporter, we need to update the prometheus.yml by adding an additional scrape config::
+
+----prometheus.yml----
+global:
+  scrape_interval: 10s
+scrape_configs:
+ - job_name: prometheus
+   static_configs:
+    - targets:
+       - localhost:9090
+ - job_name: node
+   static_configs:
+    - targets:
+       - localhost:9100
+
+Restart Prometheus to pick up the new configuration by using Ctrl-C to shut it down and then start it again.
+in  status>target option you will see new target endpoint localhost:9100
+
+we can view metrics of node job as below from browser:  
+process_resident_memory_bytes{job="node"}
+rate(node_network_receive_bytes_total[1m])  #node_network_receive_bytes_total is a counter for how many bytes have been received by network interfaces.
+
+=========================================================================================================================
+Alerting:
+There are two parts to alerting. 
+1)Adding alerting rules to Prometheus,defining the logic of what constitutes an alert. 
+2)The Alertmanagerconverts firing alerts into notifications, such as emails, pages, and chatmessages.
+
+
+----prometheus.yml ----------
+#prometheus.yml scraping two targets, loading a rule file, and talking to an Alertmanager
+
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s    #The InstanceDown alert will be evaluated every 10 seconds
+rule_files:
+ - rules.yml
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+       - localhost:9093
+scrape_configs:
+ - job_name: prometheus
+   static_configs:
+    - targets:
+       - localhost:9090
+ - job_name: node
+   static_configs:
+    - targets:
+       - localhost:9100
+
+
+---rules.yml--------
+#rules.yml with a single alerting rule,it is check if any target endpoint is down
+groups:
+ - name: example
+   rules:
+   - alert: InstanceDown
+     expr: up == 0
+     for: 1m               #alert will only be triggered if "up==0" condition returns true for atleast one minute
+
+
+The InstanceDown alert will be evaluated every 10 seconds in accordance with the evaluation_interval. If a series is continuously returned for at least a minute (the for), then the alert will be considered to be firing. Until the required minute is up, the alert will be in a pending state. On the Alerts page you can click this alert and see more detail.
+
+
+
+Configure Alertmanager:
+>tar -xzf alertmanager-*.linux-amd64.tar.gz
+>cd alertmanager-*.linux-amd64/
+
+------alertmanager.yml-----------
+# alertmanager.yml sending all alerts to email
+global:
+  smtp_smarthost: 'localhost:25'
+  smtp_from: 'youraddress@example.org'
+route:
+  receiver: example-email
+receivers:
+ - name: example-email
+   email_configs:
+    - to: 'youraddress@example.org'
+
+>./alertmanager  #start alert manager
+
+You can now access the Alertmanager in your browser at http://localhost:9093/ where you will see your firing alert.
+If everything is set up and working correctly, after a minute or two you should receive a notification from the Alertmanager in your email inbox.
+
+===================================================================================================================================
+
+
+
+
+
+
+
+

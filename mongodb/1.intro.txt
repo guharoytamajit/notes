@@ -1,0 +1,320 @@
+Document oriented nosql
+stores data in bson
+no schema
+has both enterprise and community edition
+also has cloud(Atlas) and mobile solution
+ui : robo,compass
+"mongodb charts" used for datascience
+Stitch: serverless mongodb,it provides a serverless query api, also have serverless funvtions with is similar to AWS lambdas
+has database triggers
+========================
+RDBMS>mongodb anology
+database => database
+table=>collection
+rows=>records
+column=>field
+index=>index
+
+==============
+install:
+add $MONGODB_HOME/bin to path
+mongo: mongo client
+mongod:mongodb server
+
+
+
+>mongod --dbpath /home/tamajit/tmp/mongo/db   #start db server,if path has space wrap it in quote
+
+--mongodb.conf----------
+dbpath=/var/lib/mongodb
+logpath=/var/log/mongodb/mongodb.log
+#port = 27017
+--------------------
+>mongod --config /path/to/your/mongodb.config
+
+
+
+use mongo as service:
+>sudo service mongodb start
+>sudo service mongodb stop
+>sudo service mongodb restart
+---------------------
+>mongo   #start db client
+>db.help()
+>db.stats()
+>show dbs  #show databases
+>db   #show current selected db
+>use mydb  #switch to shop database, shop database may not exist yet,in that case it will be created on fly once we start inserting data
+>db
+mydb
+>db.dropDatabase()   #to drop current database
+>db.unicorns.insert({name: 'Aurora',gender: 'f', weight: 450})   #will create collection automatically
+>db.unicorns.find()
+{ "_id" : ObjectId("5e7edb45fbd3e9879471853d"), "name" : "Aurora", "gender" : "f", "weight" : 450 }
+
+every rocord has an unique id "_id" if we dont provide any then mongo will generate one.
+this _id need not be of type ObjectId ,if we want we can provide string value as _id,but it has to be unique
+By default, the _id field is indexed. You can verify this through the getIndexes command:
+>db.unicorns.getIndexes()
+
+db.<collection>.help()  #see everything you can do in collection
+
+
+insert more records:
+db.unicorns.insert({name: 'Leto',gender: 'm', home: 'Arrakeen', worm: false});
+db.unicorns.insert({name: 'Horny', dob: new Date(1992,2,13,7,47),loves: ['carrot','papaya'],weight: 600,gender: 'm',vampires: 63});
+db.unicorns.insert({name: 'Aurora',dob: new Date(1991, 0, 24, 13, 0),loves: ['carrot', 'grape'],weight: 450,gender: 'f',vampires: 43});
+db.unicorns.insert({name: 'Unicrom',dob: new Date(1973, 1, 9, 22, 10),loves: ['energon', 'redbull'],weight: 984,gender: 'm',vampires: 182});
+db.unicorns.insert({name: 'Roooooodles',dob: new Date(1979, 7, 18, 18, 44),loves: ['apple'],weight: 575,gender: 'm',vampires: 99});
+db.unicorns.insert({name: 'Solnara',dob: new Date(1985, 6, 4, 2, 1),loves:['apple', 'carrot','chocolate'],weight:550,gender:'f',vampires:80});
+db.unicorns.insert({name:'Ayna',dob: new Date(1998, 2, 7, 8, 30),loves: ['strawberry', 'lemon'],weight: 733,gender: 'f',vampires: 40});
+db.unicorns.insert({name:'Kenny',dob: new Date(1997, 6, 1, 10, 42),loves: ['grape', 'lemon'],weight: 690,gender: 'm',vampires: 39});
+db.unicorns.insert({name: 'Raleigh',dob: new Date(2005, 4, 3, 0, 57),loves: ['apple', 'sugar'],weight: 421,gender: 'm',vampires: 2});
+db.unicorns.insert({name: 'Leia',dob: new Date(2001, 9, 8, 14, 53),loves: ['apple', 'watermelon'],weight: 601,gender: 'f',vampires: 33});
+db.unicorns.insert({name: 'Pilot',dob: new Date(1997, 2, 1, 5, 3),loves: ['apple', 'watermelon'],weight: 650,gender: 'm',vampires: 54});
+db.unicorns.insert({name: 'Nimue',dob: new Date(1999, 11, 20, 16, 15),loves: ['grape', 'carrot'],weight: 540,gender: 'f'});
+db.unicorns.insert({name: 'Dunx',dob: new Date(1976, 6, 18, 18, 18),loves: ['grape', 'watermelon'],weight: 704,gender: 'm',vampires: 165});
+
+Note:
+we could have inserted multiple records at once eg.  >db.test.insert([{name:1},{name:2},{name:3}])
+also see insertOne() and insertMany()
+
+
+>db.unicorns.find()
+{ "_id" : ObjectId("5e7edb45fbd3e9879471853d"), "name" : "Aurora", "gender" : "f", "weight" : 450 }
+{ "_id" : ObjectId("5e7edd71fbd3e9879471853e"), "name" : "Leto", "gender" : "m", "home" : "Arrakeen", "worm" : false }
+{ "_id" : ObjectId("5e7edd71fbd3e9879471853f"), "name" : "Horny", "dob" : ISODate("1992-03-13T02:17:00Z"), "loves" : [ "carrot", "papaya" ], "weight" : 600, "gender" : "m", "vampires" : 63 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718540"), "name" : "Aurora", "dob" : ISODate("1991-01-24T07:30:00Z"), "loves" : [ "carrot", "grape" ], "weight" : 450, "gender" : "f", "vampires" : 43 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718541"), "name" : "Unicrom", "dob" : ISODate("1973-02-09T16:40:00Z"), "loves" : [ "energon", "redbull" ], "weight" : 984, "gender" : "m", "vampires" : 182 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718542"), "name" : "Roooooodles", "dob" : ISODate("1979-08-18T13:14:00Z"), "loves" : [ "apple" ], "weight" : 575, "gender" : "m", "vampires" : 99 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718543"), "name" : "Solnara", "dob" : ISODate("1985-07-03T20:31:00Z"), "loves" : [ "apple", "carrot", "chocolate" ], "weight" : 550, "gender" : "f", "vampires" : 80 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718544"), "name" : "Ayna", "dob" : ISODate("1998-03-07T03:00:00Z"), "loves" : [ "strawberry", "lemon" ], "weight" : 733, "gender" : "f", "vampires" : 40 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718545"), "name" : "Kenny", "dob" : ISODate("1997-07-01T05:12:00Z"), "loves" : [ "grape", "lemon" ], "weight" : 690, "gender" : "m", "vampires" : 39 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718546"), "name" : "Raleigh", "dob" : ISODate("2005-05-02T19:27:00Z"), "loves" : [ "apple", "sugar" ], "weight" : 421, "gender" : "m", "vampires" : 2 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718547"), "name" : "Leia", "dob" : ISODate("2001-10-08T09:23:00Z"), "loves" : [ "apple", "watermelon" ], "weight" : 601, "gender" : "f", "vampires" : 33 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718548"), "name" : "Pilot", "dob" : ISODate("1997-02-28T23:33:00Z"), "loves" : [ "apple", "watermelon" ], "weight" : 650, "gender" : "m", "vampires" : 54 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718549"), "name" : "Nimue", "dob" : ISODate("1999-12-20T10:45:00Z"), "loves" : [ "grape", "carrot" ], "weight" : 540, "gender" : "f" }
+{ "_id" : ObjectId("5e7edd74fbd3e9879471854a"), "name" : "Dunx", "dob" : ISODate("1976-07-18T12:48:00Z"), "loves" : [ "grape", "watermelon" ], "weight" : 704, "gender" : "m", "vampires" : 165 }
+
+
+Important note:
+find returns a cursor object(not all records) whose execution is delayed until needed, but when executed from shell find executes immediately
+If the number of records is > 20, first 20 records displayed in shell,type "it" to view next 20 records.Alternatively we can iterate through cursor >db.unicorns.find().forEach((rec)=>{printjson(rec)})
+Also see findOne() which doesnot returns a cursor but returns first matching record
+
+>db.unicorns.count()
+14
+
+list of male unicorns
+> db.unicorns.find({gender: 'm'})
+
+All unicorns which are male "AND" weight > 700
+>db.unicorns.find({gender: 'm', weight: {$gt: 700}})
+
+The special $lt, $lte, $gt, $gte and $ne are used for less than, less than or equal, greater than, greater than or equal and not equal operations.
+By default AND not OR
+
+
+$exists operator is used for matching the presence or absence of a field:
+>db.unicorns.find({vampires: {$exists: false}})
+
+>The ‘$in’ operator is used for matching one of several values that we pass as an array
+>db.unicorns.find({loves: {$in:['apple','redbull']}})
+{ "_id" : ObjectId("5e7edd71fbd3e98794718541"), "name" : "Unicrom", "dob" : ISODate("1973-02-09T16:40:00Z"), "loves" : [ "energon", "redbull" ], "weight" : 984, "gender" : "m", "vampires" : 182 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718542"), "name" : "Roooooodles", "dob" : ISODate("1979-08-18T13:14:00Z"), "loves" : [ "apple" ], "weight" : 575, "gender" : "m", "vampires" : 99 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718543"), "name" : "Solnara", "dob" : ISODate("1985-07-03T20:31:00Z"), "loves" : [ "apple", "carrot", "chocolate" ], "weight" : 550, "gender" : "f", "vampires" : 80 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718546"), "name" : "Raleigh", "dob" : ISODate("2005-05-02T19:27:00Z"), "loves" : [ "apple", "sugar" ], "weight" : 421, "gender" : "m", "vampires" : 2 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718547"), "name" : "Leia", "dob" : ISODate("2001-10-08T09:23:00Z"), "loves" : [ "apple", "watermelon" ], "weight" : 601, "gender" : "f", "vampires" : 33 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718548"), "name" : "Pilot", "dob" : ISODate("1997-02-28T23:33:00Z"), "loves" : [ "apple", "watermelon" ], "weight" : 650, "gender" : "m", "vampires" : 54 }
+
+>db.unicorns.find({gender: {$in:['m','f']}}).count()
+14
+
+gender = 'f' AND (loves = 'apple'  OR weight < 500)
+>db.unicorns.find({gender: 'f', $or: [{loves: 'apple'},{weight: {$lt: 500}}]})
+{ "_id" : ObjectId("5e7edb45fbd3e9879471853d"), "name" : "Aurora", "gender" : "f", "weight" : 450 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718540"), "name" : "Aurora", "dob" : ISODate("1991-01-24T07:30:00Z"), "loves" : [ "carrot", "grape" ], "weight" : 450, "gender" : "f", "vampires" : 43 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718543"), "name" : "Solnara", "dob" : ISODate("1985-07-03T20:31:00Z"), "loves" : [ "apple", "carrot", "chocolate" ], "weight" : 550, "gender" : "f", "vampires" : 80 }
+{ "_id" : ObjectId("5e7edd71fbd3e98794718547"), "name" : "Leia", "dob" : ISODate("2001-10-08T09:23:00Z"), "loves" : [ "apple", "watermelon" ], "weight" : 601, "gender" : "f", "vampires" : 33 }
+
+=======================================
+Update:
+Replace whole record:
+db.unicorns.update({<condition>},{<new record>})
+
+Update fields of record,not replace whole record:
+db.unicorns.update({<condition>}, {$set: {<fields to update>}})
+
+
+Replace record where name='Roooooodles' with {weight: 590}
+>db.unicorns.update({name: 'Roooooodles'},{weight: 590})
+
+now the following record  will return no document  as previous record is replace(not field updated)
+>db.unicorns.find({name: 'Roooooodles'})
+
+bring back old record:
+>db.unicorns.update({weight: 590}, {$set: {name: 'Roooooodles',dob: new Date(1979, 7, 18, 18, 44),loves: ['apple'],gender: 'm',vampires: 99}})
+
+Now here record is not replaced only field is updated
+>db.unicorns.update({name: 'Roooooodles'},{$set: {weight: 590}})
+
+>db.unicorns.find({name: 'Roooooodles'})
+
+
+In addition to $set, there are few other update operators:
+$inc =>increment value
+$push=> add value to list
+
+If Pilot was incorrectly awarded a couple vampire kills, we could correct the mistake by executing:
+>db.unicorns.update({name: 'Pilot'},{$inc: {vampires: -2}})
+
+If Aurora suddenly developed a sweet tooth, we could add a value to her loves field via the $push operator:
+>db.unicorns.update({name: 'Aurora'},{$push: {loves: 'sugar'}})
+
+Note:
+also see updateOne(),updatemany(),replaceOne()
+
+----------
+Upserts: if record present update it else insert new record
+To enable upserting we pass a third parameter to update {upsert:true}.
+
+following record not present so first time it will be inserted:
+>db.hits.update({page: 'unicorns'},{$inc: {hits: 1}}, {upsert:true});
+> db.hits.find();
+{ "_id" : ObjectId("5e7ee8cb416a712838c442a7"), "page" : "unicorns", "hits" : 1 }
+
+if we execute the same command again this time it will update as now the record is present:
+>db.hits.update({page: 'unicorns'},{$inc: {hits: 1}}, {upsert:true});
+> db.hits.find();
+{ "_id" : ObjectId("5e7ee8cb416a712838c442a7"), "page" : "unicorns", "hits" : 2 }
+
+--------------------
+Multiple Updates:
+The final surprise update has to offer is that, by default, it’ll update a single document. 
+
+db.unicorns.update({},{$set: {vaccinated: true }}); # this will add this to only the first match record (not all matched records)
+db.unicorns.find({vaccinated: true});
+
+to enable multiple update set {multi:true}:
+db.unicorns.update({},{$set: {vaccinated: true }},{multi:true});
+db.unicorns.find({vaccinated: true});
+
+-----------------
+delete:
+>db.test.insert([{name:1},{name:1},{name:1}])
+>db.test.deleteOne({name:1})
+>db.test.find()  #only one deleted ,other two still present
+{ "_id" : ObjectId("5e7f0d98fbd3e98794718552"), "name" : 1 }
+{ "_id" : ObjectId("5e7f0d98fbd3e98794718553"), "name" : 1 }
+>db.test.deleteMany({name:1}) #all records deleted
+>db.test.find()
+delete one record
+
+-----------------------
+field selection:
+db.unicorns.find({}, {name: 1});  //select name from unicorns
+
+By default, the _id field is always returned. We can explicitly exclude it by specifying {name:1, _id: 0}
+
+
+
+---------------------
+Ordering:
+using 1 for ascending and -1 for descending.
+
+db.unicorns.find().sort({weight: -1})
+
+db.unicorns.find().sort({name: 1,vampires: -1})
+
+
+Important naot:
+As with a relational database, MongoDB can use an index for sorting. 
+However, you should know that MongoDB limits the size of your sort without an index. That is, if you try to sort a very large result set which can’t use an index, you’ll get an error.
+
+--------------------
+Paging:
+db.unicorns.find().sort({weight: -1}).limit(2).skip(1)
+
+Using limit in conjunction with sort, can be a way to avoid running into problems when sorting on non-indexed fields
+-------------------
+Count:
+db.unicorns.count({vampires: {$gt: 50}})
+
+db.unicorns.find({vampires: {$gt: 50}}).count()
+===========================
+No Joins:
+ joins are generally seen as non-scalable and mongodb does not support it.
+
+one to one relationship:
+db.employees.insert({_id: ObjectId("4d85c7039ab0fd70a117d732"),name: 'Moneo',manager: ObjectId("4d85c7039ab0fd70a117d730")}); 
+
+
+one to many relationship:
+db.employees.insert({_id: ObjectId("4d85c7039ab0fd70a117d733"),name: 'Siona',manager: [ObjectId("4d85c7039ab0fd70a117d730"),ObjectId("4d85c7039ab0fd70a117d732")] })
+
+Besides arrays, MongoDB also supports embedded documents. Go ahead and try inserting a document with a nested document, such as:
+>db.employees.insert({_id: ObjectId( "4d85c7039ab0fd70a117d735"),name: 'Chani',
+family: [ {relation:'mother',name: 'Chani'},
+{relation:'father',name: 'Paul'},
+{relation:'brother', name: 'Duncan'}]})
+
+-------------
+Denormalization:
+ alternative to using joins is to denormalize your data.
+ Denormalization is common in mongodb
+
+=================
+
+capped collection:
+limit our capped collection to 1 megabyte
+>db.createCollection('logs', {capped: true,size: 1048576})
+this is a limit to total space taken by collection.
+When our capped collection reaches its 1MB limit, old documents are automatically purged.
+
+---------------------
+indexing:
+Indexes in MongoDB work a lot like indexes in a relational database: they help improve query and sorting performance.
+
+Indexes are created via ensureIndex:
+// where "name" is the field name
+db.unicorns.ensureIndex({name: 1});
+
+And dropped via dropIndex:
+db.unicorns.dropIndex({name: 1});
+
+A unique index can be created by supplying a second parameter and setting unique to true:
+db.unicorns.ensureIndex({name: 1},{unique: true});
+
+We can also create
+compound indexes:
+db.unicorns.ensureIndex({name: 1,vampires: -1});
+
+Indexes can be created on embedded fields (again, using the dot-notation) and on array fields.
+--------------------------------
+Explain:
+To see whether or not your queries are using an index, you can use the explain method on a cursor:
+db.unicorns.find().explain()
+The output tells us that a BasicCursor was used (which means non-indexed), that 12 objects were scanned, how long
+it took, what index, if any, was used as well as a few other pieces of useful information.
+If we change our query to use an index, we’ll see that a BtreeCursor was used, as well as the index used to fulfill the
+request:
+db.unicorns.find({name: 'Pilot'}).explain()
+=====================
+mongodb can have a record with max size 16mb
+In mongo we can embed one document inside another,max nested level support is 100 levels.
+
+=================
+Datatypes:
+text: single or double quote
+number: also supports decimal
+boolean: true/false
+ObjectId: like uuid
+ISODate(can store both date and time/tz) : eg new Date()
+timestamp: eg. new TimeStamp() 
+Array or nested document
+
+for a small number we can use NumberInt(5) instead of 5,this will take lesser space.we can confirm this by >db.state() in output you will see dataSize will be different in two cases
+
+we can view the datatype of a fiels as:
+>typeof db.<collection>.findOne().<field_name>
+

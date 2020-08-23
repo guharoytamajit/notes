@@ -1,0 +1,342 @@
+when you attach a new harddisk it will be added as
+/dev/sda
+/dev/sdb
+/dev/sdc
+
+
+here we have 4 disks a,b,c,d. disk a is partitioned.other three disks are available for use 
+
+
+Physical Volumes:
+LVM utility prefix: pv...
+Description: Physical block devices or other disk-like devices (for example, other devices created by device mapper, like RAID arrays) are used by LVM as the raw building material for higher levels of abstraction. Physical volumes are regular storage devices. LVM writes a header to the device to allocate it for management.
+Volume Groups:
+LVM utility prefix: vg...
+Description: LVM combines physical volumes into storage pools known as volume groups. Volume groups abstract the characteristics of the underlying devices and function as a unified logical device with combined storage capacity of the component physical volumes.
+Logical Volumes:
+LVM utility prefix: lv... (generic LVM utilities might begin with lvm...)
+Description: A volume group can be sliced up into any number of logical volumes. Logical volumes are functionally equivalent to partitions on a physical disk, but with much more flexibility. Logical volumes are the primary component that users and applications will interact with.
+
+In summary, LVM can be used to combine physical volumes into volume groups to unify the storage space available on a system. Afterwards, administrators can segment the volume group into arbitrary logical volumes, which act as flexible partitions.
+
+>sudo lvmdiskscan
+  /dev/sda1 [     <40.00 GiB] 
+  /dev/sdb  [   <1009.14 MiB] 
+  /dev/sdc  [       1.02 GiB] 
+  /dev/sdd  [       1.92 GiB] 
+  3 disks
+  1 partition
+  0 LVM physical volume whole disks
+  0 LVM physical volumes
+
+>sudo pvcreate /dev/sda /dev/sdb
+  Device /dev/sda excluded by a filter.
+  Physical volume "/dev/sdb" successfully created.
+
+Here disk sda is ignored as it is already partitioned
+
+>sudo pvs
+  PV         VG Fmt  Attr PSize     PFree    
+  /dev/sdb      lvm2 ---  <1009.14m <1009.14m
+
+>sudo lvmdiskscan
+  /dev/sda1 [     <40.00 GiB] 
+  /dev/sdb  [   <1009.14 MiB] LVM physical volume
+  /dev/sdc  [       1.02 GiB] 
+  /dev/sdd  [       1.92 GiB] 
+  2 disks
+  1 partition
+  1 LVM physical volume whole disk
+  0 LVM physical volumes
+
+
+>sudo pvcreate /dev/sdc
+  Physical volume "/dev/sdc" successfully created.
+
+>sudo pvs
+  PV         VG Fmt  Attr PSize     PFree    
+  /dev/sdb      lvm2 ---  <1009.14m <1009.14m
+  /dev/sdc      lvm2 ---      1.02g     1.02g
+
+>sudo lvmdiskscan
+  /dev/sda1 [     <40.00 GiB] 
+  /dev/sdb  [   <1009.14 MiB] LVM physical volume
+  /dev/sdc  [       1.02 GiB] LVM physical volume
+  /dev/sdd  [       1.92 GiB] 
+  1 disk
+  1 partition
+  2 LVM physical volume whole disks
+  0 LVM physical volumes
+=========================
+Add the Physical Volumes to a Volume Group named "LVMVolGroup"
+
+>sudo vgcreate LVMVolGroup /dev/sdb /dev/sdc
+  Volume group "LVMVolGroup" successfully created
+
+>sudo pvs
+  PV         VG          Fmt  Attr PSize    PFree   
+  /dev/sdb   LVMVolGroup lvm2 a--  1008.00m 1008.00m
+  /dev/sdc   LVMVolGroup lvm2 a--    <1.02g   <1.02g
+
+
+>sudo vgs
+  VG          #PV #LV #SN Attr   VSize VFree
+  LVMVolGroup   2   0   0 wz--n- 2.00g 2.00g
+
+
+We’ll create four separate logical volumes out of our volume group:
+
+400M “projects” volume
+300M “www” volume for web content
+500M “db” volume for a database
+“workspace” volume that will fill the remaining space
+
+>sudo lvcreate -L 400M -n projects LVMVolGroup
+  Logical volume "projects" created.
+
+>sudo lvcreate -L 300M -n www LVMVolGroup
+  Logical volume "www" created.
+
+>sudo lvcreate -L 500M -n db LVMVolGroup
+  Logical volume "db" created.
+
+>sudo vgs 
+  VG          #PV #LV #SN Attr   VSize VFree  
+  LVMVolGroup   2   3   0 wz--n- 2.00g 852.00m
+
+>sudo vgs -o +lv_size,lv_name       #We have added the last two columns of output so that we can see the space allocated to our logical volumes.
+  VG          #PV #LV #SN Attr   VSize VFree   LSize   LV      
+  LVMVolGroup   2   3   0 wz--n- 2.00g 852.00m 400.00m projects
+  LVMVolGroup   2   3   0 wz--n- 2.00g 852.00m 300.00m www     
+  LVMVolGroup   2   3   0 wz--n- 2.00g 852.00m 500.00m db
+
+Now, we can allocate the rest of the space in the volume group to the “workspace” volume using the -l flag.
+
+>sudo lvcreate -l 100%FREE -n workspace LVMVolGroup
+  Logical volume "workspace" created.
+
+>sudo vgs -o +lv_size,lv_name
+  VG          #PV #LV #SN Attr   VSize VFree LSize   LV       
+  LVMVolGroup   2   4   0 wz--n- 2.00g    0  400.00m projects 
+  LVMVolGroup   2   4   0 wz--n- 2.00g    0  300.00m www      
+  LVMVolGroup   2   4   0 wz--n- 2.00g    0  500.00m db       
+  LVMVolGroup   2   4   0 wz--n- 2.00g    0  852.00m workspace
+
+Now we can see no more space is left in LVMVolGroup(as VFree = 0)
+
+>sudo lvs
+  LV        VG          Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  db        LVMVolGroup -wi-ao---- 500.00m                                                    
+  projects  LVMVolGroup -wi-ao---- 400.00m                                                    
+  workspace LVMVolGroup -wi-ao---- 852.00m                                                    
+  www       LVMVolGroup -wi-ao---- 300.00m 
+=========================================
+Format and Mount the Logical Volumes:
+The logical devices are available within the /dev directory just like other storage devices. You can access them in two places:
+/dev/volume_group_name/logical_volume_name
+/dev/mapper/volume_group_name-logical_volume_name
+
+Format  logical volumes with the Ext4 filesystem:
+
+>sudo mkfs.ext4 /dev/LVMVolGroup/projects
+>sudo mkfs.ext4 /dev/LVMVolGroup/www
+>sudo mkfs.ext4 /dev/LVMVolGroup/db
+>sudo mkfs.ext4 /dev/LVMVolGroup/workspace
+
+check filesystems of each partitions:
+>lsblk -f
+
+
+After formatting, we can create mount points:
+>sudo mkdir -p /mnt/{projects,www,db,workspace}
+
+>df -kh
+Filesystem      Size  Used Avail Use% Mounted on
+devtmpfs        1.4G     0  1.4G   0% /dev
+tmpfs           1.4G     0  1.4G   0% /dev/shm
+tmpfs           1.4G   17M  1.4G   2% /run
+tmpfs           1.4G     0  1.4G   0% /sys/fs/cgroup
+/dev/sda1        40G  5.9G   35G  15% /
+tmpfs           283M     0  283M   0% /run/user/1000
+
+
+We can then mount the logical volumes to the appropriate location:
+>sudo mount /dev/LVMVolGroup/projects /mnt/projects
+>sudo mount /dev/LVMVolGroup/www /mnt/www
+>sudo mount /dev/LVMVolGroup/db /mnt/db
+>sudo mount /dev/LVMVolGroup/workspace /mnt/workspace
+
+
+>lsblk -f
+NAME                    FSTYPE      LABEL UUID                                   MOUNTPOINT
+sda                                                                              
+└─sda1                  xfs               8ac075e3-1124-4bb6-bef7-a6811bf8b870   /
+sdb                     LVM2_member       SV8sn1-2fyl-S0Jl-dglX-teF1-x4H1-RNzgZK 
+├─LVMVolGroup-projects  ext4              cb92d89a-731a-4ae8-a2d5-ada5705bdcb3   /mnt/projects
+├─LVMVolGroup-www       ext4              570f0799-18b6-423a-9a3e-23567e95a817   /mnt/www
+└─LVMVolGroup-workspace ext4              191ae7dc-087a-4e4c-a599-005f02c9d6ce   /mnt/workspace
+sdc                     LVM2_member       YrAV9Y-O6Yn-hVyO-bj7c-1k6j-ggQA-eBuiuG 
+├─LVMVolGroup-db        ext4              41844445-b0e2-496e-84fd-7fc012a7cdf3   /mnt/db
+└─LVMVolGroup-workspace ext4              191ae7dc-087a-4e4c-a599-005f02c9d6ce   /mnt/workspace
+sdd  
+
+>df -kh
+Filesystem                         Size  Used Avail Use% Mounted on
+devtmpfs                           1.4G     0  1.4G   0% /dev
+tmpfs                              1.4G     0  1.4G   0% /dev/shm
+tmpfs                              1.4G   17M  1.4G   2% /run
+tmpfs                              1.4G     0  1.4G   0% /sys/fs/cgroup
+/dev/sda1                           40G  5.9G   35G  15% /
+tmpfs                              283M     0  283M   0% /run/user/1000
+/dev/mapper/LVMVolGroup-projects   380M  2.3M  354M   1% /mnt/projects
+/dev/mapper/LVMVolGroup-www        283M  2.1M  262M   1% /mnt/www
+/dev/mapper/LVMVolGroup-db         477M  2.3M  445M   1% /mnt/db
+/dev/mapper/LVMVolGroup-workspace  823M  1.7M  763M   1% /mnt/workspace
+
+
+===========================================
+Add new pv to vg:
+>sudo pvs
+  PV         VG          Fmt  Attr PSize    PFree
+  /dev/sdb   LVMVolGroup lvm2 a--  1008.00m    0 
+  /dev/sdc   LVMVolGroup lvm2 a--    <1.02g    0 
+
+>sudo pvcreate /dev/sdd
+  Physical volume "/dev/sdd" successfully created.
+
+>sudo pvs
+  PV         VG          Fmt  Attr PSize    PFree
+  /dev/sdb   LVMVolGroup lvm2 a--  1008.00m    0 
+  /dev/sdc   LVMVolGroup lvm2 a--    <1.02g    0 
+  /dev/sdd               lvm2 ---     1.92g 1.92g
+
+>sudo vgs
+  VG          #PV #LV #SN Attr   VSize VFree
+  LVMVolGroup   2   4   0 wz--n- 2.00g    0 
+
+>sudo vgextend LVMVolGroup /dev/sdd
+  Volume group "LVMVolGroup" successfully extended
+
+>sudo vgs
+  VG          #PV #LV #SN Attr   VSize  VFree
+  LVMVolGroup   3   4   0 wz--n- <3.93g 1.92g
+
+===============================================
+extend lv size:
+>sudo vgdisplay
+  --- Volume group ---
+  VG Name               LVMVolGroup
+  System ID             
+  Format                lvm2
+  Metadata Areas        3
+  Metadata Sequence No  6
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                4
+  Open LV               4
+  Max PV                0
+  Cur PV                3
+  Act PV                3
+  VG Size               <3.93 GiB
+  PE Size               4.00 MiB
+  Total PE              1005
+  Alloc PE / Size       513 / 2.00 GiB
+  Free  PE / Size       492 / 1.92 GiB
+  VG UUID               23Fbsd-h7Mx-0SPc-IKlf-RDtO-sGcJ-sDeGNo
+
+here we can see 492 Free PE(1.92 GB)
+
+>sudo lvs
+  LV        VG          Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  db        LVMVolGroup -wi-ao---- 500.00m                                                    
+  projects  LVMVolGroup -wi-ao---- 400.00m                                                    
+  workspace LVMVolGroup -wi-ao---- 852.00m                                                    
+  www       LVMVolGroup -wi-ao---- 300.00m 
+
+
+>sudo lvextend -L +54 /dev/LVMVolGroup/db  #increase size of db by 54Mb
+  Rounding size to boundary between physical extents: 56.00 MiB.
+  Size of logical volume LVMVolGroup/db changed from 500.00 MiB (125 extents) to 556.00 MiB (139 extents).
+  Logical volume LVMVolGroup/db successfully resized.
+
+we can get the lv path ie. /dev/LVMVolGroup/db  from "lvdisplay" command
+
+>sudo lvs
+  LV        VG          Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  db        LVMVolGroup -wi-ao---- 556.00m                                                    
+  projects  LVMVolGroup -wi-ao---- 400.00m                                                    
+  workspace LVMVolGroup -wi-ao---- 852.00m                                                    
+  www       LVMVolGroup -wi-ao---- 300.00m 
+
+Now the lv is increased,but still this space is not available for use,to make this available to filesystem we have to use resize2fs.
+
+>df -h /mnt/db
+Filesystem                  Size  Used Avail Use% Mounted on
+/dev/mapper/LVMVolGroup-db  477M  2.3M  445M   1% /mnt/db
+
+>sudo resize2fs /dev/LVMVolGroup/db
+
+> df -h /mnt/db
+Filesystem                  Size  Used Avail Use% Mounted on
+/dev/mapper/LVMVolGroup-db  531M  2.3M  498M   1% /mnt/db
+
+Now we can see size increased from 477M to 531M.
+
+========================
+reduce lv:
+
+>df -h /mnt/db
+Filesystem                  Size  Used Avail Use% Mounted on
+/dev/mapper/LVMVolGroup-db  531M  2.3M  498M   1% /mnt/db
+
+>sudo umount -v /mnt/db
+umount: /mnt/db (/dev/mapper/LVMVolGroup-db) unmounted
+
+Then check for the file-system error using following command.
+
+>sudo e2fsck -ff /dev/LVMVolGroup/db
+e2fsck 1.42.9 (28-Dec-2013)
+Pass 1: Checking inodes, blocks, and sizes
+Pass 2: Checking directory structure
+Pass 3: Checking directory connectivity
+Pass 4: Checking reference counts
+Pass 5: Checking group summary information
+/dev/LVMVolGroup/db: 12/142240 files (0.0% non-contiguous), 28477/569344 blocks
+
+
+
+Note: Must pass in every 5 steps of file-system check if not there might be some issue with your file-system.
+Next, reduce the file-system. reduce 
+
+>sudo resize2fs /dev/LVMVolGroup/db 500MB
+resize2fs 1.42.9 (28-Dec-2013)
+resize2fs: Invalid new size: 500MB
+
+
+Reduce the Logical volume:
+>sudo lvreduce -L -54M /dev/LVMVolGroup/db 
+  Rounding size to boundary between physical extents: 52.00 MiB.
+  WARNING: Reducing active logical volume to 504.00 MiB.
+  THIS MAY DESTROY YOUR DATA (filesystem etc.)
+Do you really want to reduce LVMVolGroup/db? [y/n]: y
+  Size of logical volume LVMVolGroup/db changed from 556.00 MiB (139 extents) to 504.00 MiB (126 extents).
+  Logical volume LVMVolGroup/db successfully resized.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

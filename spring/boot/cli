@@ -1,0 +1,56 @@
+download sprin cli
+>wget https://repo.spring.io/release/org/springframework/boot/spring-boot-cli/2.3.1.RELEASE/spring-boot-cli-2.3.1.RELEASE-bin.tar.gz
+>tar xzf spring-boot-cli-2.3.1.RELEASE-bin.tar.gz
+
+need to set two env variable:
+SPRING_HOME=<path to extracted tar>
+PATH=PATH:$SPRING_HOME/bin
+
+>spring
+
+
+
+===================
+----app.groovy-----
+@RestController
+class ThisWillActuallyRun {
+
+    @RequestMapping("/")
+    String home() {
+        "Hello World!"
+    }
+
+}
+
+
+>spring run app.groovy
+
+>curl localhost:8080
+
+--------------------------------
+get help about a spring command:
+
+>spring help run
+
+
+>spring run hello.groovy -- --server.port=9000
+
+
+>JAVA_OPTS=-Xmx1024m spring run hello.groovy
+
+
+
+
+Applications with Multiple Source Files:
+>spring run *.groovy
+
+
+Packaging Your Application:
+>spring jar my-app.jar *.groovy
+
+============================
+Initialize a New Project(start.spring.io):
+>spring init --dependencies=web,data-jpa my-project
+>spring init --build=gradle --java-version=1.8 --dependencies=websocket --packaging=war sample-app.zip
+
+>spring init --list

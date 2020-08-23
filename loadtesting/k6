@@ -1,0 +1,9 @@
+virtual user(VU):
+simulates an actual user session
+they run concurrently,and keeps repeating the test until the test is over
+
+selecting VU count
+VUs=(No. of hourly session in peak time   *  Avg. session duration in sec)/3600
+
+eg if 10000 req per hours and each session duration is 10s
+VU=10000 * 10/3600  =27

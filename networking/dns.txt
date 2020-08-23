@@ -1,0 +1,101 @@
+https://linuxtechlab.com/configuring-dns-server-using-bind/
+https://www.unixmen.com/setting-dns-server-centos-7/
+
+>sudo yum install bind bind-utils
+----------------
+>sudo vi /etc/hosts 
+192.168.1.100           dns.ltechlab.com
+
+---------------
+sudo vi /etc/named.conf
+
+comment the following lines,this will let our DNS server to listen to all IPs,:
+#listen-on port 53 { 127.0.0.1; };
+#listen-on-v6 port 53 { :!! };
+
+
+if you are using a slave server also add(this step is optional):
+allow-query { localhost;192.168.1.0/24; };
+allow-transfer { 192.168.1.110; };    (slave IP address)
+
+
+Creating  Zones entries:
+
+zone "ltechlab.com" IN {
+type master;
+file "fwd.ltechlab.com.db";
+allow-update { none; };
+};
+
+(type=‘master’ is the Primary DNS,  ‘allow-update’ will be none as its the primary DNS.)
+
+
+
+Similarly, we will now create an entry for reverse zone as well in”named.conf”:
+
+zone "1.168.192.in-addr.arpa" IN {
+type master;
+file "1.168.192.db";
+allow-update { none; };
+};
+
+--------------------------------
+sudo vi /var/named/fwd.ltechlab.com.db
+
+$TTL 86400
+@ IN SOA primary.ltechlab.com. root.letchlab.com. (
+2014112511 ;Serial
+3600 ;Refresh
+1800 ;Retry
+604800 ;Expire
+86400 ;Minimum TTL
+)
+;Name Server Information
+@ IN NS primary.ltechlab.com.
+;IP address of Name Server
+primary IN A 192.168.1.100
+;Mail exchanger
+ltechlab.com. IN MX 10 mail.ltechlab.com.
+;A – Record HostName To Ip Address
+www IN A 192.168.1.105
+mail IN A 192.168.1.120
+;CNAME record
+ftp IN CNAME www.ltechlab.com.
+
+-------------------------------------
+sudo vi /var/named/1.168.192.db
+
+
+$TTL 86400
+@ IN SOA dns.ltechlab.com. root.ltechlab.com. (
+2014112511 ;Serial
+3600 ;Refresh
+1800 ;Retry
+604800 ;Expire
+86400 ;Minimum TTL
+)
+;Name Server Information
+@ IN NS dns.ltechlab.com.
+;Reverse lookup for Name Server
+8 IN PTR dns.ltechlab.com.
+;PTR Record IP address to HostName
+105 IN PTR www.ltechlab.com.
+120 IN PTR mail.ltechlab.com.
+
+-------------------------------------
+
+restart network services:
+sudo service named restart 
+OR
+sudo systemctl restart named.service
+===================================
+client setup:
+
+open “/etc/resolv.conf”  and enter following entry:
+nameserver 192.168.1.100
+
+OR
+
+change the DNS entry in /etc/sysconfig/network-scripts/ifcfg-e….
+
+DNS1=192.168.1.100

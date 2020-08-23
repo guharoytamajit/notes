@@ -1,0 +1,508 @@
+Helm(package manager for k8s):
+A kubernetes app has multiple types of objects deployment,service,configmap,secrets,pvc etc
+We have to deploy multiple yaml seperately which becomes hard to maintain(deploying,updating with new version etc),further these yaml has to be applied in certain order
+helm is package manager solution for k8s using this we can easily manage ks8 objects as a single package called "chart"
+helm wraps all kubernetes yamls and also makes them dynamic(ymls are dynamic called templates,it can have variables and logic)
+helm also supports dependency managemant
+he store helm charts in helm repository
+----------------------------------------
+Lets look at an apps evolution,suppose you are creating a guestbook app:
+1)In 1st version you may have a frontend-deployment,frontend-service and ingress yml see "helm-master/lab1_kubectl_version1"
+2)Suppose in 2nd version we now have backend and db as wee,following are yaml:  (see "helm-master/lab1_kubectl_version2")
+	backend-secret.yaml
+	backend-service.yaml
+	backend.yaml
+	frontend-configmap.yaml
+	frontend-service.yaml
+	frontend.yaml
+	ingress.yaml
+	mongodb-persistent-volume-claim.yaml
+	mongodb-persistent-volume.yaml
+	mongodb-secret.yaml
+	mongodb-service.yaml
+	mongodb.yaml
+Initially we had to apply 3 yaml now it is 12, also we have to apply them in correct order,so very quickly it starts becoming a pain
+
+----------------------------------------
+Helm consists of two parts:
+1)Helm client(runs on your client laptop):sends instruction to tiller
+2)Helm server called Tiller(runs inside pod in cluster) => 
+Tiller accepts chart and creates corresponding low level k8s objects eg. deploy etc from charts. 
+We create service account for tiller so that it has permission to deploy objects.
+Helm client interacts with tiller using gRPC.
+Tiller also stores helm charts and release/installation hstory in a ConfigMap on k8s cluster(Note: helm data are not stored locally ie. helm client).
+By defaut Tiller and its ConfigMap are installed in kube-system namespace
+
+
+ see h01.k8s_without_helm.png   and  02.k8s_with_helm.png
+-----------------------------------
+
+Install And Configure Helm:
+Download helm2 tar https://github.com/helm/helm/releases
+inside tar you will find both tiller and helm executable
+add them in path or in /usr/local/bin
+
+>helm version --short
+Client: v2.16.5+g89bd14c
+Error: could not find tiller  
+
+We can see tiller is not yet installed,before installing tiller make sure you are pointing to correct k8s cluster:
+>kubectl config current-context     # (check current-context)
+
+Install tiller:
+By default, the default serviceAccount in a namespace has no permissions 
+We ofter create a seperate service-account for tiller which ony allows to deploy k8s objects on certain namesapces only.
+
+>kubectl -n kube-system create serviceaccount tiller  #create serviceaccount
+>kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller  #assigning cluster-admin role to tiller serviceaccount
+to view all clusterroles options available try >kubectl get clusterroles --all-namespaces 
+>kubectl get clusterrolebinding tiller
+>helm init  --service-account tiller    #this will install tiller pod in kube-system namespace with tiller serviceaccount(instead of default service account)
+>kubectl get po -n kube-system|grep tiller
+tiller-deploy-699644d6c5-nxwgs                1/1     Running   0          102s
+
+>helm version --short
+Client: v2.16.5+g89bd14c
+Server: v2.16.5+g89bd14c
+
+
+see RBAC section to provide custom access to tiller service-account,sample yaml provided below,you can find these files in "helm-master/lab4_tiller_serviceaccount/yaml"
+-----------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+ name: tiller
+ namespace: lab
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+ name: tiller-role
+ namespace: lab
+rules:
+- apiGroups: ["", "extensions", "apps"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  - cronjobs
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+ name: tiller-role-binding
+ namespace: lab
+subjects:
+- kind: ServiceAccount
+  name: tiller
+  namespace: lab
+roleRef:
+  kind: Role
+  name: tiller-role 
+  apiGroup: rbac.authorization.k8s.io
+-----------------------------
+With above example tiller can deploy k8s objects only in lab namespace
+
+if we want we can install tiller pod in a different namespace other than kube-system say lab namespace :
+>kubectl create namespace lab
+>helm init  --service-account tiller --tiller-namespace lab   #--tiller-namespace lab  means tiller pod will be installed in lab namespace
+This way we can have more than one tiller pod(has to be in different namespaces)
+>helm version --tiller-namespace lab    #to check helm/tiller version of lab namespace
+
+>helm create test
+>helm install test --tiller-namespace lab --namespace default   #it will use tiller pod of lab namespace and will try to create k8s objects in default namespace
+
+communication between helm and tiller must be secured using ssl
+
+To uninstall tiller use helm reset command:
+>helm reset  
+
+===================================
+Running tiller locally: 
+Tiller can be configured to run locally with helm client.
+Still they communicate using gRPC.
+Tiller interacts with API server to deploy k8s objects
+to install tiller locally first keep tiller executable in path.
+>tiller  #this will start tiller locally
+how helm has to be initialized with --client-only flag to work with local tiller
+>helm init --client-only
+Now "helm version" command will show "could not find tiller"
+To make this work set
+>export HELM_HOST=localhost:44134  #44134 is the gRPC port
+>helm version --short
+Client: v2.16.5+g89bd14c
+Server: v2.16.5+g89bd14c
+=========================================
+Cleaning Helm:
+
+get all tiller release:
+>helm list
+
+delete release
+>helm delete <release-name> #delete all k8s objects belong to release
+
+You will see there are configmaps with release name in tiller namespace
+>kubectl get configmaps --namespace=kube-system
+>helm delete <release-name> --purge  #get rid of release configmaps
+
+This way if we fortet to delete release configmaps it can get really large in number, we can use --history-max flag to limit this:
+>helm init --history-max 200
+
+detele tiller:
+>helm reset
+
+delete helm client local config details:
+>rm -rf /home/me/.helm
+
+===========================================
+chart structure:
+
+>helm create nginx-demo
+Creating nginx-demo
+
+>tree nginx-demo 
+nginx-demo(folder name is same as the name of your chart)
+├── charts                    #put dependencies here
+├── Chart.yaml
+├── templates
+│   ├── deployment.yaml       #declare dependencies
+│   ├── _helpers.tpl
+│   ├── ingress.yaml
+│   ├── NOTES.txt             #displays useful info after chart installation
+│   ├── serviceaccount.yaml
+│   ├── service.yaml
+│   └── tests
+│       └── test-connection.yaml
+└── values.yaml
+
+
+>cat Chart.yaml 
+apiVersion: v1                             #The version of helm api(like modelVersion of pom.xml)
+appVersion: "1.0"                          #application version,increase if jar changed
+description: A Helm chart for Kubernetes
+name: nginx-demo                           # chart name
+version: 0.1.0                             # chart version,update this when chart structure us updated.  syntax: (major.minor.patch)
+=================
+Concepts:
+Chart: It is the definition of our application.
+Release(instance of chart): when a chart is installed in k8s cluster
+Release Revision: A release can have many revisions
+
+Usually we install one release of a chart, but it is possible to have multiple releases of the same chart. eg. dev and test release or two release of database
+If we want two release of chart on same cluster,the names of the service must be different we can use different prefix see multi_release.png.
+If you have made some change in the application and want to install it you do not have to install a new release,instead we can make a new revision of same release.
+
+Donot confuse Release Revision with Chart version:
+Chart version:changes when chart structure is changed eg new yml added or removed
+Release Revision:Change in running instance of chart(or release)
+
+
+
+=============================
+
+Commands:
+helm install [chart] (--name relaese-name)  => Install a release.
+helm upgrade [release] [chart] =>  Upgrade a release revision
+helm rollback [release] [revision] => Rollback to a release revision.
+helm history [release]=>  print release history
+helm status [release]=> Display release status
+helm get [release]=> Show details of a release
+helm delete [release]=> Uninstall a release
+helm list => List release
+
+example flow:
+
+=================================
+chat evoluton:
+see helm-master/lab5_helm_chart_version1 for source code
+version1: 
+
+guestbook
+├── Chart.yaml
+└── templates
+    ├── frontend-service.yaml
+    ├── frontend.yaml
+    └── ingress.yaml
+
+
+>cat Chart.yaml 
+apiVersion: v1
+appVersion: "1.0"
+description: A Helm chart for Guestbook 1.0 
+name: guestbook
+version: 0.1.0
+
+>helm install guestbook
+>kubectl get po  #check if pod is running
+>helm list
+>helm status [release]
+
+
+version2: 
+we have made some changes in app.(appVersion=>updated,chart version =>same,so no structural change in chart)
+>cat Chart.yaml 
+apiVersion: v1
+appVersion: "1.1"
+description: A Helm chart for Guestbook 1.1 
+name: guestbook
+version: 0.1.0
+
+we have changed image in frontend.yaml from frontend:1.0 -> frontend:1.1
+
+>helm upgrade [release-name] guestbook
+>helm list  #in output we will see revision changed from 1 -> 2
+
+But suppose there is a bug in the app changes and we want to rollback:
+>helm rollback [release]  1  #1 because we want to go back to revision 1
+>helm history [release]  #we will see the details of how revisions are changed for the release
+>helm delete [release]  #add  --purge to remove all info
+===========================
+Umbrella chart: For example with frontend,backend and database manifest files
+
+see helm-master/lab5_helm_chart_version2 for source code
+
+    guestbook
+    ├── charts
+    │   ├── backend
+    │   │   ├── Chart.yaml
+    │   │   └── templates
+    │   │       ├── backend-secret.yaml
+    │   │       ├── backend-service.yaml
+    │   │       └── backend.yaml
+    │   ├── database
+    │   │   ├── Chart.yaml
+    │   │   └── templates
+    │   │       ├── mongodb-persistent-volume-claim.yaml
+    │   │       ├── mongodb-persistent-volume.yaml
+    │   │       ├── mongodb-secret.yaml
+    │   │       ├── mongodb-service.yaml
+    │   │       └── mongodb.yaml
+    │   └── frontend
+    │       ├── Chart.yaml
+    │       └── templates
+    │           ├── frontend-configmap.yaml
+    │           ├── frontend-service.yaml
+    │           ├── frontend.yaml
+    │           └── ingress.yaml
+    └── Chart.yaml
+
+cat guestbook/Chart.yaml 
+apiVersion: v1
+appVersion: "2.0"                            #updated
+description: A Helm chart for Guestbook 2.0 
+name: guestbook
+version: 1.1.0                              #updated as the structure is changed
+
+cat frontend/Chart.yaml 
+apiVersion: v1
+appVersion: "2.0"                              #updated as front end app is updated
+description: A Helm chart for Guestbook Frontend 2.0 
+name: frontend
+version: 1.1.0                                  #updated as the structure is changed,frontend-configmap.yaml added
+
+cat backend/Chart.yaml
+apiVersion: v1
+appVersion: "1.0"                              #this is the forst version of backend app
+description: A Helm chart for Guestbook Backend 1.0 
+name: backend
+version: 0.1.0                                #1st structure version of backend
+
+
+cat database/Chart.yaml
+apiVersion: v1
+appVersion: "3.6"                             #specify the mongodb version to use
+description: A Helm chart for Guestbook Database Mongodb 3.6 
+name: database
+version: 0.1.0                                #1st structure version of database
+
+
+>helm upgrade [release] guestbook
+>helm status [release]
+===========================================
+Helm template engine:
+Takes manifest templates and replace placeholders in them from sources like Chart.yml,valure.yml etc and generate k8s manifests
+It is executed on the client side,then k8s manifest is sent to tiller,tiller deploys them.
+
+Test helm template before helm install:
+static approach: works without tiller ie static release name
+>helm template mychart
+>helm template mychart -x templates/service.yml  #only on single template
+
+dynamic approach:real helm install without commit generated release name
+>helm install mychart --debug --dry-run  #cannot work on single template
+-----------------
+Values:
+
+Template:
+name: {{.Values.service.name}}
+
+sources:
+value can be defined in values.yaml
+other file >helm install -f file
+variables  >helm install --set foo=bar
+---
+chart data:
+
+Template:
+name: {{.Chart.Name}}
+
+sources:
+value can be defined in chart.yaml
+name:chart   #note in chart.yml we have to start with small case 'n' but in template we have to start with cap 'N' for chart data
+
+-----
+Release template data:
+
+{{.Release.Name}}
+{{.Release.Time}}
+{{.Release.Namespace}}
+{{.Release.Service}}
+{{.Release.Revision}}
+{{.Release.IsUpgrade}}
+{{.Release.IsInstall}}
+
+{{Capabilities.APIVersions}}
+{{Capabilities.KubeVersion.Major}}
+{{Capabilities.KubeVersion.Minor}}
+{{Capabilities.TillerVersion}}
+
+{{.Files.Get conf.ini}}    #conf.ini file mult be there in the root of your chart
+
+{{Template.Name}}
+{{Template.BasePath}}
+-----------------------
+function and pipeline:
+see helm_function_and_pipeline.png
+
+with scope:
+with_scope.png
+
+
+remove_carriage_return.png
+indent_template.png
+logical_operators.png
+
+
+
+
+
+
+
+
+
+TODO
+
+
+
+
+
+==============
+Helm Repository:
+To make a chart available to all we have to publish it in a helm repository
+Helm repository is a simple http server containing compressed chart files and an index.yaml file containing metadata
+
+steps to publish a helm repo:
+1)create index.yaml
+>helm repo index .  #create index.yaml file
+
+2)upload chart archives and index file in http server
+
+3)Provenance files: to sign and verify the origin of a chart
+>helm package --sign   #sign a chart
+>helm verify chart.tgz   #verify chart
+>helm install --verify    #verify chart during installation
+
+-----
+Local helm repository:
+local helm repo can be build by helm package command.
+>helm package frontend backend database
+>ls ~/.helm/repository/local  #it will have compressed frontend,backend,database and index.yaml
+ ~/.helm/repository/local  is the default location of local repo
+
+>helm serve  #starts local http helm repo server,it holdes content of  ~/.helm/repository/local , can be accessed from localhost:8879/charts, use "helm repo list" to list all repos
+this http server is not recommended for production use
+-------------
+Managing repo list:
+Helm maintains a list of repos:
+-local
+-stable
+-customs
+
+>helm repo list
+
+Add new repo:
+>helm repo add myrepo http://myserver.org/charts
+
+Remove helm repo:
+>helm repo remove myrepo
+------------------
+Packaging and publishing charts:
+>mv guestbook/charts  dist
+>cd dist   #it has frontend,backend,database
+>helm package frontend backend database  #creates three tgz files
+>helm repo index .    #generates index.yaml containing details of frontend,backend,database
+
+>helm serve &   #  This command starts a local chart repository server that serves charts from a local directory.By default, it will
+scan all of the charts in '$HELM_HOME/repository/local' and serve those over the local IPv4 TCP port (default '127.0.0.1:8879').
+
+>helm repo list
+	 
+------------------
+Defining chart dependencies:
+
+guestbook chart is dependent on frontend,backend,database. so far we are keeping it inside charts directory(which is the directory to keep full chart dependencies,we can also keep three tgz files here)
+keeping dependencies in charts directory is the manual way of managing dependencies
+A better alternative is defining dependencies in requirements.yaml
+
+---requirements.yaml---
+	dependencies:
+	  - name: backend
+	    version: ~1.2.2
+	    repository: http://127.0.0.1:8879/charts
+	    condition: backend.enabled,global.backend.enabled
+	    tags:
+	      - api
+	  - name: frontend
+	    version: ^1.2.0
+	    repository: http://127.0.0.1:8879/charts
+	  - name: database
+	    version: ~1.2.2
+	    repository: http://127.0.0.1:8879/charts
+	    condition: database.enabled,global.database.enabled
+	    tags:
+	      - api
+
+
+
+semver 2.0 rules:
+
+~1.2.3 =>   >=1.2.3   and  < 1.3.0
+1.2.x  =>   >=1.2.0   and  < 1.3.0
+^1.2.3 =>   >=1.2.3   and  < 2.0.0
+1.x.x  =>   >=1.0.0    and  < 2.0.0
+1.2-1.4.5  =>   >=1.2  and  <= 1.4.5    
+
+Java anology:
+requirements.yaml is like using pom.xml
+charts directory is keeping keeping jar dependencies in WEB-INF/lib 
+
+
+Now add requirements.yaml and  clear charts directory.
+>helm dependency update guestbook  #it will download all charts defined in requirements.yaml inside charts directory
+
+>helm dependency list guestbook   #check which charts are available.
+
+-------------
+requirements.lock  vs requirements.yaml:
+
+
+
+----------------
+
+
+
+
+
+

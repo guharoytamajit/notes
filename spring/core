@@ -1,0 +1,940 @@
+Spring Bean Factory:
+Spring behaves as a container of beans(bean factory)
+We define beans in form of xml or java
+Spring creates those beans and manage their lifecycle
+Also  automates dependency injection of beans
+
+
+
+
+Analogy:
+Tomcat is a servlet container,it reads web.xml creates the required servlet instances ande manage their lifecycle.
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+ApplicationContext  vs BeanFactory:
+
+Spring provides two kinds of IOC containers, one is BeanFactory, and the other is ApplicationContext.
+Syntactically BeanFactory and ApplicationContext both are Java interfaces and ApplicationContext extends BeanFactory. 
+BeanFactory provides basic IOC and DI features while ApplicationContext provides advanced features(like internationalization,event publication functionality, annotation-based dependency injection, and easy integration with Spring AOP features.).
+
+
+Bean factory example:
+<beans>
+<bean id="student" class="com.Student" />
+</beans>
+--------
+BeanFactory factory = new XmlBeanFactory(new ClassPathResource("beans1.xml"));
+//BeanFactory factory = new XmlBeanFactory(new FileSystemResource("beans2.xml"));
+Student student = (Student) factory.getBean("student");
+-------
+
+
+
+Popular implementations of the ApplicationContext interface is ClassPathXmlApplicationContext. On Java web application we use WebApplicationContext  which extends the ApplicationContext interface and adds the getServletContext method.
+
+
+ApplicationContext  example:
+
+ApplicationContext ctx =new ClassPathXmlApplicationContext("beans.xml");
+Hello hello =(Hello) ctx.getBean("hello");
+
+
+=======================================
+Example1 : Inner bean with setter injection and alias
+
+
+
+<beans class="com.sdnext.innerBean.tutorial.Triangle" triangle="triangle" xmlns:aop="http://www.springframework.org/schema/aop" xmlns:p="http://www.springframework.org/schema/p" xmlns:security="http://www.springframework.org/schema/security" xmlns:tx="http://www.springframework.org/schema/tx" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.springframework.org/schema/beans" xsi:schemalocation="http://www.springframework.org/schema/beans>
+  
+<bean id="triangle">
+   <property name="pointA" ref="pointA"></property>
+   <property name="pointB">
+      <bean class="com.Point">
+          <property name="x" value="-20"></property>
+          <property name="y" value="0"></property>
+      </bean>
+   </property>
+   <property name="pointC">
+      <bean class="com.dineshonjava.sdnext.innerBean.tutorial.Point">
+          <property name="x" value="20"></property>
+          <property name="y" value="0"></property>
+      </bean>
+   </property>
+
+<bean class="com.Point" id="pointA">
+   <property name="x" value="0"></property>
+   <property name="y" value="0"></property>
+</bean>
+ <alias alias="triangleAlias" name="triangle">
+</beans>
+----------------
+ApplicationContext context = new ClassPathXmlApplicationContext("spring.xml");
+Triangle triangle = (Triangle) context.getBean("triangleAlias");
+triangle.draw();
+
+------------------------------------------------------------------------
+Example 2 constructor injection:
+
+<beans ...>
+
+	<bean id="OutputHelper" class="com.mkyong.output.OutputHelper">
+		<constructor-arg>
+			<ref bean="JsonOutputGenerator" />
+		</constructor-arg>
+	</bean>
+	<bean id="JsonOutputGenerator" class="com.mkyong.output.impl.JsonOutputGenerator" />
+
+
+   <bean id="engine" class="com.Engine">
+      <constructor-arg index="0" value="v4"/>
+      <constructor-arg index="1" value="2"/>
+   </bean>
+   
+   	<bean id="CustomerBean" class="com.mkyong.common.Customer">
+		<constructor-arg type="java.lang.String">
+			<value>mkyong</value>
+		</constructor-arg>
+		<constructor-arg type="java.lang.String">
+			<value>188</value>
+		</constructor-arg>
+		<constructor-arg type="int">
+			<value>28</value>
+		</constructor-arg>
+	</bean>
+
+</beans>
+-----------------------------------------------------------------------
+Example 3: List,Set,Map,Property in  xml configuration
+
+public class Customer
+{
+	private List<Object> lists;
+	private Set<Object> sets;
+	private Map<Object, Object> maps;
+	private Properties pros;
+
+	//...
+}
+
+<beans ...>
+
+	<bean id="CustomerBean" class="com.Customer">
+
+		<!-- java.util.List -->
+		<property name="lists">
+			<list>
+				<value>1</value>
+				<ref bean="PersonBean" />
+				<bean class="com.Person">
+					<property name="name" value="myList" />
+					<property name="address" value="address" />
+					<property name="age" value="28" />
+				</bean>
+			</list>
+		</property>
+
+		<!-- java.util.Set -->
+		<property name="sets">
+			<set>
+				<value>1</value>
+				<ref bean="PersonBean" />
+				<bean class="com.Person">
+					<property name="name" value="mkyongSet" />
+					<property name="address" value="address" />
+					<property name="age" value="28" />
+				</bean>
+			</set>
+		</property>
+
+		<!-- java.util.Map -->
+		<property name="maps">
+			<map>
+				<entry key="Key 1" value="1" />
+				<entry key="Key 2" value-ref="PersonBean" />
+				<entry key="Key 3">
+					<bean class="com.Person">
+						<property name="name" value="myMap" />
+						<property name="address" value="address" />
+						<property name="age" value="28" />
+					</bean>
+				</entry>
+			</map>
+		</property>
+
+		<!-- java.util.Properties -->
+		<property name="pros">
+			<props>
+				<prop key="admin">admin@nospam.com</prop>
+				<prop key="support">support@nospam.com</prop>
+			</props>
+		</property>
+
+	</bean>
+	<bean id="PersonBean" class="com.Person">
+		<property name="name" value="mkyong1" />
+		<property name="address" value="address 1" />
+		<property name="age" value="28" />
+	</bean>
+</beans>
+----------------------------------------------------------------------
+Load multiple xml or java config:
+
+Multiple XML approach1:
+
+ApplicationContext context =
+    	new ClassPathXmlApplicationContext(new String[] {"Spring-Common.xml",
+              "Spring-Connection.xml","Spring-ModuleA.xml"});
+			  
+			  
+Multiple XML approach 2:
+---Spring-All-Module.xml---
+<beans ...>
+	 <import resource="common/Spring-Common.xml"/>
+     <import resource="connection/Spring-Connection.xml"/>
+     <import resource="moduleA/Spring-ModuleA.xml"/>
+</beans>
+ApplicationContext context =
+    		new ClassPathXmlApplicationContext(Spring-All-Module.xml);
+			
+			
+Multiple java config:
+
+@Configuration
+public class CustomerConfig {
+	@Bean(name="customer")
+	public CustomerBo customerBo(){
+		return new CustomerBo();
+	}
+}
+
+@Configuration
+public class SchedulerConfig {
+	@Bean(name="scheduler")
+	public SchedulerBo suchedulerBo(){
+		return new SchedulerBo();
+	}
+}
+
+@Configuration
+@Import({ CustomerConfig.class, SchedulerConfig.class })
+public class AppConfig {
+}
+
+
+		ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class); 
+		CustomerBo customer = (CustomerBo) context.getBean("customer");
+		customer.printMsg("Hello 1");
+			
+			  
+=====================================================
+Autowiring:
+
+
+public class Department {
+    private String deptName;
+}
+
+public class Employee {
+    private int eid;
+    private String ename;
+    private Department dept;
+}
+
+1)No Autowiring:
+
+<bean id="dept" class="guru.springframework.autowiringdemo.Department">
+  <property name="deptName" value="Information Technology" />
+</bean>
+<bean id="employee" class="guru.springframework.autowiringdemo.Employee">
+</bean>	
+
+
+2)Autowire "byName"
+
+<bean id="dept" class="guru.springframework.autowiringdemo.Department">
+<property name="deptName" value="Information Technology" />
+</bean>
+<bean id="employee" class="guru.springframework.autowiringdemo.Employee" autowire="byName"></bean>
+
+Employee has an instance variable with name dept  so Spring will search for a bean with id ="dept"  and  autowire it  using setter employee.setDepartment(Department department)
+
+
+
+3) Autowiring ‘byType’:
+
+<bean id="dept" class="guru.springframework.autowiringdemo.Department">
+<property name="deptName" value="Information Technology" />
+</bean>
+<bean id="employee" class="guru.springframework.autowiringdemo.Employee" autowire="byType"></bean>
+
+Employee has an instance variable of type Department so Spring will search for a bean of type Department   and  autowire it  using setter employee.setDepartment(Department department)
+If there are multiple beans of type Department Exception will be thrown NoUniqueBeanDefinitionException(Can be fixed using @Primary or @Qualifier)
+
+4)Autowiring ‘constructor’
+
+<bean id="department" class="guru.springframework.autowiringdemo.Department">
+<property name="deptName" value="Information Technology" />
+</bean>
+<bean id="employee" class="guru.springframework.autowiringdemo.Employee" autowire="constructor"></bean>
+
+same as Autowiring ‘byType’ but uses constructor injection instead of setter injection.  public Employee(Department department).
+
+
+5. Autowiring ‘autodetect’:
+
+<bean id="department" class="guru.springframework.autowiringdemo.Department">
+<property name="deptName" value="Information Technology" />
+</bean>
+<bean id="employee" class="guru.springframework.autowiringdemo.Employee" autowire="autodetect"></bean>
+
+Autowiring by autodetect uses two modes, i.e.constructor or byType modes. First, it will look for valid constructor with arguments. If it is found, then the constructor mode is chosen. If there is no constructor defined in a bean, the autowire byType mode is chosen.
+
+
+---------------------------
+
+@Autowired Annotation:
+Use @Autowired annotation to auto-wire bean on the setter method, constructor, or a field. 
+
+ first enable the annotation using below configuration in the configuration file:
+ 
+ 
+@Configuration
+@ComponentScan("guru.springframework.autowiringdemo")
+public class AppConfig {}
+
+OR
+
+<context:annotation-config />
+
+
+
+Autowired on Properties:
+
+@Component
+public class Department {
+private String deptName;
+}
+
+public class Employee {
+    private int eid;
+    private String ename;
+    @Autowired
+    private Department department;
+}	
+
+
+
+Autowired on Setters:
+
+@Component
+public class Employee {
+    private int eid;
+    private String ename;
+    private Department department;
+	  @Autowired
+    public void setDepartment(Department department) {
+        this.department = department;
+    }
+}	
+
+
+Autowired on Constructors:
+
+@Component
+public class Employee {
+    private int eid;
+    private String ename;
+    private Department department;
+    @Autowired
+    public EmployeeBean(Department deptBean) {
+        System.out.println("*** Autowiring by using @Autowire annotation on constructor ***");
+        this.deptBean = deptBean;
+    }
+}	
+
+
+Injecting List:
+
+example1:
+@Autowired(required = false)
+private List<BaeldungBean> beanList = new ArrayList<>(); //[Harry, John, Adam]
+
+@Configuration
+public class CollectionConfig {
+ 
+    @Bean
+    @Order(2)
+    public BaeldungBean getElement() {
+        return new BaeldungBean("John");
+    }
+ 
+    @Bean
+    @Order(3)
+    public BaeldungBean getAnotherElement() {
+        return new BaeldungBean("Adam");
+    }
+ 
+    @Bean
+    @Order(1)
+    public BaeldungBean getOneMoreElement() {
+        return new BaeldungBean("Harry");
+    }
+}
+
+
+example2:
+
+@Autowired
+@Qualifier("CollectionsBean")
+private List<BaeldungBean> beanList;             //Only "John" is injected
+
+
+@Configuration
+public class CollectionConfig {
+ 
+    @Bean
+    @Qualifier("CollectionsBean")
+    public BaeldungBean getElement() {
+        return new BaeldungBean("John");
+    }
+ 
+    @Bean
+    public BaeldungBean getAnotherElement() {
+        return new BaeldungBean("Adam");
+    }
+ 
+    @Bean
+    public BaeldungBean getOneMoreElement() {
+        return new BaeldungBean("Harry");
+    }
+ 
+    // other factory methods
+}
+
+example3:
+
+public class CollectionsBean {
+    @Autowired
+   private Map<Integer, String> nameMap;
+	
+   @Autowired
+    private List<String> nameList;
+}	
+
+
+@Configuration
+public class CollectionConfig {
+    @Bean
+    public CollectionsBean getCollectionsBean() {
+        return new CollectionsBean();
+    }
+ 
+    @Bean
+    public List<String> nameList() {
+        return Arrays.asList("John", "Adam", "Harry");
+    }
+	
+	@Bean
+    public Map<Integer, String> nameMap(){
+		Map<Integer, String>  nameMap = new HashMap<>();
+		nameMap.put(1, "John");
+		nameMap.put(2, "Adam");
+		nameMap.put(3, "Harry");
+		return nameMap;
+    }
+}
+
+
+
+@Autowired processing:
+a)First it tries to do Autowire byType, if multiple beans available then next step
+b)It tries to do autowire byName,
+TODO how it deals with @Primary and @Qualifier
+---------------------------
+Handling NoUniqueBeanDefinitionException ,occurs using Autowiring ‘byType’ and multiple beans of same type available:
+
+1.@Primary:
+
+ @Primary indicates that a particular bean should be given preference when multiple beans are candidates to be autowired to a single-valued dependency. If exactly one 'primary' bean exists among the candidates, it will be the autowired value.
+
+public class OrderService{
+private Dao dao;
+}
+
+@Configuration
+public class AppConfig {
+    @Bean(autowire = Autowire.BY_TYPE)
+    public OrderService orderService() {
+        return new OrderService();
+    }
+
+    @Bean
+    public Dao daoA() {
+        return new DaoA();
+    }
+
+    @Primary 
+    @Bean
+    public Dao daoB() {
+        return new DaoB();
+    }
+}	
+
+
+
+2)Qualifier:
+
+example1:
+
+public class OrderServiceClient {
+    @Autowired
+    @Qualifier("OrderServiceA")
+    private OrderService orderService;
+}	
+
+@Configuration
+public class AppRunner {
+    @Bean(name = "OrderServiceA")
+    public OrderService orderServiceByProvider1() {
+        return new OrderServiceImpl1();  
+    }
+
+    @Bean(name = "OrderServiceB")
+    public OrderService orderServiceByProvider2() {
+        return new OrderServiceImpl2();
+    }
+
+    @Bean
+    public OrderServiceClient createClient() {
+        return new OrderServiceClient(); //bean with "OrderServiceA" will be autowired
+    }
+}	
+
+
+example2:
+
+@Component
+public class FooService {     
+    @Autowired
+    @Qualifier("fooFormatter")
+    private Formatter formatter;
+}
+
+@Component
+@Qualifier("fooFormatter")
+public class FooFormatter implements Formatter {
+    //...
+}
+ 
+@Component
+@Qualifier("barFormatter")
+public class BarFormatter implements Formatter {
+    //...
+}
+
+example 3:
+we can also use qualifier with @Bean
+
+public class OrderServiceClient {
+    @Autowired
+    @Qualifier("OrderServiceA")
+    private OrderService orderService;
+}	
+
+@Configuration
+public class AppRunner {
+    @Bean
+	@Qualifier("OrderServiceA")
+    public OrderService orderServiceByProvider1() {
+        return new OrderServiceImpl1();  
+    }
+
+    @Bean
+	@Qualifier("OrderServiceB")
+    public OrderService orderServiceByProvider2() {
+        return new OrderServiceImpl2();
+    }
+
+    @Bean
+    public OrderServiceClient createClient() {
+        return new OrderServiceClient(); //bean with "OrderServiceA" will be autowired
+    }
+}	
+
+
+example4:
+
+public class Circle{
+@Autowired
+@Qualifier("circleRelated")
+private Point center
+}
+
+public class Point{
+private int x;
+private int y;
+}
+
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans 
+        http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+        http://www.springframework.org/schema/context 
+        http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+
+    <context:annotation-config/>
+
+    <bean class="com.Point">
+        <qualifier value="circleRelated"/>
+		<property name="x" value="0" />
+		<property name="y" value="0" />
+    </bean>
+</bean>
+
+=================================================================
+Bean scopes:
+
+The Spring framework 5 defines 6 types of scopes:
+singleton
+prototype
+request
+session
+application
+websocket
+
+request, session, application and websocket scopes are only available in a web-aware application context
+
+
+1.Singleton(Default): one instance per container
+
+    @Bean
+	@Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON) // same as 	@Scope("singleton")
+     public RegistrationService registrationService () {
+        return new RegistrationServiceImpl();
+    }
+	
+	<bean id="emp" class="com.Employee"  scope="singleton" />
+	
+	
+
+2.Prototype:New bean returned on every request or reference
+
+    
+    @Bean
+	@Scope("prototype")  // same as  @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    public UserRegistrationBean userRegistrationBean () {
+        return new UserRegistrationBeanImpl();
+    }
+
+
+
+3.Request:
+New Bean per servlet request.
+
+@Bean
+@Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
+public HelloMessageGenerator requestScopedBean() {
+    return new HelloMessageGenerator();
+}
+
+The proxyMode attribute is necessary because, at the moment of the instantiation of the web application context, there is no active request. Spring will create a proxy to be injected as a dependency, and instantiate the target bean when it is needed in a request.
+
+We can also use a @RequestScope composed annotation that acts as a shortcut for the above definition:
+
+@Bean
+@RequestScope
+public HelloMessageGenerator requestScopedBean() {
+    return new HelloMessageGenerator();
+}
+
+
+If we display the message each time the request is run, we can see that the value is reset to null, even though it is later changed in the method. This is because of a different bean instance being returned for each request.
+
+@Controller
+public class ScopesController {
+    @Resource(name = "requestScopedBean")
+    HelloMessageGenerator requestScopedBean;
+ 
+    @RequestMapping("/scopes/request")
+    public String getRequestScopeMessage(final Model model) {
+        model.addAttribute("previousMessage", requestScopedBean.getMessage());
+        requestScopedBean.setMessage("Good morning!");
+        model.addAttribute("currentMessage", requestScopedBean.getMessage());
+        return "scopesExample";
+    }
+}
+
+
+4.Session Scope:
+New bean per http session
+
+@Bean
+@Scope(value = WebApplicationContext.SCOPE_SESSION, proxyMode = ScopedProxyMode.TARGET_CLASS)
+public HelloMessageGenerator sessionScopedBean() {
+    return new HelloMessageGenerator();
+}
+
+There's also a dedicated composed annotation we can use to simplify the bean definition:
+
+@Bean
+@SessionScope
+public HelloMessageGenerator sessionScopedBean() {
+    return new HelloMessageGenerator();
+}
+
+
+when the request is made for the first time, the value message is null. But once, it is changed, then that value is retained for subsequent requests as the same instance of the bean is returned for the entire session.
+
+@Controller
+public class ScopesController {
+    @Resource(name = "sessionScopedBean")
+    HelloMessageGenerator sessionScopedBean;
+ 
+    @RequestMapping("/scopes/session")
+    public String getSessionScopeMessage(final Model model) {
+        model.addAttribute("previousMessage", sessionScopedBean.getMessage());
+        sessionScopedBean.setMessage("Good afternoon!");
+        model.addAttribute("currentMessage", sessionScopedBean.getMessage());
+        return "scopesExample";
+    }
+}
+
+
+5.Application Scope:
+
+The application scope creates the bean instance for the lifecycle of a ServletContext.
+
+This is similar to the singleton scope but there is a very important difference with regards to the scope of the bean.
+
+When beans are application scoped the same instance of the bean is shared across multiple servlet-based applications running in the same ServletContext, while singleton-scoped beans are scoped to a single application context only.
+
+Let's create the bean with application scope:
+
+@Bean
+@Scope(
+  value = WebApplicationContext.SCOPE_APPLICATION, proxyMode = ScopedProxyMode.TARGET_CLASS)
+public HelloMessageGenerator applicationScopedBean() {
+    return new HelloMessageGenerator();
+}
+Analogously as for the request and session scopes, we can use a shorter version:
+
+@Bean
+@ApplicationScope
+public HelloMessageGenerator applicationScopedBean() {
+    return new HelloMessageGenerator();
+	
+Now, let's create a controller that references this bean:
+
+@Controller
+public class ScopesController {
+    @Resource(name = "applicationScopedBean")
+    HelloMessageGenerator applicationScopedBean;
+ 
+    @RequestMapping("/scopes/application")
+    public String getApplicationScopeMessage(final Model model) {
+        model.addAttribute("previousMessage", applicationScopedBean.getMessage());
+        applicationScopedBean.setMessage("Good afternoon!");
+        model.addAttribute("currentMessage", applicationScopedBean.getMessage());
+        return "scopesExample";
+    }
+}
+In this case, value message once set in the applicationScopedBean will be retained for all subsequent requests, sessions and even for a different servlet application that will access this bean, provided it is running in the same ServletContext.
+
+
+6.WebSocket Scope
+Finally, let's create the bean with websocket scope:
+
+@Bean
+@Scope(scopeName = "websocket", proxyMode = ScopedProxyMode.TARGET_CLASS)
+public HelloMessageGenerator websocketScopedBean() {
+    return new HelloMessageGenerator();
+}
+WebSocket-scoped beans when first accessed are stored in the WebSocket session attributes. The same instance of the bean is then returned whenever that bean is accessed during the entire WebSocket session.
+
+We can also say that it exhibits singleton behavior but limited to a WebSocket session only.
+
+==================================================================
+Bean Lifecycle(see bean_lifecycle.png):
+
+1.Spring instantiates the bean.
+2.Spring injects values and bean references into the bean’s properties.
+3.If the bean implements BeanNameAware, Spring passes the bean’s ID to the setBeanName() method.
+4.If the bean implements BeanFactoryAware, Spring calls the setBeanFactory() method, passing in the bean factory itself.
+5.If the bean implements ApplicationContextAware, Spring calls the setApplicationContext() method, passing in a reference to the enclosing application context.
+6.If the bean implements the BeanPostProcessor interface, Spring calls its postProcessBeforeInitialization() method.
+7.If the bean implements the InitializingBean interface, Spring calls its afterPropertiesSet() method. Similarly, if the bean was declared with an init-method, then the specified initialization method is called.
+8.If the bean implements BeanPostProcessor, Spring calls its postProcessAfterInitialization() method.
+9.At this point, the bean is ready to be used by the application and remains in the application context until the application context is destroyed.
+10.If the bean implements the DisposableBean interface, Spring calls its destroy() method. Likewise, if the bean was declared with a destroy-method, the specified method is called.
+
+------------
+public class ExampleBean implements InitializingBean {
+   public void afterPropertiesSet() {
+      // do some initialization work
+   }
+}
+
+------------
+<bean id = "exampleBean" class = "examples.ExampleBean" init-method = "init"/>
+public class ExampleBean {
+   public void init() {
+      // do some initialization work
+   }
+}
+
+------------
+public class ExampleBean implements DisposableBean {
+   public void destroy() {
+      // do some destruction work
+   }
+}
+------------
+<bean id = "exampleBean" class = "examples.ExampleBean" destroy-method = "destroy"/>
+ublic class ExampleBean {
+   public void destroy() {
+      // do some destruction work
+   }
+}
+
+------------
+Default initialization and destroy methods
+If you have too many beans having initialization and/or destroy methods with the same name, you don't need to declare init-method and destroy-method on each individual bean. Instead, the framework provides the flexibility to configure such situation using default-init-method and default-destroy-method attributes on the <beans> element :
+
+<beans xmlns = "http://www.springframework.org/schema/beans"
+   xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation = "http://www.springframework.org/schema/beans
+   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd"
+   default-init-method = "init" 
+   default-destroy-method = "destroy">
+
+   <bean id = "..." class = "...">
+      <!-- collaborators and configuration for this bean go here -->
+   </bean>
+   
+</beans>
+-------------
+BeanPostProcessor:
+It is the class that tells spring there is some processing that spring needs to do after initializing the bean.
+No matter how many beans we have,BeanPostProcessor methods always gets executed during their initialization.
+Both methods have two args,1st argument is the bean itself and 2nd is the bean name
+Both method returns Object which is the bean but after changes done ,Here we can also return a different object r a proxy object.
+All BeanPostProcessor implementation classes has to be declared as spring bean itself.
+Note that BeanPostProcessor does not have ad estroy method,so we cannot create a common piece of code that gets executed on the destruction of each and every bean. 
+
+public class HelloWorld {
+   private String message;
+
+   public void setMessage(String message){
+      this.message  = message;
+   }
+   public void getMessage(){
+      System.out.println("Your Message : " + message);
+   }
+   public void init(){
+      System.out.println("Bean is going through init.");
+   }
+   public void destroy(){
+      System.out.println("Bean will destroy now.");
+   }
+}
+
+public class InitHelloWorld implements BeanPostProcessor {
+   public Object postProcessBeforeInitialization(Object bean, String beanName) 
+      throws BeansException {     
+      System.out.println("BeforeInitialization : " + beanName);
+      return bean;  // you can return any other object as well
+   }
+   public Object postProcessAfterInitialization(Object bean, String beanName) 
+      throws BeansException {
+      System.out.println("AfterInitialization : " + beanName);
+      return bean;  // you can return any other object as well
+   }
+}
+
+<beans ...>
+   <bean id = "helloWorld" class = "com.HelloWorld"
+      init-method = "init" destroy-method = "destroy">
+      <property name = "message" value = "Hello World!"/>
+   </bean>
+   <bean class = "com.InitHelloWorld" />
+</beans>
+
+public class MainApp {
+   public static void main(String[] args) {
+      AbstractApplicationContext context = new ClassPathXmlApplicationContext("Beans.xml");
+
+      HelloWorld obj = (HelloWorld) context.getBean("helloWorld");
+      obj.getMessage();
+      context.registerShutdownHook();    /This will ensures a graceful shutdown and calls the relevant destroy methods. Not needed for web app
+   }
+}
+
+output:
+BeforeInitialization : helloWorld
+Bean is going through init.
+AfterInitialization : helloWorld
+Your Message : Hello World!
+Bean will destroy now.
+----------------------------
+BeanNameAware:
+BeanNameAware makes the object aware of the bean name defined in the container.
+
+public class MyBeanName implements BeanNameAware {
+ 
+    @Override
+    public void setBeanName(String beanName) {
+        System.out.println(beanName);
+    }
+}
+
+@Configuration
+public class Config {
+ 
+    @Bean(name = "myCustomBeanName")
+    public MyBeanName getMyBeanName() {
+        return new MyBeanName();
+    }
+}
+
+AnnotationConfigApplicationContext context  = new AnnotationConfigApplicationContext(Config.class);
+MyBeanName myBeanName = context.getBean(MyBeanName.class);
+-------------------------
+
+BeanFactoryAware:
+BeanFactoryAware is used to inject the BeanFactory object. This way we get access to the BeanFactory which created the object.
+With the help of the setBeanFactory() method, we assign the BeanFactory reference from the IoC container to the beanFactory property.
+After that, we can use it directly like used in the getMyBeanName() function.
+
+public class MyBeanFactory implements BeanFactoryAware {
+ 
+    private BeanFactory beanFactory;
+ 
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+        this.beanFactory = beanFactory;
+    }
+ 
+    public void getMyBeanName() {
+        MyBeanName myBeanName = beanFactory.getBean(MyBeanName.class);
+        System.out.println(beanFactory.isSingleton("myCustomBeanName"));
+    }
+}
+
+---------------------
+ApplicationContextAware:
+
+public class ApplicationContextAwareTest implements ApplicationContextAware  {
+	ApplicationContext context;
+	public ApplicationContext getContext() {
+		return context;
+	}
+	@Override
+	public void setApplicationContext(ApplicationContext context)
+			throws BeansException {
+		this.context=context;
+	}
+} 
+=========================================================================

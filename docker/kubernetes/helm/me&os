@@ -1,0 +1,100 @@
+create helm chart:
+>helm create mychart  #will create a sample chart a structure
+
+instead of using "helm create" lets create every thing from scratch.
+>mkdir mychart && cd mychart
+>vi Chart.yaml:
+apiVersion: v1
+appVersion: "1.0"
+description: A Helm chart for Kubernetes
+name: mychart
+version: 0.1.0
+
+>mkdir templates && cd templates
+>kubectl run nginx --image=nginx --port=80 --dry-run -o yaml >deploy.yaml
+
+-----deploy.yaml-----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        ports:
+        - containerPort: 80
+
+-------------------
+>cd ..
+
+>helm  version  #check f both helm client and tiller are running
+>helm template .   #check all k8s manifest files   
+---
+# Source: mychart/templates/deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        ports:
+        - containerPort: 80
+
+>helm install --name myrelease .
+>helm list
+NAME     	REVISION	UPDATED                 	STATUS  	CHART        	APP VERSION	NAMESPACE
+myrelease	1       	Fri Apr  3 13:55:38 2020	DEPLOYED	mychart-0.1.0	1.0        	default  
+
+-------------
+Update chart:
+
+create teplates/service.yml
+>kubectl create service nodeport nginx  --tcp=80:80 --dry-run -o yaml >service.yaml(with this make sure your service selector is pointing to deployment)
+OR
+>kubectl expose deploy nginx --type Nodeport -o yaml --dry-run >service.yaml
+
+update chart version to 0.2.0
+>vi Chart.yaml:
+apiVersion: v1
+appVersion: "1.0"
+description: A Helm chart for Kubernetes
+name: mychart
+version: 0.2.0
+
+
+
+>helm upgrade myrelease . 
+
+>helm rollback myrelease 1
+>helm delete --purge myrelease
+
+
+
+
+
+
