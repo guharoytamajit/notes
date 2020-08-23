@@ -90,7 +90,7 @@ If wou have 9 VM and 9 update domain,during any planned update only one of them 
 
 This  fault domain and update domain are managed by azure, we can only define certain number of fault domain and update domain .We dont control which VM will be part of which update domain or fault domain.
   
-
+An update domain is a group of VMs and underlying physical hardware that can be rebooted at the same time. VMs in the same fault domain share common storage as well as a common power source and network switch.
 Avalibility Zone(AZ)(Datacenter or set of data center):
 Avalibility Set(AS) VMs belongs to different servers of same AZ
 
