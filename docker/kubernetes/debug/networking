@@ -77,3 +77,5 @@ Save and exit the file. Finally, for the changes to come into effect, run below 
 
 $ sudo ifdown enp0s3 && sudo ifup enp0s3
 --------------------------------
+subnetting calculator:
+http://jodies.de/ipcalc?host=10.0.0.0&mask1=24&mask2=26

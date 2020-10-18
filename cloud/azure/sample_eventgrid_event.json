@@ -1,0 +1,56 @@
+{
+  "subject": "/subscriptions/563ac70a-e26c-48fd-a47c-8b4c35ef90cf/resourceGroups/myRg/providers/Microsoft.EventGrid/systemTopics/system-topic/eventSubscriptions/sub2",
+  "eventType": "Microsoft.Resources.ResourceWriteSuccess",
+  "id": "ee96eb34-efc7-4e2e-9956-7307206cba74",
+  "data": {
+    "authorization": {
+      "scope": "/subscriptions/563ac70a-e26c-48fd-a47c-8b4c35ef90cf/resourceGroups/myRg/providers/Microsoft.EventGrid/systemTopics/system-topic/eventSubscriptions/sub2",
+      "action": "Microsoft.EventGrid/systemTopics/eventSubscriptions/write",
+      "evidence": {
+        "role": "Subscription Admin"
+      }
+    },
+    "claims": {
+      "aud": "https://management.core.windows.net/",
+      "iss": "https://sts.windows.net/cf6161cd-27ea-44d0-aca9-8199e6314072/",
+      "iat": "1598700525",
+      "nbf": "1598700525",
+      "exp": "1598704425",
+      "http://schemas.microsoft.com/claims/authnclassreference": "1",
+      "aio": "AUQAu/8QAAAARNE7eR8NC+y6XKlNZEjtZspPBCYSKgxa9mEgwCL5qtOinIJ+ONgdMiIhkDbUqiLtRKilX0JqWuVqfNgKmThysA==",
+      "altsecid": "1:live.com:00034001FDAEAE14",
+      "http://schemas.microsoft.com/claims/authnmethodsreferences": "pwd",
+      "appid": "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+      "appidacr": "2",
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "guharoytamajit@gmail.com",
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname": "guha roy",
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname": "tamajit",
+      "groups": "d7e53324-044b-4eb4-a673-ba7b062814ce",
+      "http://schemas.microsoft.com/identity/claims/identityprovider": "live.com",
+      "ipaddr": "103.18.170.242",
+      "name": "tamajit guha roy",
+      "http://schemas.microsoft.com/identity/claims/objectidentifier": "3caef240-470c-4ca3-b67d-257fe76c085e",
+      "puid": "1003200091508E72",
+      "rh": "0.AAAAzWFhz-on0ESsqYGZ5jFAcoNAS8SwO8FJtH2XTlPL3zw-AMk.",
+      "http://schemas.microsoft.com/identity/claims/scope": "user_impersonation",
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier": "E6UxZRVklwwPD3yADby3roLWt3hbAqlaZdWocX9zOpc",
+      "http://schemas.microsoft.com/identity/claims/tenantid": "cf6161cd-27ea-44d0-aca9-8199e6314072",
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name": "live.com#guharoytamajit@gmail.com",
+      "uti": "uSGgM9ntrkeKXQzY_JYyAA",
+      "ver": "1.0",
+      "wids": "62e90394-69f5-4237-9190-012177145e10",
+      "xms_tcdt": "1576326876"
+    },
+    "correlationId": "b6bbc5ad-6219-4700-8bde-a1c6c000c70e",
+    "resourceProvider": "Microsoft.EventGrid",
+    "resourceUri": "/subscriptions/563ac70a-e26c-48fd-a47c-8b4c35ef90cf/resourceGroups/myRg/providers/Microsoft.EventGrid/systemTopics/system-topic/eventSubscriptions/sub2",
+    "operationName": "Microsoft.EventGrid/systemTopics/eventSubscriptions/write",
+    "status": "Succeeded",
+    "subscriptionId": "563ac70a-e26c-48fd-a47c-8b4c35ef90cf",
+    "tenantId": "cf6161cd-27ea-44d0-aca9-8199e6314072"
+  },
+  "dataVersion": "2",
+  "metadataVersion": "1",
+  "eventTime": "2020-08-29T12:08:53.8024603Z",
+  "topic": "/subscriptions/563ac70a-e26c-48fd-a47c-8b4c35ef90cf/resourceGroups/myRg"
+}

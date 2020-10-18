@@ -1,0 +1,9 @@
+kubectl get all --all-namespaces
+
+istioctl install --set values.tracing.enabled=true
+
+
+istioctl install --set profile=demo
+
+kubectl get all
+

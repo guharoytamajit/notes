@@ -21,9 +21,28 @@ mrt www.google.com
 bmon
 
 kubectl run --rm -it --image amouat/network-utils  test
+
+
+sql server client:
 kubectl run --rm -it --image mcr.microsoft.com/mssql-tools  sqlclient
 >sqlcmd -S <servername>.database.windows.net  -U <user> -P <pass> -I
 >SELECT name, database_id, create_date  FROM sys.databases ;  
 >go
 
 
+
+
+postgres cli:
+docker run -it --rm dencold/pgcli postgresql://user:password@host:port/dbname
+>\d    //list tables
+
+
+Connect to redis:
+kubectl run --rm -it --image redis  myredis bash
+>redis-cli -h rdc-tdsit-st-ci-pay-01.redis.cache.windows.net -p 6380 -a "password"
+
+
+telnet:
+
+kubectl run --rm -it  multitool --image=praqma/network-multitool bash
+>telnet rdc-tdsit-st-ci-pay-01.redis.cache.windows.net 6380

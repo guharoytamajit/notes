@@ -1,0 +1,16 @@
+.\jaeger-all-in-one --collector.zipkin.http-port=9411
+
+http://localhost:16686
+
+
+Starting hotrod
+
+
+.\example-hotrod --help
+
+.\example-hotrod all
+
+http://localhost:8080
+
+http://127.0.0.1:8083/metrics
+http://127.0.0.1:8083/debug/vars

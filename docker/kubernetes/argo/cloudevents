@@ -1,0 +1,29 @@
+cloudevents/conformance:
+cloudevents is a tool for testing CloudEvents receivers.
+
+https://github.com/cloudevents/conformance
+
+
+install:
+>go get github.com/cloudevents/conformance/cmd/cloudevents
+
+update:
+>go get -u github.com/cloudevents/conformance/cmd/cloudevents
+
+
+Usage:
+cloudevents has three commands at the moment: send, invoke and listen.
+
+Send:
+send will do a one-off creation of a cloudevent and send to a given target.
+>cloudevents send http://localhost:8080 --id abc-123 --source cloudevents.conformance.tool --type foo.bar
+
+
+Invoke:
+invoke will read yaml files, convert them to http and send them to the given target.
+>cloudevents invoke http://localhost:8080 -f ./yaml/v0.3
+
+============================================================================
+https://github.com/n3wscott/sockeye
+
+receives and displays cloudevents

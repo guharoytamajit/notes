@@ -16,7 +16,7 @@ managed-premium     kubernetes.io/azure-disk   18h
 
 
 Very Important Note:
-Default reclaimPolicy is Delete for both azure-disk and azure-file.reclaimPolicy: Delete
+Default reclaimPolicy is Delete for both azure-disk and azure-file.   reclaimPolicy: Delete
 AKS supports two types of provisioners: azure-disk(only ReadWriteOne,better for intense IO operations) and azure-file(ReadWriteOne and ReadWriteMany ie multi pod may share)
 For statefulset use azure-disk
 

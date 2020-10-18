@@ -1,0 +1,122 @@
+Kubernetes API Terminology:
+1.Kind:
+There are three categories of kinds
+a)Objects represent a persistent entity in the system—for example, Pod or Endpoints. Objects have names, and many of them live in namespaces.
+b)Lists are collections of one or more kinds of entities. Lists have a limited set of common metadata. Examples include PodLists or NodeLists. eg.  kubectl get pods
+c)Special-purpose kinds are used for specific actions on objects and for nonpersistent entities such as /binding or /scale. For discovery, Kubernetes uses APIGroup and APIResource; for error results, it uses Status.
+
+In Kubernetes programs, a kind directly corresponds with a Golang type. Thus, as Golang types, kinds are singular and begin with a capital letter.
+
+2)API group:
+A collection of Kinds that are logically related. For example, all batch objects like Job or ScheduledJob are in the batch API group.
+
+3)Version
+Each API group can exist in multiple versions, and most of them do. For example, a group first appears as v1alpha1 and is then promoted to v1beta1 and finally graduates to v1. 
+
+
+4)Resource
+A usually lowercase, plural word (e.g., pods) identifying a set of HTTP endpoints (paths) exposing the CRUD (create, read, update, delete) semantics of a certain object type in the system. Common paths are:
+
+The root, such as …/pods, which lists all instances of that type
+A path for individual named resources, such as …/pods/nginx
+
+Note:
+Resources and kinds are often mixed up. Note the clear distinction:
+
+Resources correspond to HTTP paths.
+Kinds are the types of objects returned by and received by these endpoints, as well as persisted into etcd.
+
+
+eg. for below endpoint:
+  /apis/batch/v1/namespace/${namespace}/jobs
+batch=>group
+v1=> version
+jobs=> resource
+===================================
+If you want to get an idea of what API resources are supported in your cluster:
+> kubectl api-resources
+
+Check all api versions supported in current cluster:
+>kubectl api-versions
+autoscaling/v1
+autoscaling/v2beta1
+autoscaling/v2beta2
+batch/v1
+batch/v1beta1
+. . .
+
+>kubectl proxy --port=8080   
+Creates a proxy server or application-level gateway between localhost and the Kubernetes API Server. It also allows serving static content over specified HTTP path. All incoming data enters through one port and gets forwarded to the remote kubernetes API Server port, except for the path matching the static content path.
+
+>kubectl proxy --help  #to see other options
+
+
+> curl http://127.0.0.1:8080/apis/batch/v1
+OR
+>kubectl get --raw /apis/batch/v1
+{
+  "kind": "APIResourceList",
+  "apiVersion": "v1",
+  "groupVersion": "batch/v1",
+  "resources": [
+    {
+      "name": "jobs",
+      "singularName": "",
+      "namespaced": true,
+      "kind": "Job",
+      "verbs": [
+        "create",
+        "delete",
+        "deletecollection",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch"
+      ],
+      "categories": [
+        "all"
+      ],
+      "storageVersionHash": "mudhfqk/qZY="
+    },
+    {
+      "name": "jobs/status",
+      "singularName": "",
+      "namespaced": true,
+      "kind": "Job",
+      "verbs": [
+        "get",
+        "patch",
+        "update"
+      ]
+    }
+  ]
+}
+ 
+
+
+
+For example Deployment belongs to api group "apps/v1"  as shown below:
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+  ....
+
+
+you can view all other kinds in same api-group as :
+>curl localhost:8080/apis/apps/v1  
+
+
+get http commands corresponding to a kubectl command:
+>kubectl get deployments app2 -v=7
+I0905 01:29:43.214874   10288 loader.go:375] Config loaded from file:  /home/tamajit/.kube/config
+I0905 01:29:43.220416   10288 round_trippers.go:420] GET https://172.42.42.100:6443/apis/extensions/v1beta1/namespaces/default/deployments/app2
+....
+
+You can hit the above url through proxy(this way no authentication is required):
+>http://localhost:8080/apis/extensions/v1beta1/namespaces/default/deployments/app2
+

@@ -1,0 +1,10 @@
+the command for listing unassociated public IPs using Azure CLI is:
+
+>az network public-ip list -g $rgName --query "[?(ipConfiguration==null)].id" -o tsv
+
+
+
+The command for listing unassociated network security groups IPs using Azure CLI is:
+
+>az network nsg list -g $rgName --query "[?(subnets==null) && (networkInterfaces==null)].id" -o tsv
+

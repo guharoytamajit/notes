@@ -1,0 +1,53 @@
+source: https://vitux.com/install-nfs-server-and-client-on-ubuntu/
+
+>sudo apt-get install nfs-kernel-server
+
+Let's say we want to export our users' home directories in /home/users. First we create the export filesystem:
+
+>sudo mkdir -p /mnt/sharedfolder
+
+As we want all clients to access the directory, we will remove restrictive permissions of the export folder through the following commands:
+>sudo chown nobody:nogroup /mnt/sharedfolder
+>sudo chmod 777 /mnt/sharedfolder                   #Now all users from all groups on the client system will be able to access our “sharedfolder”
+
+>sudo nano /etc/exports
+
+Once you have opened the file, you can allow access to:
+
+A single client by adding the following line in the file:
+/mnt/sharedfolder clientIP(rw,sync,no_subtree_check)
+Multiple clients by adding the following lines in the file:
+/mnt/sharedfolder client1IP(rw,sync,no_subtree_check)
+/mnt/sharedfolder client2IP(rw,sync,no_subtree_check)
+Multiple clients, by specifying an entire subnet that the clients belong to:
+/mnt/sharedfolder subnetIP/24(rw,sync,no_subtree_check)
+
+Where:
+rw => read and write operations
+sync => write any change to the disc before applying it
+no_subtree_check=> prevent subtree checking
+
+
+add following line to /etc/exports:
+/mnt/sharedfolder *(rw,sync,no_subtree_check,no_root_squash,insecure)
+
+
+
+Export the shared directory:
+>sudo exportfs -rav
+>sudo systemctl restart nfs-kernel-server
+
+check what you are exporting and to whom?
+>showmount -e
+=====================
+Mounting exported NFS on client:
+>sudo mkdir -p /mnt/sharedfolder_client
+
+Check what is avaiable for mounting:
+>showmount -e 192.168.0.105   #192.168.0.105 is the ip of nfs server
+
+Mount:
+>sudo mount 192.168.0.105:/mnt/sharedfolder /mnt/sharedfolder_client
+
+Unmount:
+>sudo umount /mnt/sharedfolder_client

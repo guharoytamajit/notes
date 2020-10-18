@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: maven-proj
+spec:
+  pipelineRef:
+    name: maven-build
+  resources: 
+    - name: pipeline-git
+      resourceSpec: 
+        type: git
+        params:
+          - name: revision
+            value: master
+          - name: url
+            value: https://github.com/jenkins-docs/simple-java-maven-app.git
+    

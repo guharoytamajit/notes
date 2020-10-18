@@ -1,0 +1,151 @@
+Reactive programming
+pub sub model
+It is integrated into different azure services
+send events via webhook
+autoscales for millions of requests
+It also handles and takes care of filtering ,retry,dead-lettering if things does not go as expected.
+
+Basic components:
+Event(limitedto 64KB, must follow a strict schema)
+Publisher(user or organization that sends event.it can be builtin publisheror custom publisher)
+Event Sources(where event happens eg storage account)
+Topic(an endpoint where event source sends events,can be built-in or custom. Event source can send event on one or multiple topics. topic type example storage account)
+Subscriptions(subscription is how you inform the event grid about what events we are interested to listen to.)
+              When we create a subscription we provide an endpoint to handle the received events.
+Event Handler(handles the events, it can be azure  queue,webhook etc)			  
+                 for webhook the event is retried until handler returns 200 OK.For azure queue events are retried as well until the events are processed.
+Event types
+
+
+Event Delivery:
+Event is delivered to all all subscribed handlers immadiately,if endpoint does not acknowledge an event then event grid will retry.
+event grids supports exponential backoff retry policy(retry interval increased after each failure(10s ,30s ,1m, 5m, 10m ,30m till 1h max interval ), instead of immediate retry and choke the system.
+These interval is customizable
+If the event is not delivered  within 24 hours , the event expires.
+If an event cannot be delivered ,it can be delivered to a storage queue as a dead letter event.in a storage account you can configure.
+Note: By default dead letter feature is off to use it we have to enable it.
+multiple events can be batched for better performance
+
+Authentication:
+1)webhook:  
+The endpoint you are providing during subscription you have to prove it belongs to you.
+Only https endpoints are supported.
+You can include additional parameters for security such as secret or access token.These  are passed in as query strings.
+For web hook authentication can be automatic or manual
+a)automatic: At time of event subscription creation event grid will post a "validation code" to endpoint,handler returns "validation code echo"(endpoints handler confirms it is interested in subscription) 
+b)manual:At time of event subscription creation event grid event grid will share a "validation URL"(URL expires in 10 mins). handler has to call the link to confirm it is interested in subscription
+
+2)event subscriptions:    We instead of using a webhook we use an azure built-in services like event-hub,queue storage.Then we need right access to those resources(Microsoft.EventGrid/EventSubscriptions/write) 
+
+3)custom topic:
+supports two types of authentication:
+a)key:
+b)SAS(shared access signature):
+
+
+
+Authorization:
+Supports action types like  Microsoft.EventGrid/*/read,  Microsoft.EventGrid/*/write,  Microsoft.EventGrid/*/delete  etc
+Event Grid supports role based access(RBAC)
+
+
+Security:
+event grid only sends events to authenticated endpoints
+functions authenticate through event grid trigger
+logic apps authenticate through service connections
+===============================================
+Event Publisher will end the events to topic
+In custom topic your application is the event publisher 
+azure has many built-in topics created for existing services like blob storage.
+subscription connect a topic to multiple subscribers(event handlers),subscriptions can have routing logic,filtering etc.
+Event handlers can be azure  functions,logic apps,azure automation, webhooks,event hub etc
+
+
+
+We can subscrible to any built-in supported events by going to events menu from the service
+
+
+we can connect a topic to azure functions handler(using subscription) in two ways:
+1)webhook  with event grid trigger=> automatically takes care of validation 
+2)webhook with http trigger hosted  outside azure=>manual validation code required(see if block below), event grid will first make a call for validation before sending actual event.
+
+
+module.exports = function (context, req) {
+    context.log('JavaScript HTTP trigger function processed a request.');
+
+    var header = req.headers['aeg-event-type'];
+    if(header && header === 'SubscriptionValidation'){
+        var event = req.body[0];
+         var isValidationEvent = event && event.data && 
+                                 event.data.validationCode &&
+                                 event.eventType && 
+                                 event.eventType == 'Microsoft.EventGrid.SubscriptionValidationEvent';
+         if(isValidationEvent){
+            context.res = {
+                status: 200, 
+                body: { validationResponse: event.data.validationCode },
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+            
+         }
+    }
+    else {
+        for (var events in req.body) {
+            var event = req.body[events];
+            var make = event.data.make;
+            var model = event.data.model;
+            context.log("We've got a new car of make " + make + " and model " + model + "!");
+        }
+    }
+    context.done();
+};
+
+
+
+
+we can also define our custom events:
+1)create an event grid topic with name "tamajit-event"
+in the overview section you will see topic-endpoint url
+in access key section you will also see keys required to publish events 
+
+2)Send an event to your custom topic:
+>endpoint=$(az eventgrid topic show --name $topicname -g gridResourceGroup --query "endpoint" --output tsv)
+>key=$(az eventgrid topic key list --name $topicname -g gridResourceGroup --query "key1" --output tsv)
+>event='[ {"id": "'"$RANDOM"'", "eventType": "recordInserted", "subject": "myapp/vehicles/motorcycles", "eventTime": "'`date +%Y-%m-%dT%H:%M:%S%z`'", "data":{ "make": "Ducati", "model": "Monster"},"dataVersion": "1.0"} ]'
+>curl -X POST -H "aeg-sas-key: $key" -d "$event" $endpoint
+====================
+Create a resource group:
+>az group create --name gridResourceGroup --location westus2
+
+Check if event grid is anabled:
+>az provider show --namespace Microsoft.EventGrid --query "registrationState"
+
+Enable the Event Grid resource provider:
+>az provider register --namespace Microsoft.EventGrid
+
+
+An event grid topic provides a user-defined endpoint that you post your events to. 
+Create a custom topic:
+>topicname=<your-topic-name>
+>az eventgrid topic create --name $topicname -l westus2 -g gridResourceGroup
+
+
+Create a message endpoint:
+>sitename=<your-site-name>
+>az group deployment create \
+  --resource-group gridResourceGroup \
+  --template-uri "https://raw.githubusercontent.com/Azure-Samples/azure-event-grid-viewer/master/azuredeploy.json" \
+  --parameters siteName=$sitename hostingPlanName=viewerhost
+
+Subscribe to a custom topic:
+
+
+======================
+
+az provider list -o table
+az provider operation show --namespace Microsoft.Storage
+az provider operation list 
+
+

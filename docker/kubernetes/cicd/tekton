@@ -1,0 +1,369 @@
+install tekton in k8s cluster:
+>kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+
+
+>kubectl get pods --namespace tekton-pipelines
+NAME                                           READY   STATUS             RESTARTS   AGE
+tekton-pipelines-controller-8675774c99-95ppc   0/1     CrashLoopBackOff   6          8m4s
+tekton-pipelines-webhook-5778665958-54l76      0/1     CrashLoopBackOff   6          8m3s
+
+
+If you find error then try below yaml:
+
+Note:
+The below cammand should be run from default namespace ,it will internlly create tekton-pipelines
+
+kubectl apply -f https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.14.2/release.yaml
+watch kubectl get deployments,pods,services --namespace tekton-pipelines
+kubectl get images,pipelineruns,pipelines,taskruns,tasks,pipelineresources
+
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboard/latest/tekton-dashboard-release.yaml
+
+
+tekton-pipelines
+
+install tekton cli:
+>curl -LO https://github.com/tektoncd/cli/releases/download/v0.12.1/tkn_0.12.1_Linux_x86_64.tar.gz
+# Extract tkn to your PATH (e.g. /usr/local/bin)
+>sudo tar xvzf tkn_0.12.1_Linux_x86_64.tar.gz -C /usr/local/bin/ tkn
+
+
+T
+
+========================================
+Task:
+A Task is a collection of Steps that you define and arrange in a specific order of execution as part of your continuous integration flow.
+A Task executes as a Pod on your Kubernetes cluster. A Task is available within a specific namespace, while a ClusterTask is available across the entire cluster.
+
+Create a task:
+
+>kubectl apply -f - <<EOF
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: echo-hello-world
+spec:
+  steps:
+    - name: echo
+      image: ubuntu
+      command:
+        - echo
+      args:
+        - "Hello World"
+EOF
+
+>tkn task describe echo-hello-world
+
+>kubectl apply -f - <<EOF
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: echo-hello-world-task-run
+spec:
+  taskRef:
+    name: echo-hello-world
+EOF		
+
+>tkn taskrun describe echo-hello-world-task-run
+>tkn taskrun logs echo-hello-world-task-run
+
+
+
+A Task declaration includes the following elements:
+
+Parameters=>  Specifies execution parameters for the Task
+Resources=> Specifies the resources ingested by the Task and the resources produced by the Task
+Steps(Required)=>Specifies one or more container images to run in the Task.
+Workspaces=> Specifies paths to volumes required by the Task
+Results=>  Specifies the names under which Tasks write execution results
+
+example:
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: example-task-name
+spec:
+  params:
+    - name: pathToDockerFile
+      type: string
+      description: The path to the dockerfile to build
+      default: /workspace/workspace/Dockerfile
+  resources:
+    inputs:
+      - name: workspace
+        type: git
+    outputs:
+      - name: builtImage
+        type: image
+  steps:
+    - name: ubuntu-example
+      image: ubuntu
+      args: ["ubuntu-build-example", "SECRETS-example.md"]
+    - image: gcr.io/example-builders/build-example
+      command: ["echo"]
+      args: ["$(params.pathToDockerFile)"]
+    - name: dockerfile-pushexample
+      image: gcr.io/example-builders/push-example
+      args: ["push", "$(resources.outputs.builtImage.url)"]
+      volumeMounts:
+        - name: docker-socket-example
+          mountPath: /var/run/docker.sock
+  volumes:
+    - name: example-volume
+      emptyDir: {}
+=====================================
+Specifying Task inputs and outputs:
+
+PipelineResources in a pipeline are the set of objects that are going to be used as inputs to a Task and can be output by a Task.
+
+A Task can have multiple inputs and outputs.
+
+For example:
+
+A Task's input could be a GitHub source which contains your application code.
+A Task's output can be your application container image which can be then deployed in a cluster.
+A Task's output can be a jar file to be uploaded to a storage bucket.
+
+
+Input:
+The git resource specifies a git repository with a specific revision from which the Task will pull the source code:
+
+>kubectl apply -f - <<EOF
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: skaffold-git
+spec:
+  type: git
+  params:
+    - name: revision
+      value: master
+    - name: url
+      value: https://github.com/GoogleContainerTools/skaffold                              #configure: change if you want to build something else, perhaps from your own local git repository.
+EOF
+
+Output:
+
+The image resource specifies the repository to which the image built by the Task will be pushed:
+
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: skaffold-image-leeroy-web
+spec:
+  type: image
+  params:
+    - name: url
+      value: gcr.io/<use your project>/leeroy-web           #configure: replace with where the image should go: perhaps your local registry or Dockerhub with a secret and configured service account	  	  
+	  
+==================================	  
+Configuring basic-auth authentication for Git:
+
+ Before executing any Steps in the Run, Tekton creates a ~/.gitconfig file containing the credentials specified in the Secret. When the Steps execute, Tekton uses those credentials to retrieve PipelineResources specified in the Run.
+
+In secret.yaml, define a Secret that specifies the username and password that you want Tekton to use to access the target Git repository:
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: basic-user-pass
+  annotations:
+    tekton.dev/git-0: https://github.com # Described below
+type: kubernetes.io/basic-auth
+stringData:
+  username: <cleartext username>
+  password: <cleartext password>	  
+  
+  
+  
+In serviceaccount.yaml, associate the Secret with the desired ServiceAccount:
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: build-bot
+secrets:
+  - name: basic-user-pass
+  
+  
+Associate the ServiceAccount with your TaskRun:
+
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: build-push-task-run-2
+spec:
+  serviceAccountName: build-bot
+  taskRef:
+    name: build-push  
+	
+	
+OR Associate the ServiceAccount with your PipelineRun:
+
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: demo-pipeline
+  namespace: default
+spec:
+  serviceAccountName: build-bot
+  pipelineRef:
+    name: demo-pipeline	
+	
+>kubectl apply --filename secret.yaml serviceaccount.yaml run.yaml	
+	  
+--------------------------------
+Configuring ssh-auth authentication for Git:
+
+ Before executing any Steps in the Run, Tekton creates a ~/.ssh/config file containing the SSH key specified in the Secret. When the Steps execute, Tekton uses this key to retrieve PipelineResources specified in the Run.
+
+In secret.yaml, define a Secret that specifies your SSH private key:
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssh-key
+  annotations:
+    tekton.dev/git-0: github.com # Described below
+type: kubernetes.io/ssh-auth
+stringData:
+  ssh-privatekey: <private-key>
+  # This is non-standard, but its use is encouraged to make this more secure.
+  # If it is not provided then the git server's public key will be requested
+  # when the repo is first fetched.
+  known_hosts: <known-hosts>
+  
+  
+Generate the ssh-privatekey value. For example:
+
+cat ~/.ssh/id_rsa
+
+
+Set the value of the known_hosts field to the generated ssh-privatekey value from the previous step.
+
+
+In serviceaccount.yaml, associate the Secret with the desired ServiceAccount:
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: build-bot
+secrets:
+  - name: ssh-key
+  
+
+Associate the ServiceAccount with your TaskRun:
+
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: build-push-task-run-2
+spec:
+  serviceAccountName: build-bot
+  taskRef:
+    name: build-push
+	
+	
+OR Associate the ServiceAccount with your PipelineRun:
+
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: demo-pipeline
+  namespace: default
+spec:
+  serviceAccountName: build-bot
+  pipelineRef:
+    name: demo-pipeline	
+
+
+>kubectl apply --filename secret.yaml serviceaccount.yaml run.yaml
+
+
+
+
+
+
+
+
+=================
+Configuring authentication for Docker:
+
+Before executing any Steps in the Run, Tekton creates a ~/.docker/config.json file containing the credentials specified in the Secret. When the Steps execute, Tekton uses those credentials when retrieving PipelineResources specified in the Run.
+	  
+In secret.yaml, define a Secret that specifies the username and password that you want Tekton to use to access the target Docker registry:
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: basic-user-pass
+  annotations:
+    tekton.dev/docker-0: https://gcr.io # Described below
+type: kubernetes.io/basic-auth
+stringData:
+  username: <cleartext username>
+  password: <cleartext password>
+  
+  
+  
+serviceaccount.yaml, associate the Secret with the desired ServiceAccount:
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: build-bot
+secrets:
+  - name: basic-user-pass  
+  
+Associate the ServiceAccount with your TaskRun:
+
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: build-push-task-run-2
+spec:
+  serviceAccountName: build-bot
+  taskRef:
+    name: build-push
+
+
+OR Associate the ServiceAccount with your PipelineRun:
+
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: demo-pipeline
+  namespace: default
+spec:
+  serviceAccountName: build-bot
+  pipelineRef:
+    name: demo-pipeline
+
+
+>kubectl apply --filename secret.yaml serviceaccount.yaml run.yaml
+----------------------
+docker/config.json:
+
+
+This section describes how to configure authentication using the dockercfg and dockerconfigjson type Secrets for use with Docker. In the example below, before executing any Steps in the Run, Tekton creates a ~/.docker/config.json file containing the credentials specified in the Secret. When the Steps execute, Tekton uses those credentials to access the target Docker registry. 
+
+Note: If you specify both the Tekton basic-auth and the above Kubernetes Secrets, Tekton merges all credentials from all specified Secrets but Tekton's basic-auth Secret overrides either of the Kubernetes Secrets.	
+
+
+Define a Secret based on your Docker client configuration file.
+
+kubectl create secret generic regcred \
+ --from-file=.dockerconfigjson=<path/to/.docker/config.json> \
+ --type=kubernetes.io/dockerconfigjson
+ 
+ 
+In serviceaccount.yaml, associate the Secret with the desired ServiceAccount:
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: build-bot
+secrets:
+  - name: regcred
+

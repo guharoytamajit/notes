@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: p8080
+    - port: 50000
+      targetPort: 50000 
+      name: p50000     
+    - port: 80
+      targetPort: 8080
+      name: p80         
+  selector:
+    app: jenkins

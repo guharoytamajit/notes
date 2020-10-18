@@ -1,6 +1,6 @@
 prequisites:
 1)metrics-server or heapster should be active
-2)resource request must be there in container
+2)resource request must be there in container,because threshold are calculated relative to resource request.
 
 autoscaling is applied on deployment.
 horizontal pod autoscaling(HPA): increase no of pods based on some condition.common in web apps.

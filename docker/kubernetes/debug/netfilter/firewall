@@ -1,0 +1,33 @@
+table has multiple chains
+chain has multiple rules
+
+rule has matching criteria and target
+target can be  DROP(No other rule is evaluated),ACCEPT(default)
+
+iptables -t filter -A INPUT -p icmp -j DROP     # other options=>  --dport  22   -s 192.169.1.23
+filter=>table name
+-A =>append
+INPUT=>chain name
+icmp=>protocol
+DROP =>target
+No -s=> alll source
+No --dport  => all destination ports
+
+iptables -t filter -A OUTPUT -d  google.com -j DROP  
+
+
+sudo iptables -A INPUT -i eth0 -j ACCEPT
+
+
+
+sudo iptables -t filter -L FORWARD --line-numbers -n -v
+-n=>numeric output of addresses and ports
+-v =>  verbose
+--line-numbers  =>show line
+
+
+delete 3rd rule of OUTPUT chain:
+sudo iptables -D OUTPUT 3
+
+
+

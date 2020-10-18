@@ -1,0 +1,15 @@
+#generated using  >kubectl create configmap spring-app-config --from-file=application-kube.yml --from-file=application.yml --dry-run -o yaml
+#location of application.yml files can be overridden with -Dspring.config.location=/deployments/config(see DOCKERFILE cmd),now jar fill will not
+#refer application.yml inside resource 
+apiVersion: v1
+data:
+  application-kube.yml: "greet:\n  message1: good morning\n  message2: how are you doing!!!!!!!
+    \ "
+  application.yml: "spring:\n  application:\n    name: department\n  data:\n    mongodb:\n
+    \     uri: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongodb/${MONGO_DATABASE}\n
+    \     \nlogging:\n  pattern: \n    console: \"%d{yyyy-MM-dd HH:mm:ss} ${LOG_LEVEL_PATTERN:-%5p}
+    %m%n\"\nserver:\n  port:  8081"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: spring-app-config

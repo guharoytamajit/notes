@@ -131,7 +131,7 @@ This means that istio can work with non k8s softwares like consul.So when workin
 Pilot(istio-pilot-5d454cbb46-pr4h7   pod):
 As input it takes configuration in internal structure that istio understands from galley
 Pilot is responsible for converting the configuration into a format that envoy understands.
-It is also responsible for propogating the configurations to proxies(envoy containers)
+It is also responsible for propagating(broadcast) the configurations to proxies(envoy containers)
  
 Citadel:
 Manages TSL certificates,to have secure communication between proxies.
@@ -140,6 +140,11 @@ This means we can enable TLS/SSL across entire cluster
 Mixer(may be removed in the future)
 Takes care of policy check(eg upto 10 request per sec) and telemetry.
 In list of pod we see separate pods for telemetry and policy,so it is already divided into multi components
+
+Pilot,Galley,Citadel has been merged now  called istiod(control plane)
+
+
+All envoy proxies(side car) together forms data plane.
 ==============================================
 telemetry:
 
@@ -159,8 +164,61 @@ check port where kiali is running
 
 
 
+================================================
+VirtualService:
+Powered by envoy.
+Enables us to configure custom routing rules to the service mesh.
+This component is deployed inside every envoy proxy
+Istio pilot updates VirtualService configuration to all the envoy proxys
+
+Destination Rules:
+Which pod should be part of which subset.
+
+Gateway(ingress gateway):
+istio's solution for ingress
+inside istio ingress gateway pod it is powered by envoy (standalone envoy proxy),this pod is located inside istio-system namespace.
+gateway describes a loadbalancer operating at the edge of the mesh receiving incoming or outgoing  HTTP/TCP connections.
+Gateway configuration(yaml) are applied to the standalone envoy proxies(ingressgateway pod in istio-system namespace) that are running at the edge of the mesh rather than sidecar envoy proxies running along side our app container.
+It defines incoming ports,protocol and target groups.
+The Gateway to work as intended ,you must also bind the gateway to a VirtualService.
+
+As we know k8s ingress has three components 1)ingress controller pods 2)ingress resource(has routing config) 3)ingress service(of type loadbalancer or Nodeport, this is the main entry point for traffic towards ingress controller pods running inside k8s cluster ,using service selectors)
+Similarly gateway has a pods,gateway resource and gateway service
+
+Note:
+In istio regular app pod has two containers  main container and sidecar envoy container
+where as istio ingressgateway pod has only one container ie. envoy  
+
+k8s     vs    istio anology:
+ingress resource => Gateway resource
+ingress controller pod => istio-ingressgateway pod 
+
+aws vs istio anology:
+AWS ELB Listeners=>Istio Gateway
+AWS ELB Target Groups(layer 7)=> Istio VirtualService(layer7) 
 
 
+Ingress Controller:
+Controls what triffic comes into cluster
+
+
+Egress Controller:
+Controls what triffic goes out of cluster
+
+==========================
+Provides the addition, deletion, modification, and checking of Pilot-related CRD Resources. There are several CRDs related to Pilot:
+
+Virtualservice : used to define routing rules, such as formulating rules based on the source or header, or splitting traffic between different service versions.
+
+DestinationRule : Define the configuration strategy and routable subset of the destination service. Strategies include circuit breakers, load balancing, and TLS.
+
+ServiceEntry : You can use ServiceEntry to add additional service entries to Istio, so that the grid can make requests to services outside the istio service grid.
+
+Gateway : Configure a gateway for the grid to allow a service to be accessed outside the grid.
+
+EnvoyFilter : You can configure filters for Envoy. Since Envoy already supports Lua filters, you can enable Lua filters through EnvoyFilter to dynamically change Envoy's filtering chain behavior. I have been thinking about how to dynamically expand the capabilities of Envoy. EnvoyFilter provides very flexible scalability.
+
+Sidecar : By default, Pilot will send all the services related to Envoy Sidecar's namespace, including inbound and outbound listeners, clusters, routes, etc., to Envoy. Sidecar can be used to make more fine-grained adjustments to the configuration delivered by Pilot to Envoy Sidcar, for example, only the outbound configuration of those external services that the sidecar service needs to access is delivered to it.
 
 
 

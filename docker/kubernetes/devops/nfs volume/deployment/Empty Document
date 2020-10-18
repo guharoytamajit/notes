@@ -1,0 +1,3 @@
+This approach works good when accessmode is ReadWriteMany.
+but with ReadWriteOnce accessmode also it behaves same as ReadWriteMany(ie. allow multiple pods to use same pv-pvc even on different nodes)
+So if we have ReadWriteOnce access requirement we should always use Stateful state

@@ -19,6 +19,10 @@ Note:  hello.go need not be inside a directory named main
 >go build hello.go
 >./hello
 
+=====================
+struct ,array,primitives(value types)=> on assignment copy of original object returned
+slice,map(pointer type)=> on assignment original object is returned(use & to point to original object)
+
 
 
 

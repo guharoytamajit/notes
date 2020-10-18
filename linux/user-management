@@ -36,4 +36,4 @@ we use usermod with following flags:
 >groupmod --help
 >groupdel hr //delete group hr
 
-
+>id

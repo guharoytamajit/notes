@@ -15,6 +15,18 @@ use "vagrant box list" to see list of downloaded box
 Then it will start the VM.
 It will also show informations like  port forwarding, shared folders, and networking details in console.
 
+box location:
+~/.vagrant.d/boxes
+vm loaction:
+~/VirtualBox VMs
+
+
+box=>like template(like java class)
+vm=> instance created from(like java object)
+
+box is only downloaded if not found in local machine. 
+
+
 >vagrant status  //check status
 >vagrant ssh //to ssh inside the above VM(ctrl+d or exit to exit)
 >vagrant halt //stop VM

@@ -1,0 +1,4 @@
+mvn clean package
+docker build -t organization:1.1 .
+docker tag organization:1.1 guharoytamajit/organization:1.1
+docker push guharoytamajit/organization:1.1

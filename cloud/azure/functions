@@ -1,0 +1,42 @@
+open vs code and add plugin:
+ctrl+ P and paste  
+
+install node version 10.14.1
+>nvm install 10.14.1
+>nvm use 10.14.1
+
+>nvm alias default 10.14.1   #without this node version is  10.14.1 only in current session,new terminal will stil have different old version. 
+
+
+Install azure-functions-core-tools so that we can execute function locally before you publish to Azure.:
+>npm i -g azure-functions-core-tools@3 --unsafe-perm true
+
+
+>func start
+-----------------------------------------------------
+It has multiple plans:
+1)consumption plan:
+pay for what you use  ( CPU   *  RAM)
+
+Per subscription:
+first 1 million executions are free
+first 400,00 GB is free
+
+Default timeout is 5 mins can be increased upto 10 mins(you cannot increase it further,you need to switch to some other plan)
+
+
+2)App service plan
+predictable monthly cost
+
+3)Premium
+Improved performance 
+support for VNet
+
+Note:
+It can be also run on  container
+-----------------------------------------------------
+
+Trigger:
+when on what condition function will be triggered
+eg http,scheduled(cron),cosmosdb,blob,queue
+
