@@ -1,0 +1,90 @@
+Terminalogies:
+cipher	text=>excrypted text 
+plain text => original text
+salt=> value to ennhance the randomness of a one way function. eg prevent rainbow table attack
+
+
+
+Digital Signature:
+Verifies Authenticity
+
+
+
+Java Cryptography Architecture(JCA):
+provides a standard API
+Designed to allow JRE providers to create their own implementations.
+JCA is  an API ,different JRE provides their implementations of JCA
+
+
+
+Java Cryptography Extension:
+An Implementation of JCA,default provider for oracle java,comes out of box with JDK
+But it does not support every algorithm and variation,so sometimes you may need third party providers
+
+JCE unlimited strength:
+Prior to Java 8u151 JCE unlimited strength was a separate download.
+Later release has this included.
+
+I earlier release it was turned off by default
+We can enable it by setting property:
+Security.setProperty("crypto.property","unlimited");
+
+Since Java 8u162  JCE unlimited strength is enabled by default.
+
+
+https://www.informit.com/articles/article.aspx?p=170967&seqNum=11
+
+-------
+JCA Concepts:
+-----
+Secure Random:
+Engine to create cryptographically strong random numbers.
+Different that java.lang.Random
+Required for good crypto operations, often used for seeds for keys and other random needs.
+
+
+Message Digest:
+Engine to create cryptographically strong  hashes
+One way operation
+Fixed size output for variable size inputs
+
+
+Signature:
+Engine to create and validate digital signatures.
+Uses combination of hash and PKI asymmetric encryption.
+Very useful for identity or authentication.
+
+Cipher:
+Engine to provide encryption	
+Support for both symmetric and asymmetric encryption.
+Also supports "Stream" and "block" ciphers
+
+Stores:
+Keystore=>stores keys 
+Truststore=> stores certificate files
+we can use keytool to work with these.
+-----------------------------
+Which hash algo to use:
+
+MD5 ans SHA1 based hash is cracked and is discouraged.
+SHA2 is good and fast
+SHA3 is not yet a standard
+BCrypt is good and slow,which is a good option for password hashing,its slowness makes it hard to brute force attack.
+-----------------------------------
+Digital Signature:
+Asymmetrically encrypted  "hash of a digital payload".
+A value that provide guarantee of authenticity and integrity
+
+original file=>create its hash(prefer sha256 for its speed)=>encrypt using private key(Digital signature)
+
+
+Anyone in the internet can take the file and its Digital signature and the public key of creator.
+If the Digital Signature can be decrypted by the public key and its value is same as hash of the received file,Then receiver can conclude:
+1)It is actually signed by the sender 
+2)The File content is same as it content when it was signed by the sender.
+
+
+================
+TODO:
+https://stackoverflow.com/questions/14304771/restrict-java-to-only-execute-signed-jars
+ jarsigner tool, policytool

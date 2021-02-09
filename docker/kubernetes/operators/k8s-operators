@@ -34,5 +34,33 @@ $ sudo chmod +x /usr/local/bin/operator-sdk
 
 The operator-sdk binary can be used to generate the boilerplate code common to many different Operators. 
 
+========================
+
+No matter how complex or simple your controller is, these three steps—read resource state ˃ change the world ˃ update resource status—remain the same.
 
 
+Controller typically uses the following data structures:
+ 1.Informers:
+ Informers watch the desired state of resources in a scalable and sustainable fashion. They also implement a resync mechanism (see “Informers and Caching” for details) that enforces periodic reconciliation, and is often used to make sure that the cluster state and the assumed state cached in memory do not drift
+ 
+ 2)Work queues:
+ =================================
+ k8s terms:
+ 
+ Kind  => like java class
+ resource =>A usually lowercase, plural word (e.g., pods) identifying a set of HTTP endpoints (paths) exposing the CRUD 
+ API group=> like package(allows two kind with same name if api group is different)  or maven groupid
+ Version => like maven artifact version
+ 
+ 
+ Resources and kinds are often mixed up. 
+ Note the clear distinction:
+ Resources correspond to HTTP paths.
+ Kinds are the types of objects returned by and received by these endpoints, as well as persisted into etcd.
+ 
+  /apis/batch/v1/namespaces/default/jobs
+  
+  batch=>group name
+  v1=>version
+  default=>namespace
+  jobs=>resource

@@ -1,0 +1,115 @@
+https://code.quarkus.io/
+
+
+ceate a project using maven plugin:
+>mvn io.quarkus:quarkus-maven-plugin:1.6.0.Final:create \
+-DprojectGroupId=tech.donau.course \
+-DprojectArtifactId=getting-started \
+-DclassName="tech.donau.course.GreetingResource" \
+-Dpath="/hello"
+
+it will create an endpoint /hello in tech.donau.course.GreetingResource.java
+
+└── getting-started
+    ├── mvnw
+    ├── mvnw.cmd
+    ├── pom.xml
+    ├── README.md
+    └── src
+        ├── main
+        │   ├── docker
+        │   │   ├── Dockerfile.fast-jar
+        │   │   ├── Dockerfile.jvm
+        │   │   └── Dockerfile.native
+        │   ├── java
+        │   │   └── tech
+        │   │       └── donau
+        │   │           └── course
+        │   │               └── GreetingResource.java
+        │   └── resources
+        │       ├── application.properties
+        │       └── META-INF
+        │           └── resources
+        │               └── index.html
+        └── test
+            └── java
+                └── tech
+                    └── donau
+                        └── course
+                            ├── GreetingResourceTest.java
+                            └── NativeGreetingResourceIT.java
+							
+							
+Please read the generated readme file it contains important info							
+
+
+
+cd getting-started
+
+>./mvnw quarkus:dev        //You can run your application in dev mode that enables live coding 
+
+
+>curl http://localhost:8080/hello
+
+make change in /hello endpoint response, you will see output getting changed without restart
+
+>curl http://localhost:8080/hello
+
+For debugging we can create a new java remote debug configuration at port 5005
+
+
+curl http://localhost:8080     //this page will be rerved from src/main/resources/META-INF/resources/index.html
+make some changes in index.html it will be reflected immediately
+
+
+we can also create jsp file in src/main/resources/META-INF/resources/   say abc.jsp
+
+it will be immediately  accessible from  localhost:8080/abc.jsp
+
+
+
+
+run test
+>mvn test
+-------------------------------
+Maven get details of a plugin:
+>mvn help:describe -Dplugin=io.quarkus:quarkus-maven-plugin:1.6.0.Final
+
+>mvn help:describe -Dplugin=io.quarkus:quarkus-maven-plugin:1.6.0.Final   -Ddetail 
+----------------------------
+
+create jar:
+>mvn package
+>java -jar target/getting-started-1.0-SNAPSHOT-runner.jar
+
+
+
+
+
+
+GraalVM:
+It  is a high performance polyglot embeddable runtime virtual machine for different languages(ruby,r,jvm languages,python,javascript)
+we can run them in different environment eg. as jvm or as nodejs app or native image which does not require any runtime.
+
+
+Why quarkus?
+
+It avoid the usage of reflection and do a compile time metadata processing(unlike spring), thus reducing the memory usage at run time. 
+
+Takes advantahe of GraalVm to support AOT and JIT compilation
+
+Integrates well with all java standard libraries
+
+Kubernetes native
+
+
+===============
+jsxrs
+resteasy
+@Configproperty,@Configproperties(prefix="greet"),Configprovider.getConfig(.getValue("")), -Dpropertyname=propertyvalue
+%<profilename>.propertyname=propertyvalue
+Converter
+jsonconfigcustomizer
+@Valid,Validator
+@RegisterRestClient,@RestClient
+

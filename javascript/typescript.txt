@@ -31,7 +31,7 @@ tsc hello.ts
 generated js file- hello.js:
 var fn = function () { return "hello world"; };  //ts making sure it also runs on  older browser
 -----
-let a:number;
+let a:number;  //number can be integer or floating point
 let b:boolean;
 let c:string;
 let d:number|string //d can be assigned number or string. also called "UNION"
@@ -41,6 +41,8 @@ b=true
 c="hello"
 d="world"  //ok
 d=5        //ok
+
+
 -----------------
 in ts undefined and null are both primitive data type 
 var a:null
@@ -275,6 +277,48 @@ let today:DaysOfWeek=DaysOfWeek.SUN
 if(today===DaysOfWeek.SUN){
     console.log("holiday")
 }
+-----------------
+Literal type:
+var x:'a'|'b';
+x='a'
+--------------
+Type Alias:
+
+type numstr= number|string
+var x:numstr;
+x=123
+---------------
+undefined vs void  as function return type:
+
+1)undefuned=> has to return undefined or just return;  //return is must
+function abc():undefined{
+    // return;
+return undefined;
+}
+
+2)void => function may not return any value or just 'return;'  //return is optional
+
+function xyz():void{
+    // return ;
+    }
+-------------
+Function as type:
+
+function xyz():Function{
+     return ()=>{};
+    }
+--
+function pqr():(a:number,b:number)=>number{
+      return (x:number,y:number)=>10;
+    }    
+--
+var myFunc:(s:string)=>void; 
+myFunc=(s:string)=>{};   
+--
+  function myFun(a:number,b:number,cb:(n:number)=>void){
+      var c=a+b;
+      cb(c)
+  }
 ----------------
 generics
 example1:
@@ -320,7 +364,9 @@ module:
 
 
 ------
+Continuous compile(add --watch or -w flag):
 tsc hello.ts --out hi.js --watch
 
+What if we have to compile multiple ts files:
 tsc --init //create config file ie. tsconfig.json
 we can set all our configuration on tsconfig.json  then >tsc command will be enough

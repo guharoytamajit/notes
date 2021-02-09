@@ -1,6 +1,10 @@
 download flutter*.zip for your OS
 unzip it , add its  bin on $PATH
 
+>flutter --version
+
+>flutter doctor   //this command will tell us if our stttings are okay.
+
 create a flutter workspace say E:/flutterworkspace
 open command command prompt in flutter workspace and create your app using following command 
 >flutter create first_app
@@ -25,3 +29,14 @@ Note: you can identify android sdk location by presence of folders like emulator
 ========
 
 main() function inside lib/main.dart is the starting point of your flutter app and we should not rename the file .
+
+===============
+trouble shooting:
+
+Error message:
+Failed to install the following Android SDK packages as some licences have not been accepted.
+
+solution:
+Open your terminal
+type flutter doctor --android-licenses
+press y to accept every license.

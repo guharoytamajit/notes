@@ -1,0 +1,148 @@
+
+bytecode advantages:
+
+The flexibility of bytecode provides a real boon to portability. "write once, run anywhere" (WORA)
+Instead of compiling applications for every platform, the same code is distributed to every system and the JVM in residence manages it.
+
+bytecode disadvantage: 
+
+1)Small footprint devices(embedded devices ) don't deal well with the overhead of interpretation that is required.
+2)also JVM is required to run bytecode,it is not possible to install JVM in embedded devices
+
+
+Solution:
+
+
+As a result, we are seeing offshoots that involve significantly less overhead such as Avian (a lightweight virtual machine with a subset of Java's features) and Excelsior JET (a complete Java Virtual Machine implementation enhanced with an ahead-of-time compiler) that provide optimized native executables that sacrifice portability for performance(no longer WORA). Both cloud and Internet of Things (IoT) applications benefit.
+
+
+
+Shifting directions
+Other innovations in the Java world include GraalVM and SubstrateVM.
+
+GraalVM is a new just-in-time compiler for the JVM and works with other languages, as well as Java (e.g., JavaScript, Python, and Ruby). GraalVM can run in the context of OpenJDK to make Java applications run even faster with a new just-in-time compilation technology. It includes a new high-performance Java compiler called Graal that can be used with HotSpot VM or for an ahead-of-time setup with SubstrateVM.
+
+SubstrateVM greatly improves startup time and makes short-lived applications run faster. It's a framework that allows ahead-of-time (AOT) compilation of Java applications into executable images or shared objects (ELF-64 or 64-bit Mach-O).
+
+Open vs. proprietary
+Oracle announced last year that the technical differences between JDK and OpenJDK would go away. The differences between the two today is largely cosmetic.
+
+Java is still free. Rumors of its imminent death arose a few years back, but OpenJDK has not lost any momentum.
+
+What roles do Oracle and Red Hat play?
+When Oracle announced it would no longer supply free binary downloads for JDK releases or write bug patches for OpenJDK after a six-month period, Java users were initially concerned. But the transition of support has been working well. Red Hat takes over when Oracle backs off. The passing of the baton seems to be smooth and reliable. When Oracle stops providing support, Red Hat takes over.
+
+------------------
+
+----------------------------------------------
+GraalVM:
+
+ The differences between Graal, GraalVM, Truffle & SubstrateVM?
+
+Oversimplification:
+
+Graal - Java bytecode compiler. Can be used just in time (as part of a JVM) or ahead of time.
+
+SubstrateVM - A runtime needed to actually run ahead-of-time compiled Java bytecode without a JVM. This powers the "native-image" command of GraalVM.
+
+Truffle - framework for implementing languages as AST interpreters which can be just-in-time compiled using graal. Some notable languages implemented are JavaScript, Ruby, R and LLVM bitcode.
+
+GraalVM - most of these technologies packaged together in order to support different use cases, for example:1) running JVM programs (i.e. anything that compiles to Java bytecode) using Graal as the JIT compiler for better peak performance,2) ahead-of-time compiling JVM programs for fast startup and low memory footprint, 3)running fast dynamic languages (JS, R, Ruby) that can interoperate without overhead, and so on.
+
+
+
+
+SubstrateVM(AOT):
+
+Pros:
+self-contained native executables
+fast process start
+smaller memory footprint
+smaller executable footprint
+
+Cons:
+no JIT compiler, so lesser peak performance
+simple garbage-collector
+not all JVM code easily compiles, and when it does, you may still have surprises at runtime.
+
+Best use-cases:
+command-line tools
+embedded / constrained devices (note: ARM is not supported for SVM yet)
+containerized environments where raw performance is not the main concern
+
+--------
+JVM + Graal JIT compiler:
+
+Pros:
+it’s still a regular JVM
+combine Graal with the best GC for your workload
+excellent peak performance.
+
+Cons:
+traditional footprint of a JVM
+JVM startup times
+requires more iterations than C2 to reach peak performance, un-tiered compilation (e.g., Graal without C1) is slower until Graal kicks-in.
+
+Best use-cases:
+services, networked services, micro-services,
+data processing applications where performance is critical
+alternative JVM languages.
+
+----------------
+The Java Compiler Interface(JVMCI)
+One of the most fascinating additions to Java 9 is the JVMCI: Java-Level JVM Compiler Interface, a Java based compiler interface which allows us to plug in a dynamic compiler into the JVM.
+
+One of the main inspirations for including it into Java 9 was due to project Graal — a dynamic state-of-the-art compiler written in Java. 
+Graal can be plugged into the latest JDK9 JVM (also GraalVM based on JDK 8 is available for various platforms) using a command-line flag allowing you to install your own JIT compiler into the JVM.
+
+---------------------------
+Truffle:
+
+One of the main benefits of Graal and Truffle is that it is kind of language agnostic. Truffle and the bindings for your chosen language define an abstract syntax tree (AST) representation of your program, and Graal works really well with ASTs. 
+
+As long as the programs in every language are represented in the AST form to Graal, they are considered the same source material, so all the code optimisations apply across all source languages, and you don’t get any performance hit for using multiple source languages. For example, currently, Graal has support for Java and JavaScript, so in theory, you can reuse the frontend code on the backend through Graal.
+
+JIT Compiler vs AOT compiler:
+JIT languages are often faster than AOT compiler languages. They start slow, but after a while, they pick up speed, even overtaking the AOT compiler and reaching much better peak performance. 
+The GraalVM offers both a JIT compiler and an AOT compiler for Java.Most benchmarks I've seen indicate the JIT compiler is roughly twice as fast.
+For the moment, you can think of the JIT compiler as an interpreter with a smart caching strategy.
+The peak performance comes at a price: the JIT compiler needs more memory than the AOT compiler, and it starts slow. 
+If you're writing an Amazon Lambda service, you're primarily interested in fast cold start times, so the AOT compiler is our friend.
+
+The performance penalty sounds bad. Why should anybody deliberately write such a slow interpreter?
+
+https://www.beyondjava.net/truffle-compiler-compiler
+https://stackoverflow.com/questions/58361484/how-does-pe-take-place-for-a-truffle-interpreter-aot-compiled-with-native-image
+--------------------
+
+Graal =>A new Java Just-In-Time (JIT) compiler.
+
+
+What Is a JIT Compiler?
+When we compile our Java program (e.g., using the javac command), we'll end up with our source code compiled into the binary representation of our code – a JVM bytecode. 
+This bytecode is simpler and more compact than our source code, but conventional processors in our computers cannot execute it.
+To be able to run a Java program, the JVM interprets the bytecode. 
+Since interpreters are usually a lot slower than native code executing on a real processor, the JVM can run another compiler which will now compile our bytecode into the machine code that can be run by the processor.
+This so-called just-in-time compiler is much more sophisticated than the javac compiler, and it runs complex optimizations to generate high-quality machine code.
+
+More Detailed Look into the JIT Compiler:
+The JDK implementation by Oracle is based on the open-source OpenJDK project. This includes the HotSpot virtual machine, available since Java version 1.3. 
+It contains two conventional JIT-compilers: the client compiler, also called C1 and the server compiler, called opto or C2.
+
+C1 is designed to run faster and produce less optimized code, while C2, on the other hand, takes a little more time to run but produces a better-optimized code. 
+The client compiler is a better fit for desktop applications since we don't want to have long pauses for the JIT-compilation. 
+The server compiler is better for long-running server applications that can spend more time on the compilation.
+
+
+
+ Tiered Compilation:
+ Today, Java installation uses both JIT compilers during the normal program execution.The JVM tracks each frequently called method and compiles them.
+ In order to do that, it uses C1 for the compilation. But, the HotSpot still keeps an eye on the future calls of those methods. If the number of calls increases, the JVM will recompile these methods once more, but this time using C2.
+ This is the default strategy used by the HotSpot, called tiered compilation.
+ 
+The Server Compiler:
+Let's now focus for a bit on C2, since it is the most complex of the two. C2 has been extremely optimized and produces code that can compete with C++ or be even faster. The server compiler itself is written in a specific dialect of C++.
+
+However, it comes with some issues. Due to possible segmentation faults in C++, it can cause the VM to crash. Also, no major improvements have been implemented in the compiler over the last several years. The code in C2 has become difficult to maintain, so we couldn't expect new major enhancements with the current design. With that in mind, the new JIT compiler is being created in the project named GraalVM.
+
+TODO  from https://www.baeldung.com/graal-java-jit-compiler

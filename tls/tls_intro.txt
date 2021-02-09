@@ -1,0 +1,136 @@
+
+
+If user sends username and password to server using http, those information may be sniffed by hacker.
+To protect the data we can encrypt the data with a symmetric key and send,here the issue is we also have to transfer the symmetric key to server
+if client shares the symmetric key with the server in the same network,haxker can get it too and easily decrypt the sent message.
+
+
+we have to use asymmetric key encryption to securely exchange the symmetric key.
+
+generate private key  for server:
+>openssl genrsa -out my-bank.key 1024
+
+generate public key from private key using openssl:
+>openssl rsa -in my-bank.key  -pubout  > mybank.pem
+
+Now  when the client access the server first it gets the public key from server,now client encrypts the symmetric key using public key of server and share the symmetric key.
+This symmetric key can only be retrieved by server as it is encrypted with server's publickey.Even if hackers get the data it cannot get the actual symmetric key.
+
+
+It still has below problems:
+hacker can host a fake  website in its own web server with its own public-private key pair. 
+
+
+
+
+Why TLS?
+With above approach client and server can communicate securely,but client is not sure if it is connecting to a legit server.
+Using certificate server can proof it actually owns the domain name and it is not any fake server.
+
+
+Now when client makes a request server replies with certificate which also has public key inside, certificate has  other details like Issuer,Subject(issued to)/domains,validity
+The certificate has to be signed by a CA(Issuer of certificate),if it is a self signed certificate then browser wont trust it and warn the client.
+
+Create certificate process:
+We have to create a CSR(certificate signing request)  using key 
+> openssl req -new -key my-bank.key -out my-bank.csr  -subj  "/C=US/ST=CA/O=MyOrg,Inc./CN=my-bank.com"
+
+The CA(certificate Authority) verifies the details of CSR and signs it with its private key.CA uses different technique to verify you are the actual owner of that domain.
+If a hackers create a self signed certificate with your domain name browser is not goint to trust as it is not signed by a CA which it trusts. 
+
+Every CA has their own public key and private key pair,private key is used to sign certificate,and its public keys are known to browsers.
+Many orgainization creates their own CA keys for internal apps and makes sure all the browsers in their organization trusts their CA.
+==========================
+Extensions:
+
+certificate =>  *.crt  , *.pem
+private key=> *.key. *-key.pem
+
+----------------------
+Kubernetes uses mutual tls so both client and server component needs their own public and private key.
+Each component should also have CA cert to validate the certificate of the other party.
+
+Generate CA keys and cert:
+
+>openssl genrsa -out ca.key 2048    //creates    ca.key  =>private key of CA
+
+using container:
+docker run --rm -it -v $(pwd):/export frapsoft/openssl genrsa -out /export/ca.key 2048 
+
+
+> openssl req -new -key ca.key -out ca.csr  -subj  "/CN=KUBERNETES-CA"     //creates    ca.csr
+
+using container:
+docker run  --rm -it -v $(pwd):/export frapsoft/openssl req -new -key /export/ca.key -out /export/ca.csr  -subj  "/CN=KUBERNETES-CA" 
+
+
+self sign csr:
+>openssl x509 -req -in ca.csr --signkey ca.key  -out ca.crt                         // creates  self signed ca.crt
+
+CA certificate is self signed, all other csr will be signed by CA private key,and we have to make sure CA is trusted by all. 
+-----------------
+Generate Admin user keys and cert:
+
+>openssl genrsa -out admin.key 2048    
+
+> openssl req -new -key admin.key -out admin.csr  -subj  "/CN=kube-admin/O=system:masters"     //we can pass any name in -subj    CN=>username  and   O=>group name
+
+
+sign csr
+>openssl x509 -req -in admin.csr  -CA ca.crt -CAkey ca.key -CAcreateserial  -out ca.crt                         //  signed with CA
+
+Now admin user can authenticate to API server using key and cert instead of username and passwork:
+>curl https://kube-apiserver:6443/api.....   --key admin.key  --cert admin.crt --cacert ca.crt 
+Alternatively we can store certs and keys in kube-config.yaml file,and its values are used by default.
+
+
+similarly create:
+scheduler.key ,scheduler.csr ,scheduler.crt      for scheduler 
+controller-manager.key ,controller-manager.csr ,controller-manager.crt      for controller-manager 
+kube-proxy.key ,kube-proxy.csr ,kube-proxy.crt      for kube-proxy 
+etcdserver.key ,etcdserver.csr ,etcdserver.crt      for etcdserver 
+apiserver.key ,apiserver.csr ,apiserver.crt      for apiserver 
+
+>openssl genrsa -out apiserver.key 2048    
+>openssl req -new -key apiserver.key -subj  "/CN=kube-apiserver" -out apiserver.csr –config openssl.cnf
+we can specify additional domain names in cert file as:
+----openssl.cnf------
+[req]
+req_extensions = v3_req
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation,
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = kubernetes
+DNS.2 = kubernetes.default
+DNS.3 = kubernetes.default.svc
+DNS.4 = kubernetes.default.svc.cluster.local
+IP.1 = 10.96.0.1
+IP.2 = 172.17.0.87
+
+>openssl x509 -req -in apiserver.csr -CA ca.crt -CAkey ca.key -out apiserver.crt
+
+
+
+
+===================================
+generate public key from private key using ssh-keygen:
+>ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
+The option -y outputs the public key:
+
+-------------------
+Using ssh-keygen to export the key in the .pem format,This will convert your public key to an OpenSSL compatible format. Your private key is already in PEM format:
+
+ssh-keygen -f id_rsa.pub -m 'PEM' -e > id_rsa.pem
+
+For reference:
+
+the -f id_rsa.pub portion indicates the input file to read from
+-m 'PEM indicates a PEM filetype
+the -e option indicates that the output will be exported
+--------------------
+
+
+
+

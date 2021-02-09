@@ -1,0 +1,11 @@
+OpenAPI
+Open standard for describing API.
+Specification is described in YAML or JSON
+It has a schema
+OpenAPI tools: Converter,Validator,GUI Editor,Mock Services,SDK generators,Documentation.
+OpenAPI CodeGen: Generate server code for 20+ language and client code for 40+ language
+
+
+OpenAPI Spec becomes single source of truth for what API is suppose to do.
+======================
+https://www.baeldung.com/spring-rest-openapi-documentation

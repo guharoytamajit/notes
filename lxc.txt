@@ -1,0 +1,90 @@
+snap install lxd
+
+>which lxd
+>which lxc
+
+>lxd init
+
+>lxc help
+>lxc help <command>
+>lxc remote list   //list remotes, from remotes images will be downloaded
+
+>lxc list               //list containers
+
+
+
+create a ubuntu
+>lxc image list
+
+search "ubu": 
+>lxc image list images:ubu
+
+>lxc launch ubuntu:16.04  myubuntu
+>lxc list
+>lxc stop  <container name>   
+>lxc start <container name>
+>lxc delete <container name>
+
+
+create clone of a container:
+>lxc copy <existing container> <new container>
+>lxc list
+
+
+rename container:
+>lxc move <old> <new>
+
+login:
+>lxc exec mycontainer bash
+
+one container can ping another by  "<container name>.lxd"
+
+info:
+>lxc info  mycontainer
+>lxc config show mycontainer
+
+
+>lxc profile list
+>lxc profile show default
+
+copy a profile:
+>lxc profile copy default custom
+ 
+use new profile in a container:
+>lcx launch ubuntu:16.04 mycontainer  --profile custom
+
+By default whole memory ,cpu of host machine is available inside lxc container, but can also restrict this:
+>lxc config set mycontainer limits.memory 512MB    limits.cpu 1                  //it uses cgroup internally
+>lxc config show mycontainer
+
+check available  memory and cpu:
+>free -m
+>nproc
+
+Setting Max memory in a profile:
+>lxc profile edit custom 
+config:
+  limits.memory: 512MB
+ 
+Now all containers with profile "custom" can have max memory of 512MB.
+
+ copy a file to container:
+ >lxc file push file.txt mycontainer/etc/filepath     //container and filepath is not separated by ":"
+ >lxc file pull mycontainer/etc/filepath  .
+ 
+ 
+ take snapshot of container:
+ >lxc snapshot mycontainer snapshot1
+ now delete a file from mycontainer
+ >lxc restore mycontainer snapshot1    //restore from snapshot
+ ---------------------
+ container inside a container:
+ parent container must be privileged and nested enabled.
+ 
+ >lxc config set mycontainer security.privileged true
+ >lxc config set mycontainer security.nesting true
+ 
+ We can configure the same in profile under security.
+ 
+ 
+ 

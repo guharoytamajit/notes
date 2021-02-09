@@ -70,7 +70,7 @@ see all metrics:
 http://localhost:9090/metrics 
 
 lets see a few metrics :
-up(if prometheus is up and running),process_resident_memory_bytes(memmory used by prometheus)
+up(if prometheus is up and running),process_resident_memory_bytes(memory used by prometheus)
 
 we can search for all targets that are down as:  "up == 0"   in the expression browser
 
@@ -197,10 +197,434 @@ If everything is set up and working correctly, after a minute or two you should 
 
 ===================================================================================================================================
 
+PromQL:
+
+Data Types:
+
+Instant vector:
+A set of time-series containing a single sample(value and timestamp) for each time series,all sharing the same timestamp.
+eg.prometheus_http_requests_total
+
+Range vector:
+A set of time-series containing a range of data points over time for each time series.
+eg.prometheus_http_requests_total[1m]    //all values scraped in last 1 min,if scrapping interval is 15s  it will have 4 values scraped in last 1 min.
+
+
+Scalar:
+Single floating point value
+eg 12.15
+
+String:
+Simple string value,currently unused.
+eg. "hello"
+
+-------------------------------
+Selectors:
+Helps to do filtering of time series using labels(or selectors)
+eg. prometheus_http_requests_total{job="prometheus"}     //we can add more labels/matchers to filter the results
+
+
+Matchers:
+1)Equality(=): 
+Selects labels that exactly matches to the provided string. This is case-sensitive.
+eg.  prometheus_http_requests_total{job="prometheus"}  
+
+2)Negative Equality(!=): 
+Selects labels that exactly not equal to the provided string. This is case-sensitive.
+eg.  prometheus_http_requests_total{job!="prometheus"}  
+
+3)Regex Matchers(=~):
+match using regex expression.
+eg. prometheus_http_requests_total{handler=~"/api.*"}     #matches  /api1, /api23  etc   
+
+4)NegativeRegex Matchers(!~):
+Not operation of match using regex expression.
+eg. prometheus_http_requests_total{handler!~"/api.*"}   
+
+---------------------------------------
+Operators:
+1)Binary Operators:
+Takes two operands and perform calculation.
+ a)Arithmetic Binary Operators
+      - supports operations like : +,-,*,/,%(mod),^(pow)
+	  - operand can be combination of scalar-scalar, vector-scalar or vector-vector
+	  eg. of vector-scalar:  node_memory_Active_bytes / 8     (it divides all matched values by 8)
+	       To  get momory in MB   =>   node_memory_MemTotal_bytes/1024/1024
+  b)Comparison Binary Operators(can fiter results)
+      -supports operations:  ==,!=,<,>,>=,<= 
+	  - operand can be combination of scalar-scalar, vector-scalar or vector-vector
+	  eg. of vector-scalar: process_open_fds >10  (this actually acts like filter only shows values which matches this condition,No. of input <= No.of output)
+  c)Logical/Set Binary Operators
+      -and(intersection),or(union),unless(complement),ignoring,on
+	  - operators can be defined between instant vectors only.
+	  eg  vector1  and vector2,           vector1 unless  vector2
+	  eg prometheus_http_requests_total  or  promhttp_metric_handler_requests_total    => basically union
+	  
+	  ignoring example:
+	     prometheus_http_requests_total  or ignoring(handler) promhttp_metric_handler_requests_total 
+	  on example:
+	     prometheus_http_requests_total  or   on(handler) promhttp_metric_handler_requests_total 
+	  
+2)Aggregation Operators:
+   sum,min,max,avd,stddev,stdvar,count,count_values,topk,bottomk,quantile
+   
+   eg  sum(prometheus_http_requests_total)
+   
+   we can also do groupby operation on aggregation using 'by' keyword
+   sum(prometheus_http_requests_total)  by (code)                            #where code is one of the label
+   
+   example:
+   top 3 kind of operations cpu is working on(eg system,user,idel)
+   >topk(3,sum(node_cpu_seconds_total) by (mode))
+---------------------------------------------------
+Functions:
+
+rate()=> calculates the per-second average rate of increase of the time series in the range vector.
+
+request per seconds in last 5 mins:
+rate(prometheus_http_requests_total[5m])   
+
+
+irate()=> instant rate of increase of time series in the range vector.
+
+
+very important:
+https://medium.com/@valyala/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832
+
+
+changes()=>how many times the value of the metrics have changed.
+How many times node_exporter process restarted in last one hour:
+>changes(process_start_time_seconds{job="node_exporter"}[1h]) 
+
+How memory is changing per second based on past one hour?
+>deriv(process_resident_memory_bytes{job="prometheus"}[1h])
+
+predict_linear()=>predict future values of metrics based on rate
+predict how much memory will be free after two hours,based of samples collected in last one hour?
+>predict_linear(node_memory_MemFree_bytes{job="node_exporter"}[1h],2*60*60)/1024/1024                                    (/1024/1024  =>converts bytes to MB)
+
+
+Aggregation function over a given time range:
+append "_over_time" to aggregation functions.
+
+avg_over_time(node_cpu_seconds_total[1h])
+count_over_time(node_cpu_seconds_total[1h])
+sum_over_time(node_cpu_seconds_total[1h])
+
+sort by values:
+ascending order=>         sort(node_cpu_seconds_total)
+descending order=>       sort_desc(node_cpu_seconds_total)
 
 
 
+time()=>returns number of seconds since Jan1 1970 00:00:00 UTC
+
+calculate how long prometheus is up:
+>time() - process_start_time_seconds{job="prometheus"}
+
+day_of_week()=> returns of day of week 
+day_of_month()
+
+https://prometheus.io/docs/prometheus/latest/querying/functions
+=============================================================================
+Recording Rules:
+Recording Rules allows you to pre-compute frequently needed or compute expensive expressions and save their results as new set of timeseries in Prometheus storage.
+
+Why Rules?
+If we need evalute some compute expensive PromQL in regular interval, there may be some lag in it is better to precompute(advantage is similar to that of reverse indexing)
+This is very import specially for dashboard which runs same PromQL again and again
+
+Prometheus supports two types of Rules(Recording Rules and Alerting rules) which are evaluated at regular interval:
+Recording Rules:
+ -A separate rules.yaml file is created and define the PromQL expression(frequently needed or compute expensive) which we want to evaluate at regular interval.
+ -Now Prometheus evaluates the expression after regular interval and stores it in a new time series with new metric name
+ -Now we can call the new metric from PromQL as any other metrics 
+
+--test-rule.yaml---
+groups:
+ - name: example
+   rules:
+   - record: job:node_cpu_seconds:avg_rate5m
+     expr: avg without((cpu)(rate(node_cpu_seconds_total{mode="idle"}[5m])))
+#this expression will be evaluated after evaluation_interval defined in global.Default is 1 min
+
+
+Here we have one rule inside one group.There can be n number of groups,each group can have n number of rules
+Rules inside same group are executed sequentially,you an confirm this by looking into the timestamp.
+
+Industry standard naming convention for custom metrics:
+level:metric:operations
+
+level=>since we are calculating avg cpu time per job. So level=job
+metric =>rate(node_cpu_seconds_total)  = node_cpu_seconds
+
+Validate rule syntax:
+>promtool check rules test-rule.yaml
+
+--------------------------------
+Reload configuration on fly(without killing prometheus):
+There are two ways:
+1)SIGHUP signal
+
+get PID of prometheus
+>ps ax|grep prometheus
+>kill -HUP <PID>
+
+2)send a POST request to reload handler.
+
+curl -X POST http://localhost:9090/-/reload
+
+Note for this method to work we have to enable reloading by passing  --web.enable-lifecycle flag while starting prometheus 
+>./prometheus --web.enable-lifecycle 
+
+
+-----------------------
+Alerting Rules:
 
 
 
+groups:
+  - name: my-rules
+    rules:
+    - record: job:node_cpu_seconds:avg_idle
+      expr: avg without(cpu)(rate(node_cpu_seconds_total{mode="idle"}[5m]))
 
+    - alert: NodeExporterDown
+      expr: up{job="node_exporter"} == 0
+#	  for: 1m                       #this field is optional,if not specified alert goes to firing staate immediately once expr  condition is met
+	  
+	  
+Note:
+Recording rule is identified by record field and Alerting rule is identified by alert field(as shown in above example).
+
+An alert has 3 states:
+1)inactive=>when alert expression returns false
+2)pending=>when alert expression returns true,but time < than defined in 'for' field
+3)firing=>when alert expression returns true,but time > than defined in 'for' field
+
+
+Prometheus also has a metrics called "ALERTS" for all alters.
+
+
+Prometheus alerts can have labels associated with them depending upin these labels we can later take decisions like how to handle those alerts.
+
+eg
+
+groups:
+    - alert: AppLatencyAbove5sec
+      expr: job:app_response_latency_seconds:rate1m >= 5
+      for: 2m
+      labels:
+        severity: critical
+
+    - alert: AppLatencyAbove2sec
+      expr: 2 < job:app_response_latency_seconds:rate1m < 5
+      for: 2m
+      labels:
+        severity: warning
+		
+AlertManager:
+A separate tool, used to convert alert generated by premetheus into some kind of notification eg email.
+
+alert manager configuration:
+receiver: They are the alert handlers(which is fired by prometheus)
+
+
+----alertmanager.yaml----		
+route:
+  receiver: admin                               #default receiver
+receivers:
+- name: admin                                    #receiver name
+  email_configs:                                  #it means our notifier is email
+  - to: 'example@gmail.com'
+    from: 'example@gmail.com'
+    smarthost: smtp.gmail.com:587
+    auth_username: 'example@gmail.com'
+    auth_identity: 'example@gmail.com'
+    auth_password: 'fqkvkumorgaqgkat'  
+	
+	
+We can use the same trick to reload alertmanager configuration which is used for reloading prometheus configuration	
+
+
+
+Create a email template for email alerts from alertmanager:
+
+we can add custom annotations as shown below:
+
+----rules.yaml  of prometheus---
+groups:
+  - name: my-rules
+    rules:
+    - alert: AppLatencyAbove5sec
+      expr: job:app_response_latency_seconds:rate1m >= 5
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: 'Python app latency is over 5 seconds.'
+        description: 'App latency of instance {{ $labels.instance }} of job {{ $labels.job }} is {{ $value }} seconds for more than 5 minutes.'
+        app_link: 'http://localhost:8000/'
+
+    - alert: AppLatencyAbove2sec
+      expr: 2 < job:app_response_latency_seconds:rate1m < 5
+      for: 2m
+      labels:
+        severity: warning
+		
+		
+		
+		
+---------------------
+All alerts are generally not sent to all uses.
+We can send different alert email to different user group depending upon labels.		
+		
+		
+		
+below example covers flows defined in alert_route.png.		
+		
+		  
+ ----alertmanager.yaml----	 
+global:                                                                        #common properties
+  smtp_from: 'example@gmail.com'
+  smtp_smarthost: smtp.gmail.com:587
+  smtp_auth_username: 'example@gmail.com'
+  smtp_auth_identity: 'example@gmail.com'
+  smtp_auth_password: 'fqkvkumorgaqgkat'
+route:
+  # fallback receiver
+  receiver: admin
+  routes:
+    # Star Solutions.
+  - match_re:
+      app_type: (linux|windows)                                       #if source alert has label  app_type=linux or app_type=windows 
+    # fallback receiver 
+    receiver: ss-admin                                                    # this rule will be applied if none of the more specific(nested routes) rules matches 
+    routes:
+    # Linux team
+    - match:
+        app_type: linux
+      # fallback receiver
+      receiver: linux-team-admin                                      # this receiver will get email if  severity label's value is neither warning nor critical
+      routes:
+      - match:
+          severity: critical
+        receiver: linux-team-manager                               # this receiver will get email if  severity label's value is critical
+      - match:
+          severity: warning
+        receiver: linux-team-lead                                       # this receiver will get email if  severity label's value is warning 
+
+    # Windows team
+    - match:
+        app_type: windows
+      # fallback receiver
+      receiver: windows-team-admin
+      routes:
+      - match:
+          severity: critical
+        receiver: windows-team-manager
+      - match:
+          severity: warning
+        receiver: windows-team-lead
+
+    # PEC Technologies.
+  - match_re:
+      app_type: (python|go)
+    # fallback receiver 
+    receiver: pec-admin
+    routes:
+    # Python team
+    - match:
+        app_type: python
+      # fallback receiver
+      receiver: python-team-admin
+      routes:
+      - match:
+          severity: critical
+        receiver: python-team-manager
+      - match:
+          severity: warning
+        receiver: python-team-lead
+
+    # Go team
+    - match:
+        app_type: go
+      # fallback receiver
+      receiver: go-team-admin
+      routes:
+      - match:
+          severity: critical
+        receiver: go-team-manager
+      - match:
+          severity: warning
+        receiver: go-team-lead
+receivers:
+- name: admin
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: ss-admin
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: linux-team-admin
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: linux-team-lead
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: linux-team-manager
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: windows-team-admin
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: windows-team-lead
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: windows-team-manager
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: pec-admin
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: python-team-admin
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: python-team-lead
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: python-team-manager
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: go-team-admin
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: go-team-lead
+  email_configs:
+  - to: 'example@gmail.com'
+
+- name: go-team-manager
+  email_configs:
+  - to: 'example@gmail.com'  
+---------------------------------------------------------------------  
+
+linting alert manager conf file:
+>amtool check-config alertmanager.yaml
+
+use the below link to visualize your alert manager routing rule from config file:
+
+https://prometheus.io/webtools/alerting/routing-tree-editor/
+
+In this URL we can also provide labels and test which receiver will receive the alert notification.

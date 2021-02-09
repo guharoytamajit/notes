@@ -1,0 +1,328 @@
+
+===========================
+
+dependency:
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+Just by adding above dependency by default spring will create a user with name user and an aoto generated password printed during startup.
+creates login page(/login GET & POST) and logout page(/logout)
+All endpoints are secured other than /login and /logout
+		
+-------------------------
+Adding hardcoded custom username/password:
+
+
+spring:
+  security:
+    user:
+      name: admin
+      password: admin
+      roles:
+      - user
+      - admin	  
+
+Internally creates InMemoryUserDetailsManager
+------------------------	  
+Get current user :
+
+1)The simplest way to retrieve the currently authenticated principal is via a static call to the SecurityContextHolder:
+
+Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+String currentPrincipalName = authentication.getName();
+
+2)The principal can be defined directly as a method argument:
+ 
+    @RequestMapping(value = "/username", method = RequestMethod.GET)
+    @ResponseBody
+    public String currentUserName(Principal principal) {
+        return principal.getName();
+    }
+	
+	@RequestMapping(value = "/username", method = RequestMethod.GET)
+    @ResponseBody
+    public String currentUserName(Authentication authentication) {
+        return authentication.getName();
+    }
+	
+the Spring Security principal can only be retrieved as an Object and needs to be cast to the correct UserDetails instance:
+
+UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+System.out.println("User has authorities: " + userDetails.getAuthorities());	
+
+3)from the HTTP request:
+
+    @RequestMapping(value = "/username", method = RequestMethod.GET)
+    @ResponseBody
+    public String currentUserNameSimple(HttpServletRequest request) {
+        Principal principal = request.getUserPrincipal();
+        return principal.getName();
+    }
+	
+-----------------------------------	
+
+@Configuration
+@EnableWebSecurity
+public class SecSecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(final AuthenticationManagerBuilder auth) throws Exception {
+        // Authentication logic 
+    }
+
+    @Override
+    protected void configure(final HttpSecurity http) throws Exception {
+        // Authorization logic and entrypoints etc
+    }
+}
+
+--------------------
+@Bean 
+public PasswordEncoder passwordEncoder() { 
+    return new BCryptPasswordEncoder(); 
+}
+
+
+InMemoryUserDetailsManager:
+
+protected void configure(final AuthenticationManagerBuilder auth) throws Exception {
+    auth.inMemoryAuthentication()
+        .withUser("user1").password(passwordEncoder().encode("user1Pass")).roles("USER")
+        .and()
+        .withUser("user2").password(passwordEncoder().encode("user2Pass")).roles("USER","ADMIN")
+        .and()
+        .withUser("admin").password(passwordEncoder().encode("adminPass")).roles("ADMIN");
+}
+
+
+--------------------------
+Form Login:
+
+@Override
+protected void configure(final HttpSecurity http) throws Exception {
+    http
+      // ...
+      .and()
+      .formLogin()
+      .loginPage("/login.html")
+      .loginProcessingUrl("/perform_login")
+      .defaultSuccessUrl("/homepage.html", true)
+      .failureUrl("/login.html?error=true")
+      .failureHandler(authenticationFailureHandler())
+      .and()
+      .logout()
+      .logoutUrl("/perform_logout")
+      .deleteCookies("JSESSIONID")
+      .logoutSuccessHandler(logoutSuccessHandler());
+}
+loginPage() – the custom login page
+loginProcessingUrl() – the URL to submit the username and password to
+defaultSuccessUrl() – the landing page after a successful login
+failureUrl() – the landing page after an unsuccessful login
+logoutUrl() – the custom logout
+
+-----------------------
+Authorize Requests:
+
+@Override
+protected void configure(final HttpSecurity http) throws Exception {
+    http
+      .csrf().disable()
+      .authorizeRequests()
+      .antMatchers("/admin/**").hasRole("ADMIN")              // only logged in user with admin role can access  /admin or /admin/abc
+      .antMatchers("/anonymous*").anonymous()                //only user who is not logged in can hit anonymous. Any logged in user will get forbidden(even admin)
+      .antMatchers("/login*").permitAll()                               // both anonymous and authenticated can access /login
+      .anyRequest().authenticated()                                  // other endpoints can only be accessed by logged in user with any role
+      .and()
+	  .formLogin()
+      // ...
+}
+
+permit all =>  anonymous(not logged in)   +  authenticated(logged in user)
+
+It seems that <intercept-url pattern="/**" access="permitAll()" /> allows both logged in and anonymous users to access, 
+while <intercept-url pattern="/**" access="isAnonymous()" /> only allows anonymous users to access, but not logged in users. 
+
+Then when to use isAnonymous() ? some sort of special pages that should be accessible only if you are not logged in, like a registration form or a login form etc.
+
+-----------------------------
+Method Security:
+
+
+we need to enable global Method Security:
+
+@Configuration
+@EnableGlobalMethodSecurity(
+  prePostEnabled = true, 
+  securedEnabled = true, 
+  jsr250Enabled = true)
+public class MethodSecurityConfig 
+  extends GlobalMethodSecurityConfiguration {
+}
+
+The prePostEnabled property enables Spring Security pre/post annotations
+The securedEnabled property determines if the @Secured annotation should be enabled
+The jsr250Enabled property allows us to use the @RoleAllowed annotation
+
+---
+The @Secured annotation is used to specify a list of roles on a method.
+
+@Secured({ "ROLE_VIEWER", "ROLE_EDITOR" })
+public String getUsername() {
+    SecurityContext securityContext = SecurityContextHolder.getContext();
+    return securityContext.getAuthentication().getName();
+}
+
+The @Secured annotation doesn't support Spring Expression Language (SpEL).
+---
+
+The @RoleAllowed annotation is the JSR-250’s equivalent annotation of the @Secured annotation.
+
+@RolesAllowed({ "ROLE_VIEWER", "ROLE_EDITOR" })
+public boolean isValidUsername2(String username) {
+    //...
+}
+
+---
+Using @PreAuthorize and @PostAuthorize Annotations:
+
+Both @PreAuthorize and @PostAuthorize annotations provide expression-based access control.
+
+The @PreAuthorize annotation checks the given expression before entering the method.
+
+@PreAuthorize("hasRole('ROLE_VIEWER')")   // same meaning as @Secured(“ROLE_VIEWER”) 
+public String getUsernameInUpperCase() {
+    return getUsername().toUpperCase();
+}
+
+@PostAuthorize annotation verifies it after the execution of the method and could alter the result.
+
+@PreAuthorize("hasRole('ROLE_VIEWER') or hasRole('ROLE_EDITOR')")
+public boolean isValidUsername3(String username) {
+    //...
+}
+
+Moreover, we can actually use the method argument as part of the expression:
+
+@PreAuthorize("#username == authentication.principal.username")
+public String getMyRoles(String username) {
+    //...
+}
+
+Additionally, the @PostAuthorize annotation provides the ability to access the method result:
+
+@PostAuthorize
+  ("returnObject.username == authentication.principal.nickName")
+public CustomUser loadUserDetail(String username) {
+    return userRoleRepository.loadUserByUserName(username);
+}
+---
+There are two points we'd like to remind regarding method security:
+
+1)By default, Spring AOP proxying is used to apply method security – if a secured method A is called by another method within the same class, security in A is ignored altogether. This means method A will execute without any security checking. The same applies to private methods
+2)Spring SecurityContext is thread-bound – by default, the security context isn't propagated to child-threads. For more information, we can refer to Spring Security Context Propagation article
+------------------------------
+Manually Authenticate User with Spring Security:
+
+public void login(HttpServletRequest req, String user, String pass) { 
+    UsernamePasswordAuthenticationToken authReq
+      = new UsernamePasswordAuthenticationToken(user, pass);
+    Authentication auth = authManager.authenticate(authReq);
+    
+    SecurityContext sc = SecurityContextHolder.getContext();
+    sc.setAuthentication(auth);
+    HttpSession session = req.getSession(true);
+    session.setAttribute(SPRING_SECURITY_CONTEXT_KEY, sc);
+}
+----------------------------
+Spring Security Authentication Provider:
+
+@Configuration
+@EnableWebSecurity
+@ComponentScan("com.baeldung.security")
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+ 
+    @Autowired
+    private CustomAuthenticationProvider authProvider;
+
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.authenticationProvider(authProvider);
+    }
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.authorizeRequests().anyRequest().authenticated()
+            .and().httpBasic();
+    }
+}
+
+@Component
+public class CustomAuthenticationProvider implements AuthenticationProvider {
+
+    @Override
+    public Authentication authenticate(Authentication authentication) 
+      throws AuthenticationException {
+ 
+        String name = authentication.getName();
+        String password = authentication.getCredentials().toString();
+        
+        if (shouldAuthenticateAgainstThirdPartySystem()) {
+ 
+            // use the credentials
+            // and authenticate against the third-party system
+            return new UsernamePasswordAuthenticationToken(
+              name, password, new ArrayList<>());
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public boolean supports(Class<?> authentication) {
+        return authentication.equals(UsernamePasswordAuthenticationToken.class);
+    }
+}
+
+-------------
+public class MyUserDetailsService implements UserDetailsService {
+
+	private UserDao userDao;
+
+	@Override
+	public UserDetails loadUserByUsername(final String username) 
+               throws UsernameNotFoundException {
+
+		com.model.User user = userDao.findByUserName(username);
+		List<GrantedAuthority> authorities = buildUserAuthority(user.getUserRole());
+
+		return buildUserForAuthentication(user, authorities);
+		
+
+	}
+
+	// Converts com.model.User user to
+	// org.springframework.security.core.userdetails.User
+	private User buildUserForAuthentication(com.model.User user, 
+		List<GrantedAuthority> authorities) {
+		return new User(user.getUsername(), 
+			user.getPassword(), user.isEnabled(), 
+                        true, true, true, authorities);
+	}
+
+	private List<GrantedAuthority> buildUserAuthority(Set<UserRole> userRoles) {
+
+		Set<GrantedAuthority> setAuths = new HashSet<GrantedAuthority>();
+
+		// Build user's authorities
+		for (UserRole userRole : userRoles) {
+			setAuths.add(new SimpleGrantedAuthority(userRole.getRole()));
+		}
+
+		List<GrantedAuthority> Result = new ArrayList<GrantedAuthority>(setAuths);
+
+		return Result;
+	}
+}

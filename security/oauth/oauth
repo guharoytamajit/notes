@@ -1,0 +1,65 @@
+Oauth is used for authorization. 
+
+Actors:
+1)User/Resource Owner(end user)=> The Resource Owner
+2)Application/Client(3rd party app)=> Gets Limited priviledge to resource, after concent/permission from resource owner
+3)API(Authorization server+Resource server)   eg. google,facebook,github etc
+     Resource Server=>holds the resource
+	 Authorization Server=>Stores Who has what kind of access to resources
+	 Resource Server and Authorization Server  may be present in same or different machine
+	 
+Note :
+ Both User and Application should be known by Auth Server(They have to register themselves  before using Oauth)	 
+	 
+	 https://www.youtube.com/watch?v=CPbvxxslDTU
+	 
+	 
+example:
+User Joe using An app called ImageFilter can be used to apply filters in your image
+Joe wants to apply filters	in the photos which are stored in his google account, but he does not want to share his google's account password wth imageFilter app.
+Using Oauth Joe can give limiter permission(eg can read but cannot delete) to imageFilter app( imageFilter app shoud register its app  with google for this to work)
+
+Flow:
+1)Joe tells imageFilter app he want to use his images from his google account
+2)imageFilter app forwards the request to google
+3)google returns with the consent page to Joe, which shows the resources and their permissions that Joe will be giving to the ImageFilter app.
+4)If Joe approves then the requested permissions will be granted to imageFilter app,but Joe has to authenticate himself to google before granting the permission.
+5)google will give "authorization code" to imageFilter app
+6)imageFilter app will request for "access token" from "authorization server" by passing "authorization code",if request is valid google's  "authorization code" will return "access token"
+7)imageFilter app while requesting Joe's resource from googlee's "resource server" it will also pass the "access token".
+8)"resource server" will validate the "access token" by asking "authorization server", of okay then resource will be returned.
+
+Note  :
+Here Oauth only acts  as authorization framework.
+The actual authentication of user Joe is done by openid connect using "user-id token".  The "user-id token" is actually also passed while exchanging "access token" in above flow.
+Client App now has  to two takens 1)access token (for oauth) 2)id token(for openid )this can be used by app to check if user is what it  claims to be(authentication)
+	 
+ImageFilter apps registration process with auth server:
+1)	 ImageFilter registers itself with with google by passing detains like :
+ name,website,callback_url(this is required so that google can send  "authorization code" back after taking consent from Joe  )
+2)Authserver gives  ImageFilter the below values once registration is successful.
+clientId=> unique for each registered apps
+"client-secret"=> this is used by the app to authenticate itself when making request for "access token"
+======================
+OAuth has 4 types of grant types:
+
+1)Authorization Code Grant(if app is is web server or  native client like android)
+2)Implicit Grant(if app is spa eg angular): In browser we cannot take the risk of storing Client-secret and Authorization Code.
+           this is deprecated in spring security instead it is adviced to use "PKCE enhanced authorization code"
+3)Password Grant
+4)ClientCredentials Grant: useful when app is aso the resource owner
+
+---------------------------------
+Spring security 5 oauth client types:
+In spring security oauth clients are devided into two categories:
+
+1)Confidencial clients=>apps that can securely store client id and "client-secret" . we backend  server.
+2)Public clients =>apps that cannot securely store client id and "client-secret" . eg  SPA
+
+
+"access token" can be any unique id to retrieve all authorization info(like key=uuid value=<authorization details>)  called "identifier type access token" OR alternatively it could be JWT like token which has authorization info defined in token itself also called "self contained type access token"
+
+"identifier type access token" => auth info is stored in some database to store info like user_id,scope,expire_date for every token.
+"self contained type access token"=> no additional database required.They are actually much longer in size as it contains all authentication details eg JWT.
+
+

@@ -1,0 +1,66 @@
+
+
+CMS(deprecated from jdk9) had concurrent mark and concurrent  sweep but no compaction
+G1 GC(default from jdk9) compaction present but it stops the world.It reclaims heap space by moving object to a different space.
+   Tries to maintain a balance between throughput and latency.
+
+Why old and new Generation:
+Statistically 80% of objects are short lived object.
+
+    
+From jdk 11:
+Compaction happens concurrently with application threads.
+They target lower latency, at the cost of throughput
+They now longer have concept of young and old generation, all have same generation.(G1GC is last to have old and young gen)
+shenandoah : 
+ZGC 
+=======================
+Key Performance Indicators(KPI):
+
+1.GC latency(Better responsiveness): Stop the world time
+2.GC throughput(Better avg performance): Application runtime - GC runtime ratio.
+    if a java app has throughput of 99.5% it means that much % of time is spent doing actual work and remaining .5% of time is spent on GC
+3)Footpring of Application: memory ,cpu 
+
+How to get this KPI metrics:
+
+till java8:
+-XX:+PrintGCDetails  -XX:+PrintGCDateStamps  -Xloggs:<file-path>
+
+from java 9:
+-Xlog:gc*:file=<file-path>
+
+Enable GC log does not add much overhead so it is advised to always enable it in production.
+
+
+ParallerGC is best for throughput but bad latency(good for batch operations) 
+---------------------------------
+-Xmn =>size for Young Generation
+-Xmx=>size for Young+Old Generation
+-XX:MetaspaceSize=> size of metaspace(class,method )
+
+
+Since heap is not the only part of memory required by JVM(we also have stack,metaspace which also needs memory), we cannot set a max total memory limit for a JVM using VM args. 
+==================
+
+ParallelGC(Throughput Collectors):
+Best throughput performance
+Can have bad latency
+Usecase : Batch operations.
+No concurrent mark or sweep
+
+
+
+
+Note:
+Both Major GC and Minor GC results in stop the world, but STW in minor GC is much less.
+Fully GC hallens on 1)young gen 2)Old gen  3)Metaspace
+===================
+Tools to analyze GC logs:
+https://gceasy.io/gc-index.jsp
+https://github.com/chewiebug/GCViewer
+http://www.javaperformancetuning.com/tools/hpjmeter/index.shtml
+======================
+
+Very important link:
+https://blog.gceasy.io/2016/11/22/reduce-long-gc-pauses/

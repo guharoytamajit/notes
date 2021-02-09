@@ -1,0 +1,246 @@
+Compiler flags:
+
+
+-XX:+PrintCompilation
+
+
+-XX  => means advanced option
++  => switching on a feature  (similarly after ":"  "-" means switching off a feature)
+Note: flags are case sensetive
+
+
+java  -XX:+PrintCompilation Main
+its output has following columns:
+(No of millisecond since  VM started)(order in which method/code block was compiled)(n/s  n=>native method   s=>syncronized method  %=> loaded in JIT code cache ie. fastest)(Level of compilation  0=> code is interpreted(ie no compilation),max number can be 4,more the number more closer to native,4=>max level of compilation  it runs fastest; 1-3=>compiled by C1 JIT compiler  ,4=>compiled by C2 JIT compiler)(line of compiled code)
+
+same bytecode instruction may appear multiple ti,es as it advances level of JIT cimpilation level
+
+
+
+
+JIT compiler can be of two types:
+
+
+C1 and C2
+C1(also called client compiler)=>can do first 3 level of compilation
+C2(also called server compiler)=>4th level of compilation(cached code "%" is fastest, not all level 4 are cached)
+
+
+Level of compilation:
+VM decides the level of compilation(0-4) depending on complexity and frequency of execution
+==================
+java -XX:+UnlockDiagnosticVMOptions  -XX:+LogCompilation Main
+
+it will produce hotspot.log file
+
+===================
+ JIT compiler code cache size:
+
+It a method /code block is executed again and again there is a good change JIT compiler will put it into "code cache"(% in 3rd column of  -XX:+PrintCompilation indicates code cache.)
+a method/code block may be cached, later removed and again recached
+
+check code cache details(max,used,free):
+
+java -XX:+PringCodeCache  Main
+
+Tuning Code cache:
+
+InitialCodeCacheSize =>Code cache size when VM starts
+ReservedCodeCacheSize =>Max code cache size
+CodeCacheExpansionSize=>How quickly code cache should grow
+
+Their valuse can be provided in bytes,KB or MB or GB
+
+java -XX:+ReservedCodeCacheSize=28m   -XX:+PringCodeCache   Main        //it will take 28 Mb, for kb use 28k, for gb use 28g, for bytes just use 28
+
+You can remotely monitor code cache used using jconsole and decide a good value(in memory section there is a dropdown you can select code cache).
+Connecting to VM process using jconsole may effect JIT compilation (we can verify using  -XX:+PrintCompilation ), it use around 2mb of extra code cache.
+
+=========================
+32 vs 64 bit java:
+
+32bit:
+If java heap size <3GB,using java 32bit will be faster as each point to object in memory will be smaller(32 bits rather than 64 bits)
+total memory cannot exceed 4 GB
+Only C1 JIT compiler available
+
+64 bit:
+if memory requirement is > 4GB
+if your application is making heavy usage of larger numeric types eg long and double then then 64 bit will be faster than 32 bits.
+Max heap size is OS dependent.
+Both C1 & C2 JIT compiler available
+we can use -
+
+================
+specify which jit compiler to use:
+C1=>start up is faster than C2(lesser analysis takes places while starting JVM)
+C2=>start up is slower than C1 but after optimization it is faster than C1
+
+We can for 64bit JVM to use only C1 by using "-client" flag but it may be ignored by few OS
+java -XX:+PringCodeCache -client  Main     //it will have faster start up time we can verify printing execution time
+
+
+Tiered Compilation:
+
+ Today, Java installation uses both JIT compilers during the normal program execution.The JVM tracks each frequently called method and compiles them.
+
+ In order to do that, it uses C1 for the compilation. But, the HotSpot still keeps an eye on the future calls of those methods. If the number of calls increases, the JVM will recompile these methods once more, but this time using C2.
+
+ This is the default strategy used by the HotSpot, called tiered compilation.
+ 
+ We can disable JIT Compiler(both C1 and C2):
+ java -XX:-TiredCompilation Main       //Now no more jit compilation takes place.we can verify using PrintCompilation
+ java -XX:-TiredCompilation -XX:+PrintCompilation  Main       // compilation level column will be absent as each line is interpreted.
+ 
+ 
+ -client =>use c1
+ -server =>use c2
+ by default TiredCompilation is used which uses both C1 and C2
+ We can disable TiredCompilation:
+ -XX:-TiredCompilation  =>it will disable c1 and c2 use only interpreter
+ =======================
+ 
+ java -XX:+PrintFlagsFinal
+ 
+ Check No. of threads used for JIT Compilation:
+ 
+ in output you will find  CICompilerCount field its value determine how many threads are available for JIT Compilation.
+ 
+ we can also get current CICompilerCount value as
+ >jinfo -flag CICompilerCount  <pid of any java app>  //we can get JVM pids using jps
+ 
+ 
+ we can change JIT thread count as :
+ java -XX:CICompilerCount=6 -XX:+PrintCompilation  Main       
+ 
+ We can change this thread count to tune our app performance.
+ Min JIT thread  count is 1(used by C1) for 32bit JVM and 2 thread for 64bit JVM one for C1 and another for C2
+ 
+ ----------
+  Check No. of execution which decides if code block will be compiled by JIT:
+ 
+ -XX:CICompilerThreshold
+ 
+  we can also get current CICompilerThreshold value as
+ >jinfo -flag CICompilerThreshold  <pid of any java app> 
+ 10000
+ 
+ it tells code block has to run 10000 times before compilation
+ 
+  we can change his value as :
+ java -XX:CICompilerThreshold=2000 -XX:+PrintCompilation  Main       
+ 
+ We can change this value to tune our app performance.
+ =========================
+ 
+ 
+ Java Memory:
+ 1)Stack:
+ every thread will have its own stack
+ All local primitive variables are created in stack
+ each method has its stack frame,store method local variables
+ Data of a stack can only be seen by thread that owns that stacck
+ Stack can only store primitive values not objects,it also stores reference of object which are actually present in heap.
+ 
+ 2)Heap
+ a JVM has a heap which is shared by all threads
+ To pass objects across methods storing large object in stack frame is not a good idea(it will result in duplicate copies) ,hence java stack frame only allows storing primitives and object reference(not actual object). eg int inside method is stored in stack but string  value is stored in heap as string is an object(string reference is stored in stack) 
+ Java objects are stored in heaps,hence different methods will be able to reuse same objects(sometimes it is bad as well if we want object immutibility)
+ Since java 7 strings(string pool) lives in heap (not permgen or metaspace),before that syring pool was stored in permgen(till java 6), hence from java 7 strings are subject to GC.
+ 
+ 
+ 3)Metaspace:
+ metadata,static variables(static primitives and static object reference stored in metaspace but the object is still stored in heap)
+ any object on heap which are referenced by metaspace(static variable) they are never eligible for garbage collection.
+ All classes and java threads have access to Metaspace, hence static variables are accessible from anywhere.
+ before java 8 it is called  perm-gen.
+ 
+ ======================
+ Tuning String pool bucket size:
+ internally string pool is implemented using hashmap,hence strings are stored in buckets.
+ 
+ JVM flags for strings:
+ -XX:+PrintStringTableStatistics     =>print details like No. of strings,string pool bucket size,average no of strings per bucket,max bucket size etc
+ -XX:StringTableSize   =>overwrite number of buckets for string pool hash table, this number should be a prime number for best performance. 
+ 
+ 
+ java  -XX:+PrintStringTableStatistics     -XX:StringTableSize=120121  Main
+ 
+ If each bucket has too many strings increasing the No. of buckets may improve performance. 
+ 
+ ===============
+ 
+ Tuning size of heap:
+ 
+ java -XX:+UnlockDiagnosticsVMOptions   -Xx:+PrintFlagsFinal                  //list all flags
+ 
+ java -XX:MaxHeapSize=600m  -XX:InitialHeapSize=400m Main
+ 
+ 
+  -XX:MaxHeapSize=1g   same as => -Xmx1g
+  -XX:InitialHeapSize=1g   same as  => -Xms1g
+  
+ ========================
+GC:
+Any object in heap which is not reachable from stack or metaspace is eligible for GC as it is no longer reachable.
+Actually static objects are never eligible for GC we can just say an object which are no longer reachable from stack is eligible for GC
+A parent object can refer another but if the parent object has no reference then it(along with children objects) is eligible for GC 
+Objects with circular dependencies are also eligible for GC if it is not reachable.
+
+
+
+System.gc()
+=>this method suggests JVM to trigger GC, but JVM may/may not trigger GC.
+
+Rubtime.getRuntime().freeMemory()  //to check free memory
+
+===============================
+
+Soft leak => when an object remains referenced when no longer needed.
+ 
+ 
+ generate a heap dump on OOM :
+ 
+ java -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath="file path"  Main 
+ 
+ 
+GC :
+
+Mark and Sweep:
+1)mark phase: in this phase it checks(marks) which objects are reachable from stack. This is stop the world phase, all threads has to wait.
+2)sweep phase: unmarked objects are freed up. kept objects are moved in contiguous block of memory which prevents memory fragments wastage and it becomes easier to alocate memory for new objects.
+More the amount of unused reference fastar  the "mark and sweep" process
+
+
+Generational Garbage collection:
+Different object may have different  lifecycle
+So Heap memory is further divided(young and old generation) to make GC process more efficient. 
+
+young generation:
+New objects are first created in young generation
+when it is full a GC takes place in young generation heap only(Minor GC),surving objects are eventually moved into old generation, young generation is empty again.
+Most objects dont live long and very few make it to old generation.
+
+java 8:
+divided into eden,s0,s2(survive spaces) 
+Eden space: New objects are created in eden space,when it gets full ,GC takes place in eden and surviving objects are moved into s0.
+Eden is free now,again new objects are created in eden.
+Next time when eden is full,GC happens in both eden and s0,referenced objects are moved in s1.Eden is empty again and ready to store newly created objects.
+Next Minor GC happens in eden and s1 and surviving objects are moved into s0,eden is free again and ready of store newly created objects.
+This process continues,each time an object survives a Minor GC it gets older,after a threshhold age if object survives it is moved into old generation space.
+s0 or s1 one of them is always empty(Hence in graph current heap size never becomes == max heap size). Minor GC takes place in eden and (s1 or s2), when eden is full.
+ 
+ 
+
+Old generation:
+When old generation gets full ,GC happens in old generation, this is called Major GC.It is much slower as most objects may survive the Mark phase.Also defragmentation and compaction takes place after GC.
+
+we can visualize this generational GC details in JVisualVM by installing a plugin VisualGC(tools>plugin>visualgc)
+Minor GC are not that dangerous, more Major GC is a worrying sign
+
+-------------
+GC vm args:
+
+-verbose:gc
+
+in output GC => minor GC    and  "Full GC" => a mojir GC

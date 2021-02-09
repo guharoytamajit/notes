@@ -1,0 +1,29 @@
+
+>node server.js   //expose an endpoint
+
+docker run --rm -d -p 10000:10000 envoyproxy/envoy:v1.15-latest
+  docker cp allbackend.yaml 721b5d5afe50:/allbackend.yaml
+  envoy docker exec -it 721b5d5afe50 bash 
+  envoy --config-path /allbackend.yaml --base-id 1
+  curl 172.17.0.3:8080                //172.17.0.3 is the ip of envoy container
+  =======================================
+
+  >docker cp . 721b5d5afe50:/   #721b5d5afe50 is pod id of envoy container
+  > envoy docker exec -it 721b5d5afe50 bash 
+  >envoy --config-path /app1app2split.yaml --base-id 1
+  curl 172.17.0.3:8080  
+curl 172.17.0.3:8080/app1
+curl 172.17.0.3:8080/app2 
+
+============================================
+ >docker cp . 721b5d5afe50:/   #721b5d5afe50 is pod id of envoy container
+  > envoy docker exec -it 721b5d5afe50 bash 
+  >envoy --config-path /blockadmin.yaml --base-id 1
+  >curl 172.17.0.3:8080/admin  
+
+==========================================
+
+
+
+
+

@@ -1,0 +1,123 @@
+Database:
+
+rdbms:
+postgres
+mysql
+h2
+
+nosql:
+mongodb
+cassandra
+orientdb
+arangodb
+faunadb
+redis
+
+newsql:
+noudb
+cockroachdb
+
+embedded:
+leveldb
+rocksdb
+
+tools:
+sql squirrel
+dbeaver
+
+versioning:
+liquibase
+flyway
+============
+Messaging:
+Kafka
+Nats
+RabbitMQ
+============
+Testing:
+
+loadtesting:
+jmeter
+k6
+
+webservice:
+postman
+
+distributed system:
+jepsen
+
+==============
+Language/framework:
+
+jvm:
+java
+scala
+kotlin
+spring
+quarkus
+
+go
+python 
+
+javascript:
+typescript
+nodejs,express
+Angular
+ReactJS
+==================
+Protocol /serialization/Networking:
+
+http 1,2,3
+grpc
+graphql
+wireshark
+
+=============
+server:
+nginx
+haproxy
+envoy
+
+===============
+Monitoring/Logging/Fulltext search:
+
+elasticsearch
+fluentd 
+fluentbit
+logstash
+kibana
+grafana
+prometheus
+zipkin
+jaegar
+
+========================
+CICD:
+github actions
+jenkins
+azure devops
+
+=========================
+kubernetes:
+
+servish mesh
+helm
+operator framework
+knative
+argo
+tekton
+portworx
+
+========================
+Security:
+JWT
+OAuth
+keycloak
+spring security
+passportjs
+spring session
+
+======================
+Microservices:
+saga
+cqrs

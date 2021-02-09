@@ -474,38 +474,49 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: azurefile
+  labels:
+    environment: myenv
 spec:
   accessModes:
     - ReadWriteMany
   storageClassName: azurefile
   resources:
     requests:
-      storage: 5Gi
+      storage: 1Gi
 ---
-kind: Pod
-apiVersion: v1
+
+
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: mypod
+  name: nginx-deployment
+  labels:
+    environment: myenv
 spec:
-  containers:
-  - name: mypod
-    image: nginx:1.15.5
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 250m
-        memory: 256Mi
-    volumeMounts:
-    - mountPath: "/mnt/azure"
-      name: volume
-  volumes:
-    - name: volume
-      persistentVolumeClaim:
-        claimName: azurefile
-
-
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      annotations:
+        # *** velero annotation goes here in order to end up on the pod ***
+        backup.velero.io/backup-volumes: volume
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - mountPath: "/mnt/azure"
+          name: volume
+      volumes:
+        - name: volume
+          persistentVolumeClaim:
+            claimName: azurefile
 
 
 

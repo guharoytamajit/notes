@@ -1,0 +1,113 @@
+echo:
+write-host("hello world")
+
+Create Directory:
+New-Item -Path 'ABC' -ItemType Directory
+
+
+Create file:
+New-Item -Path 'D:\temp\Test Folder\Test File.txt' -ItemType File
+
+Copy Folder:
+
+Copy-Item 'D:\temp\Test Folder'  'D:\temp\Test Folder'
+
+Copy-Item 'D:\temp\Test Folder' -Destination 'D:\temp\Test Folder'
+
+
+Copy File:
+Copy-Item 'D:\temp\Test Folder\Test File.txt' 'D:\temp\Test Folder1\Test File1.txt'
+
+Copy-Item -Filter *.txt -Path 'D:\temp\Test Folder' -Recurse -Destination 'D:\temp\Test Folder1
+
+
+
+Remove-Item 'D:\temp\Test Folder\test.txt'
+Remove-Item 'D:\temp\Test Folder1'
+Remove-Item 'D:\temp\Test Folder' -Recurse
+
+
+Move-Item D:\temp\Test D:\temp\Test1
+Move-Item D:\temp\Test\Test.txt D:\temp\Test1
+
+
+Rename-Item D:\temp\Test D:\temp\Test1
+Rename-Item D:\temp\Test\test.txt test1.txt
+
+Get-Content D:\temp\Test\test.txt
+(Get-Content D:\temp\test\test.txt).length
+
+Check if a file/folder exists:
+Test-Path D:\temp\
+
+
+list directory content:
+Get-ChildItem
+
+=========
+get-service -name "*net*"
+
+systemctl list-units --type=service --no-legend --all --no-pager
+
+get-service|where-object {$_.status -eq "stopped"}
+
+In above example status is one of the property how can we get all the properties of a command?
+
+List all properties:
+get-service|get-member
+===============
+
+Get help of a command:
+Get-Help New-Item 
+Get-Help New-Item -examples
+Get-Help New-Item  -detailed
+Get-Help New-Item   -full
+Get-Help New-Item   -online
+======================
+List commands:
+Get-Command
+
+====================
+custom function:
+function add
+{
+$add=[int] (2+2)
+write-output "$add"
+}
+
+>add
+
+=================
+dry run and confirm
+
+-whatif parameter is like dry run
+>New-Item -Path 'ABC' -ItemType Directory  -whatif
+
+--confirm parameter asks for confirmation before executing and command 
+>New-Item -Path 'ABC' -ItemType Directory  -confirm
+=================
+sort and format output:
+
+Get-ChildItem|Sort-Object -property CreationTime | Format-Table name, CreationTime                                                          # here we can use * to display all properties
+Get-ChildItem|Format-List name, CreationTime             
+
+store result in file:
+ls |out-file output.txt
+ls |out-gridview
+ls |export-csv  abc.csv
+================
+List installed modules:
+>Get-Module
+
+Install anew module:
+import-module -name applocker
+
+List commands of a module:
+get-command -module-applocker
+
+==============================
+create variable:
+$location = Get-Location
+$location
+
+

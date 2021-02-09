@@ -1,0 +1,204 @@
+
+A threading model relies on sharing memory. This introduces a requirement for locks and synchronization. As a consequence, the logic becomes complex and difficult to maintain. It also becomes susceptible to bugs like:
+
+1)Race/Race Condition:
+
+This happens when 2 or more threads run in parallel but end up giving a result which is wrong and not equivalent if all the operations are done in sequential order.
+Here all the threads run and execute there operations.
+for example, then a second thread reads and modifies that global variable, and the first thread reads the variable, the first thread may experience a bug because the variable has changed unexpectedly.
+
+2)Deadlock :
+
+This happens when 2 or more threads are waiting on each other to release the resource for infinite amount of time.
+In this the threads are in blocked state and not executing.
+
+3)Starvation:
+Starvation is the problem that occurs when high priority processes keep executing and low priority processes get blocked for indefinite time.
+
+============================
+
+Actors:
+Actors are a departure from the typical concurrency model you may be familiar with. 
+Actors operate on a higher level abstraction of Reactive Streams. They handle many of the challenges of stream-based programming models.
+
+Coroutines and Actors fall nicely into a world where higher-level abstractions handle the challenges of stream based programming models.
+
+Actors are the fundamental unit of computation. They encapsulate state, behavior, and a message queue (referred to as a mailbox). 
+This fits in nicely with the concept of Single Responsibility — the Actor should perform a very specific function.
+
+
+=========================
+
+Goroutines are based on the theory of Communicating Sequential Processes, as specified by Tony Hoare in 1978. The idea is that there can be two processes or threads that act independently of one another but share a "channel," which one process/thread puts data into and the other process/thread consumes.
+
+Do not communicate by sharing memory; instead share memory by communicating ( — Effective Go)
+
+================================
+Blocking code:
+It is any code that prevents the execution of further code, such as a resource heavy for/while that isn’t being executed asynchronously.eg external api or database of file IO.
+doing this in a single thread will force all the other code to wait for that execution to finish.
+
+example:
+function getRemote() {
+    return $.ajax({
+        type: "GET",
+        url: remote_url,
+        async: false
+    }).responseText;
+}
+
+var result=getRemote()  //blocking call,during this time thread will be blocked
+console.log(result)
+
+
+Solution:
+Use non blocking api with callback
+
+setTimeout(()=>console.log("after timeout"),2000)   //non-blocking call
+console.log("done")
+
+
+----Event Loop----
+
+javascript: 
+single threaded,non-blocking,asynchronous concurrent language.
+have a call stack and heap,an event loop,a callback queue some other apis.
+v8 is a js runtime.runtime is a single threaded but heavy lifting in the backend is taken care by "web api" which is multi threaded.
+
+
+
+heap: memory allocation happens here
+stack: holds stack frames(per function call creates a new stack frame).If any error is thrown full stacktrace is printed.
+one thread == one stack == one thing at a time
+
+Web Api:
+things like settimeout,DOM,http request(AJAX) are not part of runtime(eg. V8). they are actually part of web api which is provided by browser.
+This is not part of runtime
+It is multi threaded and does most heavy lifting task in the background.
+Callbacks passed inside a function is not immediately pushed into stack as it will block the main thread.
+Blocking code with callback function is handled by Web API(eg SetTimeout)
+When the Callback is ready to run "Web api" push the callback function in "Callback Queue"
+Web API is present only in browser, for node js it is replaced by C++ library,Libuv sets up a threadpool with multiple threads to perform OS-related operations by utilizing the power of all the CPU cores. 
+
+Callback Queue:
+Stores All callback functions that are ready to run
+When stack is empty,event loop takes a callback function from "callback queue" and place then in stack for execution.
+
+Event loop:
+Takes a function from "Callback Queue" and puts then in stack when stack is empty. 
+
+
+Note:
+All functions with callback may not not be sent at web api.
+Only blacking function with a callback is sent to Web API.
+
+eg 
+[1,2,3,4,5].forEach((i)=>cosole.log(i))    //it has callback,but since it is non-blocking it is never sent to web api but directly executed on stack. 	
+
+
+===========================================
+
+Existing support for Reactive design:
+1.Green threads:
+it is still possible to implement asynchronous behavior via green threads: threads scheduled by the user process rather than the operating system.
+Green threads can be very efficient but are restricted to a single physical machine.
+But green threads and continuations do not provide for resilience, because there is currently no way to supervise their exe-cution; they are therefore lacking with respect to fault tolerance.
+
+
+===========================
+Reactive me
+To meet modern demands ns exceed expectation our system should have below properties:
+1)Responsive:
+Response time should be low.
+
+
+2)Resilient:
+System should be robust
+We should handle error gracefully
+Just like data errors are also first class citizens 
+
+3)Elastic:
+System should scale up or down automatically depending upon load.
+
+4)Massage Driven:
+To achieve loose coupling
+Components should talk to each other asynchronously/non-blocking fashoin using message
+
+
+
+Async code approaches:
+1)Use callback:
+A callback is a function passed as an argument to another function. and let the called function run the callback after the calculation is finished.
+Sometimes callback can become very complex to manage(chain calls,handle failure etc), then we can use promise instead.
+
+2)promise:
+A promise is a commitment to do something in the future.
+In the future either promise is completed=> Resolved     OR  that promise is failed => Rejected
+---
+p= new Promise((resolve,reject)=>{
+  a=1+1;
+  if(a==2){
+  resolve('success');
+}
+  else{
+  reject('failure')
+}
+});
+
+p.then((msg)=>console.log(msg)).catch((msg)=>console.log(msg));
+---
+then() is called if resolved successfully, catch() is called if any failure happens
+
+Promise.all() can take multiple promise in input, its then() is called with list of resolved message if all resolved.
+Promise.all([Promise.resolve('msg1'),Promise.resolve('msg2'),Promise.resolve('msg3')]).then((msgArray)=>console.log(msgArray)).catch((msgArray)=>console.log(msgArray))
+
+Promise.race() can take multiple promise in input, its then() is called when first promise is resolved with its message.
+Promise.race([p1,p2,p3]).then((firstMsg)=>console.log(firstMsg))
+
+3)async-await:
+It is an alternate syntax of promise.
+Anyfunction where we want to call await it has te be declared async
+
+async function init(){
+ await createpost();
+ console.log('finish'); //this is called after createpost() completes
+}
+
+createpost(){
+setTimeout(()=>console.log('done'),2000);
+}
+---------------
+async fetchData(){
+ const res=await fetch('');
+ const data=await res.json();
+ console.log(data)
+}
+fetchData()
+
+all lines marked with await donot allows any further execution inside async function until it completes.
+
+
+4)reactive extension:
+https://itnext.io/concurrency-and-asynchronous-behavior-with-rxjs-11b0c4b22597
+https://itnext.io/reactive-streams-and-multithreading-efd63b67de9a
+
+5)green thread:  Cannot use more than 1 core
+Languages like Haskell, Erlang, and Go provide a similar separation-of-concern in the form of green threads. Instead of requiring the developer to manually deal with asynchronous (or non-blocking) I/O calls, the runtime system takes responsibility for this. 
+
+Wikipedia defines green threads as "threads that are scheduled by a virtual machine (VM) instead of natively by the underlying operating system". 
+Green threads emulate multithreaded environments without relying on any native OS capabilities, and they are managed in user space instead of kernel space, enabling them to work in environments that do not have native thread support.
+
+6)Go Routine:   https://softwareengineering.stackexchange.com/questions/222642/are-go-langs-goroutine-pools-just-green-threads
+Go (or more exactly the two existing implementations) is a language producing native code only - it does not use a VM. Furthermore, the scheduler in the current runtime implementations relies on OS level threads (even when GOMAXPROCS=1). So Go is different from Green Threads.
+Go supports a M:N threading model.it looks much closer to the Erlang process model, than to the Java green thread model.
+
+Here are a few benefits of the Go model over green threads (as implemented in early JVM):
+
+a)Multiple cores or CPUs can be effectively used, in a transparent way for the developer. With Go, the developer should take care of concurrency. The Go runtime will take care of parallelism. Java green threads implementations did not scale over multiple cores or CPUs.
+
+b)System and C calls are non blocking for the scheduler (all system calls, not only the ones supporting multiplexed I/Os in event loops). Green threads implementations could block the whole process when a blocking system call was done.
+
+c)Copying or segmented stacks. In Go, there is no need to provide a maximum stack size for the goroutine. The stack grows incrementally as needed. One consequence is a goroutine does not require much memory (4KB-8KB), so a huge number of them can be happily spawned. Goroutine usage can therefore be pervasive.
+
+
+

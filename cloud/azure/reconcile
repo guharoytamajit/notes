@@ -1,0 +1,5 @@
+“reconcile” the cluster by running the below command:
+
+ 
+
+az resource update --ids=/subscriptions/.../clst-cin-s03-dev-kub-01

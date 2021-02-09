@@ -118,13 +118,13 @@ spec:
             - name: PROVISIONER_NAME
               value: example.com/nfs
             - name: NFS_SERVER
-              value: 192.168.0.105
+              value: 192.168.0.103
             - name: NFS_PATH
               value: /mnt/sharedfolder
       volumes:
         - name: nfs-client-root
           nfs:
-            server: 192.168.0.105
+            server: 192.168.0.103
             path: /mnt/sharedfolder
 
 

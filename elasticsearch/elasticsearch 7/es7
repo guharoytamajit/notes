@@ -1,0 +1,380 @@
+Note:
+By default, Elasticsearch  goes into read-only mode when you have less than 5% of free disk space. If you see errors similar to this:
+
+Elasticsearch::Transport::Transport::Errors::Forbidden:
+  [403] {"error":{"root_cause":[{"type":"cluster_block_exception","reason":"blocked by: [FORBIDDEN/12/index read-only / allow delete (api)];"}],"type":"cluster_block_exception","reason":"blocked by: [FORBIDDEN/12/index read-only / allow delete (api)];"},"status":403}
+  
+  Then you can fix it by running the following commands:
+
+
+curl -XPUT -H "Content-Type: application/json" http://localhost:9200/_cluster/settings -d '{ "transient": { "cluster.routing.allocation.disk.threshold_enabled": false } }'
+curl -XPUT -H "Content-Type: application/json" http://localhost:9200/_all/_settings -d '{"index.blocks.read_only_allow_delete": null}'
+================================
+GET _cluster/health
+
+{
+  "cluster_name" : "elasticsearch",
+  "status" : "yellow",
+  "timed_out" : false,
+  "number_of_nodes" : 1,
+  "number_of_data_nodes" : 1,
+  "active_primary_shards" : 3,
+  "active_shards" : 3,
+  "relocating_shards" : 0,
+  "initializing_shards" : 0,
+  "unassigned_shards" : 1,
+  "delayed_unassigned_shards" : 0,
+  "number_of_pending_tasks" : 0,
+  "number_of_in_flight_fetch" : 0,
+  "task_max_waiting_in_queue_millis" : 0,
+  "active_shards_percent_as_number" : 75.0
+}
+---
+GET _cat/indices?v
+
+health status index                uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+green  open   .kibana_1            vH3FQyy8RMCE5WUqRRDM-g   1   0          4            1     23.9kb         23.9kb
+green  open   .kibana_task_manager erl1B4bURiy6CXnsDDQ-Wg   1   0          2            5     65.7kb         65.7kb
+yellow open   my-index-000001      eA6nNCJhRqOWKsau6qmjZQ   1   1          0            0       283b           283b
+
+---
+GET _cat/shards?v
+
+index                shard prirep state      docs  store ip        node
+my-index-000001      0     p      STARTED       0   283b 127.0.0.1 tamajit
+my-index-000001      0     r      UNASSIGNED                       
+.kibana_task_manager 0     p      STARTED       2 65.7kb 127.0.0.1 tamajit
+.kibana_1            0     p      STARTED       4 23.9kb 127.0.0.1 tamajit
+---
+GET _cat/nodes?v
+
+ip        heap.percent ram.percent cpu load_1m load_5m load_15m node.role master name
+127.0.0.1           11          61   4    0.57    0.63     1.10 mdi       *      tamajit
+---
+elasticsearch configuration properties:
+
+cluster.name=>all nodes in same cluster must have same cluster name
+node.name=>all nodes in same cluster must have unique node name
+path.data=>
+path.log=>
+
+
+we can aso uperwrite properties as command line arguments as:
+>./elasticsearch -Ename.name=node2 -Ecluster.name=mycluster -Epath.data="" -Epath.log=""
+
+
+--Node Roles--
+1)master eligible: responsible for creating and deleting indices
+even if a node is configured master-eligible, it is not always master, it has to go through voting process if there are multiple master-eligible nodes.
+
+node.master: true | false
+
+2)Data:  
+Node can store cluster data(indices)
+Also perform queries on data(Handle search requests),
+This role is almost always enabled for smaller cluster.
+
+node.data: true | false 
+
+3)Ingest:
+Enables a node to run ingest pipeline(used for relative simple datapipeline operations,like simpler version logstash ).
+We can have dedicated/shared nodes for Ingest pipelines.
+Ingest pipeline are a series of steps(processors) that are performed when indexing documents.
+   - processors may manipulate documents
+It is like a simplified version of "Logstash" directly within pipeline.   
+
+node.ingest: true | false 
+
+4)Machine learning node:
+We can have dedicated/shared nodes for ML jobs
+node.ml: true|false  Enables a node to run machine learning jobs
+xpack.ml.enabled: true|false   enable or disable ML API for the node.  
+
+5)Coordination nodes(Like loadbalancers):
+Distribution of queries and aggregation of results.
+It doesnot search any data It handles and delegates requests to data nodes.
+Very useful in large clusters
+Configured by disabling all other roles.
+
+Configuration:
+node.master: false
+node.data: false
+node.ingest: false
+node.ml: false
+xpack.ml.enabled: false
+
+5)Voting only:
+This type of node will be eligible for voting for master node election.
+It cannot be elected as master node itself.
+Rarely used, only used for large clusters.
+
+node.voting_only: true | false
+
+
+GET _cat/nodes?v
+
+ip        heap.percent ram.percent cpu load_1m load_5m load_15m node.role master name
+127.0.0.1           11          61   4    0.57    0.63     1.10 mdi       *      tamajit
+
+
+mdi=> node has Master, Data and Ingest role.
+since there is * under master column ,it also indicate it is elected master node.
+==========================
+each  Primary shard(PS) of index  can have n Replica Shards(RS). New records in PS are replicated to its RS.
+Replicas are always created on a different node form primary shard node.For single node cluster replicas of the index will be unassigned(if index is configured to have replicas).
+Two different shard of same index can live in same node but same shard(replica) cannot. 
+This is because the concept of replica was created for HA but if same replicas lives in same node there is no way we can achieve it.All replicas of same shard should be spread across different nodes.
+
+Yellow(Warning)=> atleast one replica of an index is unallocated(cannot be placed in any node)
+Red=> atleast one primary shard of an index is unallocated(no place in cluster)
+
+
+No. of PS is manually defined during index creation.We have to re-index every thing if we decide to change No. of PS. But we can increase No. Of RS any time which will increase read performance
+
+Write requests only goes to  primary shards of an index, Read request can go to primary or replica shards
+we can improve read performance by increasing number of RS,To increase write performance only way is increasing the number of shards.
+
+From es7 Split and Shrink API can be used to change No. Of shards(it re-index internally)
+
+
+A lucene index is split into shards,Documents are hashed to a particular shard of index.Shards are ideally spread across multiple nodes.
+
+example:
+ if an index has  has 3 PS and 2 replicas .
+ Then total no of shard = 3 PS + 2X3 RS  = 9 shards 
+====================
+Create index:
+create index with default settings:
+>PUT /products
+
+
+create index with custom settings:
+>PUT /products
+{
+"settings":{
+"number_of_shards": 2,
+"number_of_replicas": 2
+
+}
+}
+
+
+------------
+Delete index:
+>DELETE /products
+
+
+Delete record with _id=100:
+>DELETE  /products/_doc/100
+
+
+------------
+Insert document:
+
+Each document has unique "_id" field, if we dont provide this a "_id" value will be generated
+
+POST /products/_doc
+{
+"name":"coffee_maker",
+"price":300,
+"in_stock": 10
+} 
+
+providing explicit _id in url:
+
+PUT /products/_doc/100
+{
+"name":"toaster",
+"price":200,
+"in_stock": 20
+}
+
+We can create a document directly without creating an index by setting below property(it is enabled by default)
+
+action.auto_create_index
+
+------------
+Get Index details:
+
+>GET /products
+{
+  "products" : {
+    "aliases" : { },
+    "mappings" : { },
+    "settings" : {
+      "index" : {
+        "creation_date" : "1610346430718",
+        "number_of_shards" : "1",
+        "number_of_replicas" : "1",
+        "uuid" : "3Ym07y-NSayLT8ApX7QhnQ",
+        "version" : {
+          "created" : "7020099"
+        },
+        "provided_name" : "products"
+      }
+    }
+  }
+}
+
+Get record by id:
+
+>GET /products/_doc/100
+
+
+get all records:
+GET products/_search
+
+-----------
+Update records:
+
+>POST /products/_update/100
+{
+"doc":{
+   "in_stock": 3,
+   "tags":["electronics"]
+  }
+}
+
+
+
+Note:
+Elastic search douments are Immutable.
+Update record actually replace and recreate a record(update not possible as objects are immutable.)
+
+
+In normal update we have to read the value first , then save again with updated value, we can do the same without reading value using "scripted update".
+
+
+Scripted update:
+
+POST /products/_update/100
+{
+"script":{
+"source":"ctx._source.in_stock--"
+}
+}
+
+The above request will decrease the value of in_stock field by one without reading the value(using another call).
+
+
+upsert (insert or update) records:
+
+POST /products/_update/100
+{
+"upsert":{
+  "name":"toaster",
+  "price":200,
+  "in_stock": 20
+}
+}
+
+=============================
+Routing:
+
+Elastic search index may have multiple shards, Now if a new request for create/delete/get arrives how elasticsearch knows that record belong to which shard?
+It uses the below formula:
+shard_num = hash(_routing)  % num_primary_shards
+
+value of _routing by default is same as  value of _id field.
+
+Note:
+shard_num function is dependent on num_primary_shards, hence we cannot change number of shards without reindexing.
+
+Read operation flow:
+1)A node(coordinating node) receives the request.
+2)depending upon _id value it calculates the shard_num of an index.
+3)it finds where the replicas(replication group) of that shard is present,and loadbalance requests  across those replicas.
+4)Coordination nodes forward the request to the data node where the required shard is present.
+5)coordinating nodes collects the response from data node and sends the response back to the client.
+
+
+Write operation flow:
+1)A node(coordinating node) receives the request.
+2)depending upon _id value it calculates the shard_num of an index.
+3)It finds the node of the primary shard(as write requests always goes to primary shard). This data is replicates on replica shards.
+4)Coordination nodes forward the request to the data node where the required shard is present.
+5)coordinating nodes collects the response from data node and sends the response back to the client.
+
+==========================
+Test analyzer:
+
+POST _analyze
+{
+  "tokenizer": "standard",
+  "char_filter": [],
+  "filter":  [ "lowercase", "asciifolding" ],
+  "text":      "Is this déja vu?"
+} 
+
+
+Only text datatype  is parsed into inverted index.
+Other datatypes like number,date,geospatial  are stored as BKD tree. 
+
+=========================
+
+Mapping:
+A mapping is a schema definition.
+ES has resonable defaults but sometimes you need to customize them.
+We can use combination of explicit and dynamic(autodetect by value) mapping.
+
+Suported data types:
+https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html
+
+
+Create a schema:
+curl -XPUT  127.0.0.1:9200/movies -d '
+{
+ "mappings":{
+      "properties":{
+	     "year": {"type":"date"},
+		 "id": {"type":"long"},
+		 "genre":{"index": "not_analyzed","type":"text"},
+		 "description":{"analyzer":"english","type":"text"}
+	  }
+    }
+}
+' 
+movies=>index name 
+here for "year" field we are explicitly telling to treat it as date instead of string
+
+Get schema details:
+
+curl -XGET  127.0.0.1:9200/movies/_mapping 
+
+
+types(defines datatype):       
+index(enable/disable full-text search for a field) :     analyzed ,not_analyzed(disable full-text search)
+analyzer(define tokenizer and token filter): standard,whitespace,simple,english  
+
+
+Analyzer does 3 things:
+1)Character filter: Remove HTML encoding, convert & => "and"  etc.
+2)Tokenizer: spilts the work by space,punctuations,non-letter. keyworks are never tokenozed.
+3)Token Filter: Lowercasing,stemming(["drives", "drove", and "driven"]=>"drive"),synonyms,stopwords
+
+
+Common Analyzers:
+1.Standard: split on word boundary,removes punctuations,lowercase. (Good choice for unknown language)
+2.Simple: splits on anything that is not a letter, lowercase
+3.Whitespace: splits on whitespace, dosent lowercase
+4.Language(eg. english):Accounts for language specific stopwords and stemming
+5.KeywordAnalyzer: doesn't split the text 
+6. Snowball: standard + stemming
+==============================
+https://www.baeldung.com/lucene-analyzers
+
+===================================
+CRUD:
+
+
+insert:
+
+curl -XPUT 127.0.0.1:9200/movies/_doc/101 -d '
+{
+"genre":["IMAX","sci-fi"],
+"title":"interstellar",
+"year":2014
+
+}
+' 
+movie=>index name

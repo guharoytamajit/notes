@@ -1,0 +1,58 @@
+Ahead of time Compiler:
+In computer science, ahead-of-time compilation (AOT compilation) is the act of compiling a higher-level programming language such as C or C++, or an intermediate representation such as Java bytecode or .NET Framework Common Intermediate Language (CIL) code, into a native (system-dependent) machine code so that the resulting binary file can execute natively.
+
+AOT produces machine optimized code, just like a standard native compiler. The difference is that AOT transforms the bytecode of an extant virtual machine (VM) into machine code.
+
+Java Ahead of Time (AOT) Compiler:
+which is described in JEP-295 and was added as an experimental feature in Java 9.
+
+What Is Ahead of Time Compilation?
+AOT compilation is one way of improving the performance of Java programs and in particular the startup time of the JVM. 
+The JVM executes Java bytecode and compiles frequently executed code to native code. This is called Just-in-Time (JIT) Compilation. 
+The JVM decides which code to JIT compile based on profiling information collected during execution.
+While this technique enables the JVM to produce highly optimized code and improves peak performance, the startup time is likely not optimal, as the executed code is not yet JIT compiled. 
+AOT aims to improve this so-called warming-up period. The compiler used for AOT is Graal.
+
+
+public class JaotCompilation {
+ 
+    public static void main(String[] argv) {
+        System.out.println(message());
+    }
+ 
+    public static String message() {
+        return "The JAOT compiler says 'Hello'";
+    }
+}
+
+Before we can use the AOT compiler, we need to compile the class with the Java compiler:
+
+>javac JaotCompilation.java
+
+We then pass the resulting JaotCompilation.class to the AOT compiler, which is located in the same directory as the standard Java compiler:
+
+>jaotc --output jaotCompilation.so JaotCompilation.class
+
+This produces the library jaotCompilation.so in the current directory.
+
+We can then execute the program:
+
+>java -XX:AOTLibrary=./jaotCompilation.so JaotCompilation
+
+The argument -XX:AOTLibrary accepts a relative or full path to the library. Alternatively, we can copy the library to the lib folder in the Java home directory and only pass the name of the library.
+
+
+By default, the AOT compiled code will always be used, and no JIT compilation will happen for the classes included in the library. 
+
+usecase of AOT:
+In embedded environments, where JIT isn't possible.
+Another possible use case for AOT-compiled code is short-lived lambda functions where short startup time is important
+
+
+Note:
+At this point, we also need to note that the AOT compiled library can only be loaded from a Java class with identical bytecode, thus it cannot be loaded via JNI.
+
+
+
+more details:
+https://www.baeldung.com/ahead-of-time-compilation

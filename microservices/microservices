@@ -1,0 +1,61 @@
+
+
+A microservice architecture puts each element of functionality into a separate service.
+
+Philosophy:
+Continuous integration and delivery/deployment (CI/CD)
+Cloud native
+Enterprise application
+Loosely coupled, collaborating services
+Expose an API for 3rd parties to consume
+Integrate with other applications, external services
+Support web, mobile web, native mobile applications
+Do one thing and do it well - Unix philosophy
+
+Decomposition:
+Single responsibility principle (SRP) - a responsibility of a class as a reason to change, and states that a class should only have one reason to change.
+Common closure principle (CCP) - classes that change for the same reason should be in the same package.
+Decompose by business capability
+Decompose by Domain-driven design (DDD) subdomain.
+Decompose by verbs / nouns / usecases
+
+Representational state transfer (REST):
+Create, read, update and delete (CRUD)
+REST constraints
+
+Atomicity, consistency, isolation, durability (ACID)
+
+Cross-cutting concern:
+Persistence
+Caching
+Security
+Logging
+
+
+Distributed Transcation:
+eg. For taking an order we need a transaction across 1)payment service 2)order service 3)product service(for inventory update)
+
+Two patterns:
+1)Two phase commit:  
+   Phase 1:Coordinator sends query to all the services to execute.
+           Here no service actually commits, it just replies yes/no to coordinator if transaction will be possible.
+  Phase 2(commit/rollback): Coordinator checks response from each service, if all responses are yes the cordinator instructs services to commit.                
+           If one or more service replies no, coordinator instructs to all services to rollback.
+
+2)SAGA Pattern:
+Sequence of local transactions from different microservices
+Each microservice updates its own database,if succuesful then publish an event so that next microservice can do its local transaction and update its own database.So on.
+If any local transaction fails in the sequence of local transactions,SAGA executes a series of compensating local transaction that rollbacks all the local transactions.
+
+There are two types of SAGA implementation:
+a)Choreograph based SAGA:Each service updates transactions independently depending upon the event received and publish its own event for other microservices.
+b)Orchestrator based SAGA: A central coordinator looks after all the local transactions and instructs services to carry local transactions or rollback
+
+2PC vs SAGE:
+In saga pattern local transactions are commited sequentially as they progress, in case of any transaction failure another set of local transaction are carried which baically does the rollback.
+In two phase commit after 2nd phase either all local transaction are committed or all of them are rolled back.
+
+
+Books:
+Art of scaling
+Microservices patterns

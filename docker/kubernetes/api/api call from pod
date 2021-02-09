@@ -1,0 +1,27 @@
+we can get endpoint details of any kubectl command using --v=5 or higher.
+
+
+
+>kubectl get ep ratings -v=6
+I0121 21:43:25.625300    5599 loader.go:375] Config loaded from file:  /home/tamajit/.kube/config
+I0121 21:43:25.640917    5599 round_trippers.go:443] GET https://172.16.16.100:6443/api/v1/namespaces/default/endpoints/ratings 200 OK in 8 milliseconds
+NAME      ENDPOINTS              AGE
+ratings   192.168.136.116:9080   44d
+
+
+Call API server from a pod:
+
+1) give permission to view:
+kubectl create rolebinding default-viewer \
+  --clusterrole=view \
+  --serviceaccount=default:default \
+  --namespace=default
+
+2)Make API call from pod:
+CA_CERT=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+curl --cacert $CA_CERT -H "Authorization: Bearer $TOKEN" "https://kubernetes/api/v1/namespaces/default/endpoints/reviews"
+
+
+

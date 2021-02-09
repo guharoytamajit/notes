@@ -1,0 +1,271 @@
+start:
+./standalone.sh -Djboss.socket.binding.port-offset=100
+
+http://localhost:8180
+
+====================================
+Keycloak endpoints:
+
+
+Get all endpoints:
+
+{{server}}/auth/realms/{{realm}}/.well-known/openid-configuration
+
+ It returns all other available endpoints, supported scopes and claims, and signing algorithms.
+ 
+ {
+    "issuer": "http://localhost:8083/auth/realms/baeldung",
+    "authorization_endpoint": "http://localhost:8083/auth/realms/baeldung/protocol/openid-connect/auth",
+    "token_endpoint": "http://localhost:8083/auth/realms/baeldung/protocol/openid-connect/token",
+    "token_introspection_endpoint": "http://localhost:8083/auth/realms/baeldung/protocol/openid-connect/token/introspect",
+    "userinfo_endpoint": "http://localhost:8083/auth/realms/baeldung/protocol/openid-connect/userinfo",
+    "end_session_endpoint": "http://localhost:8083/auth/realms/baeldung/protocol/openid-connect/logout",
+    "jwks_uri": "http://localhost:8083/auth/realms/baeldung/protocol/openid-connect/certs",
+    "check_session_iframe": "http://localhost:8083/auth/realms/baeldung/protocol/openid-connect/login-status-iframe.html",
+    "grant_types_supported": [...],
+    ...
+    "registration_endpoint": "http://localhost:8083/auth/realms/baeldung/clients-registrations/openid-connect",
+    ...
+    "introspection_endpoint": "http://localhost:8083/auth/realms/baeldung/protocol/openid-connect/token/introspect"
+}
+
+Moreover, there are other useful attributes in the response. 
+For example, we can figure out all supported grant types from “grant_types_supported” or all supported scopes from “scopes_supported“.
+
+
+1)Authorize Endpoint:
+
+{{server}}/auth/realms/{{realm}}/protocol/openid-connect/auth?response_type=code&client_id=ClientId
+
+
+"response_types_supported": [
+    "code",
+    "none",
+    "id_token",
+    "token",
+    "id_token token",
+    "code id_token",
+    "code token",
+    "code id_token token"
+  ],
+
+example:
+
+http://localhost:8080/auth/realms/myrealm/protocol/openid-connect/auth?response_type=code&client_id=product-app&state=12345&scope=openid profile&redirect_uri=http://localhost:8081/callback
+
+It will ask for username & password
+
+response:
+
+http://localhost:8081/callback?state=12345&session_state=a8141248-8f5a-41e2-a1a4-5e4378f65a0c&code={{authorization code}}
+
+
+-----------------------------------
+2)Token Endpoint:
+
+ {{server}}/auth/realms/{{realm}}/protocol/openid-connect/token
+ 
+ Request Body:
+ 
+ Authorization Code Flow:
+ grant_type: authorization_code,code: {{authorization_code}},client_id,client_secret,redirect_uri,
+ 
+example:
+ 
+POST http://localhost:8080/auth/realms/myrealm/protocol/openid-connect/token
+grant_type:authorization_code
+code:8e1220c6-1231-4a57-85ee-9d9e287114ae.a8141248-8f5a-41e2-a1a4-5e4378f65a0c.b7be8e6a-67e3-4b15-b642-b3e0c23afe0a
+client_id:product-app
+client_secret:daa24b50-549f-42f4-a4e7-e6463fba09c8
+redirect_uri:http://localhost:8081/callback
+ 
+ {
+    "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJSa21OMVJfWnctTUxwYU5yMXBvMmJScENRWVluNF9rMGV3S0U1TkpGOEJ3In0.eyJleHAiOjE2MTIyNjY3MzMsImlhdCI6MTYxMjI2NjQzMywiYXV0aF90aW1lIjoxNjEyMjY0Njc0LCJqdGkiOiI2ODE0NWExNy05M2NiLTRhMWMtOTdmYy0xNDEyNWM0ZGZhZDciLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvbXlyZWFsbSIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiI5ZWMyOTY2MS1kYWE2LTQzMzQtOTVmZC05ODg2MjMzYWMzYTUiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJwcm9kdWN0LWFwcCIsInNlc3Npb25fc3RhdGUiOiJhODE0MTI0OC04ZjVhLTQxZTItYTFhNC01ZTQzNzhmNjVhMGMiLCJhY3IiOiIwIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJ1c2VyIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsicHJvZHVjdC1hcHAiOnsicm9sZXMiOlsidXNyIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBlbWFpbCBwcm9maWxlIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMiJ9.LV1mJvOZmEagrXKb61E76ykBxjs2HVPlBwznwKerld6JGq3fYX0JhDFeGwXpOELbIH_jSGPPLsluX4jljdeXMvOPBBYwuLdq5LO94GlCribrj1u86ExUROsNCBQebbYy5kXxko--0JoHjmM6Em_o1JyHxEvzlS0cWPNll4dTJch_Hex3ts6hGftgGgndm95xogTG9bbR5cdMyNrCg5sWfu5J_dTNhNHm06i_2CISt4PF5r_nFaNgxjI5kS293HLIEhUej240sSz27LuKpYtVXTVRvQNhRoqu2ETVGsb3-gAsRtMc4H2fdnACfcKwns5Lz1F38bAycJfzA-rqwLtYMw",
+    "expires_in": 300,
+    "refresh_expires_in": 1800,
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxYTkzNDAyMy05YmNkLTRlMTAtYTBlNC1kNTNhMzMxYTZhZTEifQ.eyJleHAiOjE2MTIyNjgyMzMsImlhdCI6MTYxMjI2NjQzMywianRpIjoiNDUxZTEyOWItODkxOS00Y2UwLWE2MGMtOTcyYmU0MzFmNGJlIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL215cmVhbG0iLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvbXlyZWFsbSIsInN1YiI6IjllYzI5NjYxLWRhYTYtNDMzNC05NWZkLTk4ODYyMzNhYzNhNSIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJwcm9kdWN0LWFwcCIsInNlc3Npb25fc3RhdGUiOiJhODE0MTI0OC04ZjVhLTQxZTItYTFhNC01ZTQzNzhmNjVhMGMiLCJzY29wZSI6Im9wZW5pZCBlbWFpbCBwcm9maWxlIn0.-huI46WIKz2AqMdde5RmWIidsN6YVjxyfbhy6m7AKdc",
+    "token_type": "bearer",
+    "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJSa21OMVJfWnctTUxwYU5yMXBvMmJScENRWVluNF9rMGV3S0U1TkpGOEJ3In0.eyJleHAiOjE2MTIyNjY3MzMsImlhdCI6MTYxMjI2NjQzMywiYXV0aF90aW1lIjoxNjEyMjY0Njc0LCJqdGkiOiJmNDMwZDRjOS04NDI0LTRjM2QtYTJiYS04ODMyZmUzMTBlYTEiLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvbXlyZWFsbSIsImF1ZCI6InByb2R1Y3QtYXBwIiwic3ViIjoiOWVjMjk2NjEtZGFhNi00MzM0LTk1ZmQtOTg4NjIzM2FjM2E1IiwidHlwIjoiSUQiLCJhenAiOiJwcm9kdWN0LWFwcCIsInNlc3Npb25fc3RhdGUiOiJhODE0MTI0OC04ZjVhLTQxZTItYTFhNC01ZTQzNzhmNjVhMGMiLCJhdF9oYXNoIjoiWkVON2NZOGJpTm5OczFsdnZLdS1BdyIsImFjciI6IjAiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInByZWZlcnJlZF91c2VybmFtZSI6InVzZXIyIn0.Z5iEImhXbwXjHSfY9l0LbFYh6qL0Pe7CYap3TaYD8WswVwzGKD1VlDrQTsChkf4GE7NFsJyR6JTPxkIVF0ykYp5gLrt44j3YXViRVW5m7ZKXCD6yZPRTE1TiRLn218Mp7ous8TDuDaclvonCjbZp8XqB8LGqb5pkDB9GPS2FiUmA096y3yoB7iHJhO1gVZ__jjcdPpSzbzYmElUCdcE4sgN0phhcIDVJcZxallWIWK-LPrEcmZ30GQOAK93dSClUhy3vyauZ4Qq0EOj0SBsq2Fpx4ktOlGKL3tBPdFCGOCYqgB1SVxTlqVpSRB-pl0EHl6VdY3QQX_7VLshO44BZmQ",
+    "not-before-policy": 0,
+    "session_state": "a8141248-8f5a-41e2-a1a4-5e4378f65a0c",
+    "scope": "openid email profile"
+}
+ -------------------------------------------
+ Password Grant Flow:
+ grant_type: password,username,password,client_id,client_secret
+ 
+ example:
+ 
+POST http://localhost:8080/auth/realms/myrealm/protocol/openid-connect/token
+
+grant_type:password
+username:user2
+password:user2
+client_id:product-app
+client_secret:daa24b50-549f-42f4-a4e7-e6463fba09c8
+
+{
+    "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJSa21OMVJfWnctTUxwYU5yMXBvMmJScENRWVluNF9rMGV3S0U1TkpGOEJ3In0.eyJleHAiOjE2MTIyNjYwNzYsImlhdCI6MTYxMjI2NTc3NiwianRpIjoiN2E3NjE5MjAtYjhjNC00M2FmLWIwNjgtOTVkNjFjZDBiODhiIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL215cmVhbG0iLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiOWVjMjk2NjEtZGFhNi00MzM0LTk1ZmQtOTg4NjIzM2FjM2E1IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoicHJvZHVjdC1hcHAiLCJzZXNzaW9uX3N0YXRlIjoiODA0NDk0YmItYjdlNy00ZDc4LWFhNTUtZmIxYzY5ZTI4YTMyIiwiYWNyIjoiMSIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7InByb2R1Y3QtYXBwIjp7InJvbGVzIjpbInVzciJdfSwiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJlbWFpbCBwcm9maWxlIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMiJ9.iqwp-9_ZbIbWtnIvWwdivQ5Ikt_AeRcsVZ0uo5ZS5eJHfviOJS845VCzki2UBGCv5_MWHf-4toyTEPK5sOj33hzU1dhgROkS1iQ52EYN9nqEBpf2m7CzE-lg1ex7SIlij9WTq6mOTOFnVahA5Q5q5pcjhvJxvAWutT02kg15K9rKhYD-cwAhmoMa2TTDchwp7nJabPNdBvf0M-WYkhnrSJ0jP5Q5RD7Z2ATQMH_JCZltoEYsHCc2vAoJr0lieGY0DOw8rM22l8_7VWbNlWsoRyNG6YK3ASImHBV8b25SXyoBn8Wow8ADnzbhL9qpUaqWSiM-bilU4kJPlLDQJBj4UA",
+    "expires_in": 300,
+    "refresh_expires_in": 1800,
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxYTkzNDAyMy05YmNkLTRlMTAtYTBlNC1kNTNhMzMxYTZhZTEifQ.eyJleHAiOjE2MTIyNjc1NzYsImlhdCI6MTYxMjI2NTc3NiwianRpIjoiNGI5ZjQyZjctMWRhMy00OTk5LWI4ZWEtMjViYTQzZWVhYzc0IiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL215cmVhbG0iLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvbXlyZWFsbSIsInN1YiI6IjllYzI5NjYxLWRhYTYtNDMzNC05NWZkLTk4ODYyMzNhYzNhNSIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJwcm9kdWN0LWFwcCIsInNlc3Npb25fc3RhdGUiOiI4MDQ0OTRiYi1iN2U3LTRkNzgtYWE1NS1mYjFjNjllMjhhMzIiLCJzY29wZSI6ImVtYWlsIHByb2ZpbGUifQ.p8-yRIBBLLtKsDU7HPeiL8rCID_EYuClAGaLbVrX8pw",
+    "token_type": "bearer",
+    "not-before-policy": 0,
+    "session_state": "804494bb-b7e7-4d78-aa55-fb1c69e28a32",
+    "scope": "email profile"
+}
+-----------------------------------------
+ Client credentials:
+ grant_type: k ,client_id,client_secret
+
+example:
+ 
+POST http://localhost:8080/auth/realms/myrealm/protocol/openid-connect/token
+grant_type:client_credentials
+client_id:product-app
+client_secret:daa24b50-549f-42f4-a4e7-e6463fba09c8
+ 
+ {
+    "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJSa21OMVJfWnctTUxwYU5yMXBvMmJScENRWVluNF9rMGV3S0U1TkpGOEJ3In0.eyJleHAiOjE2MTIyNjY5MjMsImlhdCI6MTYxMjI2NjYyMywianRpIjoiY2FkNzNhNDktMzBkNS00OGRmLWIzZGQtMTFiNGY3NWEwN2UyIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL215cmVhbG0iLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiMjAxMDdlZjUtMjcyMC00OThhLTljZGUtNmEwOTAyODRhOWM5IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoicHJvZHVjdC1hcHAiLCJzZXNzaW9uX3N0YXRlIjoiYmRkYWM5NjQtOTg4MS00MjU0LTkxNDAtMThmOGNjZDM2MGNiIiwiYWNyIjoiMSIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsicHJvZHVjdC1hcHAiOnsicm9sZXMiOlsidW1hX3Byb3RlY3Rpb24iXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwiY2xpZW50SWQiOiJwcm9kdWN0LWFwcCIsImNsaWVudEhvc3QiOiIxMjcuMC4wLjEiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtcHJvZHVjdC1hcHAiLCJjbGllbnRBZGRyZXNzIjoiMTI3LjAuMC4xIn0.TwVW6uEZvoxatgqPSteVoh-7VOrAGlWxYsFMrPbdlP_5K-eKEO3XHRHTQln8A--L-p-mT2kYNWGOV2DNALGWnuUQO9ERb6kDymxlMQUAxorALKpKNGQtBE_f26V99QV39OutAGHyydbKKdWJ7yj0bDhJVZqdycGj88NzTGdyHRT6nBg-anFN3DGuLDCds4BxpCVq2gCoFzmoOldcmPfakotvhq1SaBfkb46yTt3j3cAIY3pqHkPkD1woo3HIZRKVaPLuvF8uB0uUEKvsYK7Fift1ncInyByeH7Hikjd0Gn1anPzAiGAISIGjzJPbk07vyyOTSdRrBwduWew8wBmvMA",
+    "expires_in": 300,
+    "refresh_expires_in": 1800,
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxYTkzNDAyMy05YmNkLTRlMTAtYTBlNC1kNTNhMzMxYTZhZTEifQ.eyJleHAiOjE2MTIyNjg0MjMsImlhdCI6MTYxMjI2NjYyMywianRpIjoiMzc0Yzg1ODktYTVlNy00YzA0LThiZjAtZjMxNzdlMjAyN2NmIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL215cmVhbG0iLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvbXlyZWFsbSIsInN1YiI6IjIwMTA3ZWY1LTI3MjAtNDk4YS05Y2RlLTZhMDkwMjg0YTljOSIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJwcm9kdWN0LWFwcCIsInNlc3Npb25fc3RhdGUiOiJiZGRhYzk2NC05ODgxLTQyNTQtOTE0MC0xOGY4Y2NkMzYwY2IiLCJzY29wZSI6ImVtYWlsIHByb2ZpbGUifQ.o5KGRWZpl6lI-gYu-Fw28IP6Veb1t5PfyMaccrJZa98",
+    "token_type": "bearer",
+    "not-before-policy": 0,
+    "session_state": "bddac964-9881-4254-9140-18f8ccd360cb",
+    "scope": "email profile"
+}
+
+--------------------------------------------
+Refresh token:
+
+grant_type: refresh_token ,client_id,client_secret
+
+example:
+ 
+POST http://localhost:8080/auth/realms/myrealm/protocol/openid-connect/token
+
+grant_type:refresh_token
+refresh_token:{{refresh_token}}
+client_id:product-app
+client_secret:daa24b50-549f-42f4-a4e7-e6463fba09c8
+
+Response:
+{
+    "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJSa21OMVJfWnctTUxwYU5yMXBvMmJScENRWVluNF9rMGV3S0U1TkpGOEJ3In0.eyJleHAiOjE2MTIyNzIwOTYsImlhdCI6MTYxMjI3MTc5NiwianRpIjoiZDUwYmQ1ZTctM2RjYy00MDRkLWI4NWQtOTAwYjE0MDcwMTk2IiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL215cmVhbG0iLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiOWVjMjk2NjEtZGFhNi00MzM0LTk1ZmQtOTg4NjIzM2FjM2E1IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoicHJvZHVjdC1hcHAiLCJzZXNzaW9uX3N0YXRlIjoiOWQ3ZjEzMjEtM2ExMy00ZjQ1LTg4NjUtZTBjZTQwZmEzNDdhIiwiYWNyIjoiMSIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7InByb2R1Y3QtYXBwIjp7InJvbGVzIjpbInVzciJdfSwiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJlbWFpbCBwcm9maWxlIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ1c2VyMiJ9.UUpI77IXF-aqkPiA0aM7AwBlEdCSCDOB4lpj5116ZgYh81tK8XDqtPb-de7Y_qhyhksJeyBfY472fwNUbCU5pXT_kDGPrKNCDXRHF0hQMGeYQVh5HWCZOjGSl-DkDTZc2oXn0RhoHuwe7rofmT9r3KxT51BYZu6sFMKV1OSMPUrZXG0Va-G19Wx9EDf4ak7uZXdGL4rnIjVFThK_2-4jwLgqvkQKgAOSop3ObTDpGuZL9dUgI7xx9KPgPqJA9k4FatUOD9H6xYu6aksO9QL_1VQSfUjkZoZUYHke_RLL73Au9ulWlslJDNc3MOa09STU8ipz-8ZuFjM_3tnqr_8zhg",
+    "expires_in": 300,
+    "refresh_expires_in": 1800,
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxYTkzNDAyMy05YmNkLTRlMTAtYTBlNC1kNTNhMzMxYTZhZTEifQ.eyJleHAiOjE2MTIyNzM1OTYsImlhdCI6MTYxMjI3MTc5NiwianRpIjoiODljNTVmZjQtY2E2My00ZDkwLWJjNjctM2JjZjJmMTYwYjViIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL215cmVhbG0iLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvYXV0aC9yZWFsbXMvbXlyZWFsbSIsInN1YiI6IjllYzI5NjYxLWRhYTYtNDMzNC05NWZkLTk4ODYyMzNhYzNhNSIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJwcm9kdWN0LWFwcCIsInNlc3Npb25fc3RhdGUiOiI5ZDdmMTMyMS0zYTEzLTRmNDUtODg2NS1lMGNlNDBmYTM0N2EiLCJzY29wZSI6ImVtYWlsIHByb2ZpbGUifQ.yjIwNbutCCqj5nLiKRkrbRGBCDod38fhNUVfVaMLkqA",
+    "token_type": "bearer",
+    "not-before-policy": 0,
+    "session_state": "9d7f1321-3a13-4f45-8865-e0ce40fa347a",
+    "scope": "email profile"
+}
+ 
+----------------------------------------- 
+ The token endpoint allows us to retrieve an access token, refresh token, or id token. 
+ OAuth 2.0 supports different grant types, like authorization_code, refresh_token, or password.
+ 
+   "grant_types_supported": [
+    "authorization_code",
+    "implicit",
+    "refresh_token",
+    "password",
+    "client_credentials"
+  ]
+ 
+================================================== 
+ 3)User Information Endpoint:
+ 
+ {{server}}/auth/realms/{{realm}}/protocol/openid-connect/userinfo
+ 
+ Header:
+ Authorization: Bearer {{access_token}} 
+ 
+ 
+ Response:
+ {
+    "sub": "a5461470-33eb-4b2d-82d4-b0484e96ad7f",
+    "preferred_username": "john@test.com",
+    "DOB": "1984-07-01",
+    "organization": "baeldung"
+}
+ 
+ 
+ We can retrieve user profile data from the user information endpoint when we have a valid access token.
+ 
+ 4)Token Introspect Endpoint:
+ If a resource server needs to verify that an access token is active or wants more metadata about it, especially for opaque access tokens(non-jwt).
+ 
+ {{server}}/auth/realms/{{realm}}/protocol/openid-connect/token/introspect
+ 
+ Request Body:
+ token: {{access_token}}
+ client_id: {{}}
+ client_secret: {{}}
+ 
+ 
+ If the access_token is valid, then we have our response:
+
+{
+    "exp": 1601824811,
+    "iat": 1601824511,
+    "jti": "d5a4831d-7236-4686-a17b-784cd8b5805d",
+    "iss": "http://localhost:8083/auth/realms/baeldung",
+    "sub": "a5461470-33eb-4b2d-82d4-b0484e96ad7f",
+    "typ": "Bearer",
+    "azp": "jwtClient",
+    "session_state": "96030af2-1e48-4243-ba0b-dd4980c6e8fd",
+    "preferred_username": "john@test.com",
+    "email_verified": false,
+    "acr": "1",
+    "scope": "profile email read",
+    "DOB": "1984-07-01",
+    "organization": "baeldung",
+    "client_id": "jwtClient",
+    "username": "john@test.com",
+    "active": true
+}
+However, if we use an invalid access token, then the response is:
+
+{
+    "active": false
+}
+
+===========================
+
+ let's add a new realm called "SpringBootKeycloak"
+ create a new public client "login-app" with "valid redirect URIs"= localhost:8080/*
+ 
+ create a role called "user"
+ create a user "user1" with role "user"
+ 
+ -----------------
+ 
+ Generating Access Tokens with Keycloak's API:
+Keycloak provides a REST API for generating and refreshing access tokens. We can easily use this API to create our own login page.
+
+First, we need to acquire an access token from Keycloak by sending a POST request to this URL:
+
+http://localhost:8180/auth/realms/SpringBootKeycloak/protocol/openid-connect/token
+The request should have this body, in a x-www-form-urlencoded format:
+
+client_id:<your_client_id>
+username:<your_username>
+password:<your_password>
+grant_type:password
+In response, we'll get an access_token and a refresh_token.
+
+The access token should be used in every request to a Keycloak-protected resource by simply placing it in the Authorization header:
+
+headers: {
+    'Authorization': 'Bearer' + access_token
+}
+Once the access token has expired, we can refresh it by sending a POST request to the same URL as above, but containing the refresh token instead of username and password:
+
+{
+    'client_id': 'your_client_id',
+    'refresh_token': refresh_token_from_previous_request,
+    'grant_type': 'refresh_token'
+}
+Keycloak will respond to this with a new access_token and refresh_token.

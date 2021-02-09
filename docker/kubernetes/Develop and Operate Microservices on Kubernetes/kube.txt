@@ -477,7 +477,7 @@ spec:
 
 ============StatefulSets===============
 Headless service:
-Each connection to the service is forwarded to one randomly selected backing pod. But what if the client needs to connect to all of those pods? What if the backing pods themselves need to each connect to all the other backing pods. Connecting through the service clearly isn’t the way to do this. What is?
+Each connection to the service is forwarded to one randomly selected backing pod. But what if the client needs to connect to a specific  pods? What if the backing pods themselves need to  connect to all the other backing pods. Connecting through the service clearly isn’t the way to do this. What is?
 
 For a client to connect to all pods, it needs to figure out the the IP of each individual pod. One option is to have the client call the Kubernetes API server and get the list of pods and their IP addresses through an API call, but because you should always strive to keep your apps Kubernetes-agnostic, using the API server isn’t ideal
 

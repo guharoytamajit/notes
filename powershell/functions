@@ -1,0 +1,55 @@
+function math_Operation{
+   $val1 = 10
+   $val2 = 5
+   Write-Host "Multiply : $($val1*$val2)"
+   Write-Host "Addition : $($val1+$val2)"
+   Write-Host "Subtraction : $($val1-$val2)"
+   Write-Host "Divide : $($val1+$val2)"
+}
+math_Operation
+
+
+
+function math_Operation{
+   param([int]$val1,[int]$val2)
+   Write-Host "Multiply : $($val1*$val2)"
+   Write-Host "Addition : $($val1+$val2)"
+   Write-Host "Subtraction : $($val1-$val2)"
+   Write-Host "Divide : $($val1+$val2)"
+}
+ math_Operation -val1 20 -val2 10
+ 
+ 
+ Function Get-BatAvg{
+Param ($Name, $Runs, $Outs)
+$Avg = [int]($Runs / $Outs*100)/100
+Write-Output "$Name's Average = $Avg, $Runs, $Outs"
+}
+
+Get-BatAvg Bradman 6996 70
+
+-------------------
+Clear-Host
+Function  Get-WmiKey {
+$Class = [WmiClass]$args[0]
+$Class.Properties | `
+Select @{Name="PName";Expression={$_.name}} -Expand Qualifiers | `
+Where {$_.Name -eq "key"} | `
+foreach {$_.Pname}
+}
+
+Get-WmiKey Win32_LogicalDisk
+-------------------
+$x = 1..100
+Function Get-Sum ($a) {
+Return ($a | Measure-Object -Sum).Sum
+}
+
+Get-Sum (1..36)
+---------------------
+function Add-Numbers {
+ $args[0] + $args[1]
+}
+Add-Numbers 5 10
+
+---------------------

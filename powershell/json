@@ -1,0 +1,32 @@
+https://4sysops.com/archives/convert-json-with-the-powershell-cmdlets-convertfrom-json-and-convertto-json/
+
+
+
+
+>$employeesJson = '{"employees":[
+    { "firstName":"John", "lastName":"Doe" },
+    { "firstName":"Anna", "lastName":"Smith" },
+    { "firstName":"Peter", "lastName":"Jones" }
+]}'
+
+
+>$employeesObject = ConvertFrom-Json –InputObject $employeesJson
+
+
+>$employeesObject.employees
+
+firstName lastName
+--------- --------
+John      Doe
+Anna      Smith
+Peter     Jones
+
+
+> $employeesObject.employees.firstName
+John                                              
+Anna                                              
+Peter 
+
+
+$backtoJson = $employeesObject | ConvertTo-Json
+$backtoJson

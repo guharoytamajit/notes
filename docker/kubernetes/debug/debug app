@@ -22,6 +22,8 @@ bmon
 
 kubectl run --rm -it --image amouat/network-utils  test
 
+kubectl run --rm -it --image guharoytamajit/trivy  test
+
 
 sql server client:
 kubectl run --rm -it --image mcr.microsoft.com/mssql-tools  sqlclient

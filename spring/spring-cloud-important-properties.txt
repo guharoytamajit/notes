@@ -1,0 +1,421 @@
+spring-cloud-config-server============
+
+--create config server-----
+Config server is backed by a git repository where we can store all the configuration for different microservices(including different profiles)
+the git repo can be local or a github repo
+
+create project spring-microservices-config-server with dependencies config server.
+add file config-client-development.properties in git repo, with content:
+message=Hello World.
+Note App=>config-client and  profile=>development
+in application.properties add :
+spring.cloud.config.server.git.uri=c:/git/repo  #path to git repo which contains config-client-development.properties.
+server.port=8888
+
+In your Main class add @EnableConfigServer
+
+start the app and hit localhost:8888/config-client-development.properties:
+O/P message: Hello World
+
+localhost:8888/config-client-development.json
+O/P {"message": "Hello World"}
+
+----create config client----
+create project spring-microservices-config-client with dependencies config client,web,actuator.
+
+@SpringBootApplication
+@RestController
+public class SpringMicroservicesConfigClientApplication{
+@Value("${message}")
+private String message
+public static void main(String[] args){
+SpringApplication.run(SpringMicroservicesConfigClientApplication.class,args);
+}
+@RequestMapping("/message")
+public String message(){
+return this.message;
+}
+}
+
+in bootstrap.properties add:
+spring.application.name=config-client
+spring.profiles.active=development
+spring.cloud.config.uri=http://localhost:8888
+
+start the app,hit localhost:8080/message
+O/p Hello World
+
+---Refresh config dynamically---
+In spring-microservices-config-client add @RefreshScope annotation in the  classes which has @Value.
+Now change the content of config-client-development.properties in git repo to message=Hello Spring. And commit the changes.
+
+curl -XPOST http://localhost:8080/refresh  # this endopint is provided by actuator,by this our application will receive the changes in our config repo.
+------------------
+Note: For spring boot2
+config client app must have below additional dependency(support for bootstrap.yml):
+ <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bootstrap</artifactId>
+        </dependency>
+
+and now /refresh endpoint is changed to /actuator/refresh , and below property must also be set to enable this endopint		
+
+management.endpoints.web.exposure.include=refresh
+
+----------------------
+start the app,hit localhost:8080/message
+O/p Hello Spring
+
+--
+download "JCE unlimited strength juridiction policy" for your java version.
+inside that zip you will find two jars (*policy.jar),paste those jars inside $JAVA_HOME/lib/security(take a backup of your existing jars before replacing old jars)
+
+Add following  in application.properties  of spring-microservices-config-server application:
+encrypt.key=mySecretKey
+
+We can encrypt a value for example 'message' by:
+curl http://localhost:8888/encrypt -d message
+O/p <encrypted message>
+
+we can again decrypt it using:
+curl http://localhost:8888/decrypt --data-urlencode <encrypted message>  #here we use --data-urlencode flag instead of --data to take care of special characters.
+
+modify file config-client-development.properties in git repo, with content message={cipher}<encrypted message>   ,dont forget to commit changes
+
+now hit localhost:8080/message
+O/P: hello Spring
+
+===Eureka========================================
+--create eureka server---
+
+create project spring-microservices-eureka-server with dependencies eureka server.
+
+In your Main class add @EnableEurekaServer
+in application.properties add :
+server.port=8761
+eureka.client.registerWithEureka=false
+eureka.client.fetchRegistry=false
+
+start app and hit localhost:8761. you will see eureka dashboard
+
+--create redundant eureka server for HA-------
+add following in hosts file(c:/system32/drivers/etc/hosts):
+127.0.0.1 peer1
+127.0.0.1 peer2
+
+application-peer1.poperties:
+server.port=8761
+eureka.client.registerWithEureka=false
+eureka.client.fetchRegistry=false
+eureka.instance.hostname=peer1
+eureka.client.serviceUrl.defaultZone=http://peer2:8762/eureka
+
+
+application-peer2.poperties:
+server.port=8762
+eureka.client.registerWithEureka=false
+eureka.client.fetchRegistry=false
+eureka.instance.hostname=peer2
+eureka.client.serviceUrl.defaultZone=http://peer1:8761/eureka
+
+
+>run two instances of eureka with -Dspring.profiles.active=peer1 and peer2
+
+now you will see dashboard of each eureka server will point to other as replica
+
+
+---Eureka client-----
+
+create project spring-microservices-eureka-client with dependencies eureka discovery.
+In your Main class add @EnableEurekaClient
+in application.properties add :
+spring.application.name=myClient          #Eureka will register this app with this name
+server.port=8080
+eureka.client.registerWithEureka=true     #this sevice will be registered in eureka so thers can find it my name 'myClient'
+eureka.client.fetchRegistry=true          #this app will fetch registry from eureka server so that it can discover other applications registered with eureka server.
+
+---Service Discovery programatically----
+create project spring-microservices-eureka-client2 with dependencies eureka discovery.
+In your Main class add @EnableEurekaClient
+
+@SpringBootApplication
+@RestController
+@EnableEurekaClient
+public class SpringMicroservicesEurekaClient2Application{
+@Autowired
+private EurekaClient eurekaClient;
+public static void main(String[] args){
+SpringApplication.run(SpringMicroservicesEurekaClient2Application.class,args);
+}
+@RequestMapping("/serviceInfo")
+public String info(){
+InstanceInfo instance=client.getNextServerFromEureka("myClient",false); //lookup service location by name from eureka server,"myClient"=>service name
+return instance.getHomePageUrl();
+}
+}
+
+
+application.poperties:
+spring.application.name=myOtherClient
+server.port=8888
+
+start app and hit localhost:8888/serviceInfo
+O/p http://192.168.1.1:8080
+------------
+#intance-name shwon in dashboard
+eureka.instance.instance-id=${spring.application.name}${random.int}
+#original link
+eureka.instance.hostname=localhost
+#use ip in link instead of hostname
+eureka.instance.prefer-ip-address=true      
+#make eureka check for health after regular interval, implement  HealthIndicator
+eureka.client.healthcheck.enabled=true       
+#enable eureka to unregister service
+eureka.server.enableSelfPreservation=false
+---Service Discovery with resttemplate----
+
+@SpringBootApplication
+@RestController
+@EurekaClient
+public class SpringMicroservicesEurekaClient2Application{
+
+@Bean
+@LoadBalanced
+public RestTemplate restTemplate(){
+return new RestTemplate();
+}
+
+@Autowired
+private RestTemplate restTemplate;
+
+public static void main(String[] args){
+SpringApplication.run(SpringMicroservicesEurekaClient2Application.class,args);
+}
+@RequestMapping("/execute")
+public String execute(){
+ restTemplate.getForObject("http://MYOTHERCLIENT/serviceInfo",String.class);  //MYOTHERCLIENT => service name
+}
+}
+
+application.poperties:
+spring.application.name=myClient
+eureka.client.serviceUrl.defaultZone=http://localhost:8761/eureka
+server.port=8888
+
+
+==============================================
+eureka.instance.instanceId:${spring.cloud.client.hostname}:${spring.application.name}:${spring.application.instance_id:${random.value}}
+
+==Hystrix===========================================================
+
+create project spring-microservices-simple-service with dependencies web.
+
+@SpringBootApplication
+@RestController
+
+public class SpringMicroservicesSimpleServiceApplication{
+
+public static void main(String[] args){
+SpringApplication.run(SpringMicroservicesSimpleServiceApplication,args);
+}
+
+@RequestMapping("/service")
+public List<String> service(){
+return Arrays.asList("value1","value2");
+}
+}
+
+in application.properties add :    
+server.port=8888
+
+
+create project spring-microservices-hystrix with dependencies web,hystrix,actuator.
+
+
+@SpringBootApplication
+@RestController
+@EnableCircuitBreaker
+public class SpringMicroservicesHystrixApplication{
+
+@Bean
+public RestTemplate restTemplate(){
+return new RestTemplate();
+}
+
+@Autowired
+private RestTemplate restTemplate;
+
+public static void main(String[] args){
+SpringApplication.run(SpringMicroservicesEurekaClient2Application.class,args);
+}
+
+@RequestMapping("/startClient")
+@HystrixCommand(fallbackMethod = "failover")
+//@HystrixCommand(fallbackMethod = "failover",commandProperties={@HystrixProperty(name="execution.isolation.thread.timeoutInMilliseconds",value="500")})
+public List<String> startClient(@RequestParam long time) throws Exception{
+  Thread.sleep(time);
+ restTemplate.getForObject("http://localhost:8888/service",List.class);  
+}
+
+public List<String> failover(){
+ return Arrays.asList("default1","default2");
+}
+}
+
+
+run app and hit: localhost:8080/startClient?time=300
+
+another example:
+
+    @HystrixCommand(fallbackMethod = "getFallbackUserRating",
+            commandProperties = {
+                    @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds", value = "2000"),
+                    @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold", value = "6"),
+                    @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage", value = "50"),
+                    @HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds", value = "5000"),
+            })
+
+execution.isolation.thread.timeoutInMilliseconds => After waiting this much time if no response received call the fallbackMethod instead
+circuitBreaker.requestVolumeThreshold  => Consider last n requests for making any dcision whether to open the circuit
+circuitBreaker.errorThresholdPercentage =>  50% of 6 ie if 3 out of last 6 requests fails then open the circuit.
+circuitBreaker.sleepWindowInMilliseconds => after this much time circuit will be closed again
+
+Note:
+Fallback method will be called on following conditions:
+1)If service is down
+2)We service takes more time to return than defined timeoutInMilliseconds
+3)if circuit is open
+
+Bulkhead Configuration(ie. we can use separate threadpool for calling each service, so that not all  threads of the threadpool are consumen for making requests to a  slow service.):
+
+    @HystrixCommand(
+            fallbackMethod = "getFallbackCatalogItem",
+            threadPoolKey = "movieInfoPool",
+            threadPoolProperties = {
+                    @HystrixProperty(name = "coreSize", value = "20"),
+                    @HystrixProperty(name = "maxQueueSize", value = "10")
+            })
+
+we are creating a threadpool with size 20 (ie max 20 thread will wait for response after making call),plus max 10 requests can be in waiting state which havent make any call yet. if there is any additional requests, for them fallback method will be called.
+----HystrixDashboard------
+Add spring-cloud-starter-hystrix-dashboard  dependency on spring-microservices-hystrix project
+Replace @EnableCircuitBreaker with @EnableHystrix in main class
+Add @EnableHystrixDashboard in main class
+
+
+@SpringBootApplication
+@RestController
+@EnableHystrix
+@EnableHystrixDashboard
+public class SpringMicroservicesHystrixApplication{
+..
+}
+
+Now open Hystrix dashboard localhost:8080/hystrix 
+
+
+there paste localhost:8080/hystrix.stream  and click "monitor stream" button
+
+To enable hystrix stream endpoint add below property:
+
+management.endpoints.web.exposure.include=hystrix.stream
+
+
+
+====Ribbon=====================
+create project spring-microservices-simple-service2 with dependencies web.
+
+
+@SpringBootApplication
+@RestController
+public class SpringMicroservicesSimpleService2Application{
+
+@Value("${server.port}")
+private String port;
+
+public static void main(String[] args){
+SpringApplication.run(SpringMicroservicesSimpleService2Application,args);
+}
+
+@RequestMapping("/execute")
+public String execute(){
+return "Hello from port: "+port;
+}
+
+
+@RequestMapping("/")
+public String status(){
+return "Up";
+}
+}
+Now start three instances of spring-microservices-simple-service2 with -Dserver.port=7777,-Dserver.port=8888,-Dserver.port=9999
+
+
+create project spring-microservices-ribbon with dependencies web,ribbon.
+
+@SpringBootApplication
+@RestController
+@EnableCircuitBreaker
+public class SpringMicroservicesRibbonApplication{
+
+@Bean
+public RestTemplate restTemplate(){
+return new RestTemplate();
+}
+
+@Autowired
+private RestTemplate restTemplate;
+
+public static void main(String[] args){
+SpringApplication.run(SpringMicroservicesEurekaClient2Application.class,args);
+}
+
+@RequestMapping("startClient")
+public String startClient(){
+restTemplate.getForObject("http://localhost:7777/execute",String.class);
+}
+}
+
+
+
+
+
+
+	@Autowired
+	private LoadBalancerClient loadBalancer;
+
+	@RequestMapping("/")
+	public String doStuff() {
+		ServiceInstance instance = loadBalancer.choose("server1");
+		URI storesUri = URI.create(String.format("http://%s:%s", instance.getHost(), instance.getPort()));
+		return (new RestTemplate()).getForObject(storesUri + "/info", String.class);
+	}
+
+{service-name}.ribbon.listOfServers=localhost:7777,localhost:8888,localhost:9999
+ribbon.eureka.enabled=false
+{service-name}.ribbon.eureka.enabled=false
+
+
+
+@Autowired
+IClientConfig
+
+IPing=PingUrl  #so that client can ping server before calling
+IRule= #defineloadbalancing strategy
+
+
+@RibbonClient(name="{service-name}",configuration=ABC.class)
+
+
+add @Loadbalanced to your RestTemplate and use
+
+=============================================================
+
+zuul.routes.somepath.url=http://localhost:7777
+zuul.routes.somepath.path=/mypath/**
+zuul.prefix=/api
+
+
+with eureka:
+zuul.routes.{servicename}.path=/mypath/**
+zuul.ignored-services

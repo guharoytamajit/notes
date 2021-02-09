@@ -1,3 +1,8 @@
+https://pumpingco.de/blog/backup-and-restore-a-kubernetes-cluster-with-state-using-velero/
+https://medium.com/egen/backing-up-aks-cluster-with-velero-b1cec289438f
+https://velero.io/docs/v1.5/customize-installation/
+
+
 az ad sp create-for-rbac --skip-assignment
 
 {
@@ -5,7 +10,7 @@ az ad sp create-for-rbac --skip-assignment
   "displayName": "azure-cli-2020-06-12-08-00-38",
   "name": "http://azure-cli-2020-06-12-08-00-38",
   "password": "hA1jmr1w4m-gG4jSMdvzcYR3j9KEcQttfZ",
-  "tenant": "cf6161cd-27ea-44d0-aca9-8199e6314072"
+  "tenant": "cf6161cd-27ea-44d0-aca9-8199e6314"
 }
 
 az aks create \
@@ -53,12 +58,12 @@ az aks get-credentials \
 
 
 # Prepare variables
-TENANT_ID=785f2bca-e45d-4527-a969-850bb4f65b12
-SUBSCRIPTION_ID=34344759-c3a1-4856-8752-b677209afd2b
-SOURCE_AKS_RESOURCE_GROUP=MC_cin-s03-uat-rsg-ibg-01_clst-cin-s03-dev-kub-velero_centralindia
-TARGET_AKS_RESOURCE_GROUP=MC_cin-s03-uat-rsg-ibg-01_clst-cin-s03-dev-kub-velero_centralindia
-BACKUP_RESOURCE_GROUP=cin-s03-uat-rsg-ibg-01
-BACKUP_STORAGE_ACCOUNT_NAME=stacins03ibgdevaks01
+TENANT_ID=785f2bca-e45d-4527-a969-850bb4f65
+SUBSCRIPTION_ID=34344759-c3a1-4856-8752-b677209a
+SOURCE_AKS_RESOURCE_GROUP=MC_cin-s03-uat-rsg-ibg-01_clst-cin-s03-dev-kub-velero
+TARGET_AKS_RESOURCE_GROUP=MC_cin-s03-uat-rsg-ibg-01_clst-cin-s03-dev-kub-velero
+BACKUP_RESOURCE_GROUP=cin-s03-uat-rsg-ibg
+BACKUP_STORAGE_ACCOUNT_NAME=stacins03ibgdevak
 
 # Create Azure Storage Account
 az storage account create \
@@ -102,6 +107,9 @@ velero install \
   --backup-location-config resourceGroup=$BACKUP_RESOURCE_GROUP,storageAccount=$BACKUP_STORAGE_ACCOUNT_NAME \
   --snapshot-location-config apiTimeout=5m,resourceGroup=$BACKUP_RESOURCE_GROUP \
   --wait
+--------------------
+deploy app to test;
+https://kubernetes.io/docs/tasks/run-application/run-single-instance-stateful-application/#deploy-mysql
   
   ----------------------------------------
           # create a backup containing all resources
@@ -120,3 +128,10 @@ velero install \
         velero backup create backup4 --wait
 		
 		velero create schedule IBG  --schedule="@every 24h" --ttl 720h0m0s
+
+-----------------------
+
+kubectl delete namespace/velero clusterrolebinding/velero
+kubectl delete crds -l component=velero
+velero backup delete <name>	
+kubectl delete backup <name> -n velero

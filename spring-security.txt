@@ -68,6 +68,20 @@ UserDetailsService: UserDetails loadUserByUsername(String username) throws UserN
     <filter-name>ndcLogFilter</filter-name>
     <url-pattern>/*</url-pattern>
 </filter-mapping>
+
+
+important link:
+https://frugalisminds.com/filterchainproxy-delegatingfilterproxy-uses/
+https://www.baeldung.com/spring-security-registered-filters
+https://www.baeldung.com/spring-security-custom-filter
+https://www.baeldung.com/spring-security-custom-configurer
+https://medium.com/@visweshwar/debugging-a-custom-spring-security-filterchain-3a2ea3f5ee38
+
+By default when we add ‹http› element  SecurityContextPersistenceFilter,ExceptionTranslationFilter and FilterSecurityInterceptor will be added, And as we have set auto-config to true, BasicAuthenticationFilter, LogoutFilter and UsernamePasswordAuthenticationFilter also gets added to the filter chain.Filter chain keeps skipping until the right filter is reached.
+
+
+
+
 =========================================================
 custom filterchain:
 First, the id of the FilterChainProxy bean is set to filterChainProxy. This id is also the filter name of the Spring’s DelegatingFilterProxy declared previously in the web.xml file. It is the default convention.
@@ -87,6 +101,94 @@ Let’s examine the generic filter chain in depth.
     anonymousFilter: this filter handles anonymous login and creates an Authentication object in the HTTP session for later use
     exceptionTranslationFilter: this filter re-direct the user to an error page when Security exception is encountered
     filterSecurityInterceptor: this filter is manaing the access management
+	
+	
+	
+------------------------
+FilterChainProxy has  List<SecurityFilterChain> filterChains;     SecurityFilterChain has  pattern and List of filter to run for that pattern as shown above.
+
+Add multiple SecurityFilterChain using java fluent API:
+
+
+
+
+	@Configuration
+	@Order(1)
+	public static class App1ConfigurationAdapter extends WebSecurityConfigurerAdapter {
+
+		@Override
+		protected void configure(HttpSecurity http) throws Exception {
+			http.antMatcher("/admin/**").authorizeRequests().anyRequest().hasRole("ADMIN").and()
+			        .httpBasic()     //BasicAuthenticationFilter
+					.authenticationEntryPoint(authenticationEntryPoint());
+		}
+
+		@Bean
+		public AuthenticationEntryPoint authenticationEntryPoint() {
+			BasicAuthenticationEntryPoint entryPoint = new BasicAuthenticationEntryPoint();
+			entryPoint.setRealmName("admin realm");
+			return entryPoint;
+		}
+	}
+
+	@Configuration
+	@Order(2)
+	public static class App2ConfigurationAdapter extends WebSecurityConfigurerAdapter {
+
+		protected void configure(HttpSecurity http) throws Exception {
+			
+			http
+		    .requestMatchers()
+		        .antMatchers("/module2/**")
+		        .and()
+		    .authorizeRequests()
+		        .antMatchers("/module2/resource").authenticated()
+		        .antMatchers("/module2/test").access( "#oauth2.isClient()")
+		        .antMatchers("/module2/**").access( "#oauth2.hasScope('webclient')" );
+
+
+
+		}
+	}
+
+	
+	  @Configuration
+	  
+	  @Order(3) public static class App3ConfigurationAdapter extends
+	  WebSecurityConfigurerAdapter {
+	  
+	  protected void configure(HttpSecurity http) throws Exception {
+	  http.antMatcher("/guest/**").authorizeRequests().anyRequest().permitAll(); }
+	  }
+	  
+-----------------
+	  List all chains with path:
+	  
+	  	@Autowired
+	@Qualifier("springSecurityFilterChain")
+	private Filter springSecurityFilterChain;
+
+
+	@Override
+	public void run(ApplicationArguments args) throws Exception {
+		System.out.println("************************Filter List************************");
+
+		 FilterChainProxy filterChainProxy = (FilterChainProxy) springSecurityFilterChain;
+		    List<SecurityFilterChain> list = filterChainProxy.getFilterChains();
+		    
+		    for (SecurityFilterChain securityFilterChain : list) {
+		    	List<Filter> filters = securityFilterChain.getFilters();
+		    	System.out.println(securityFilterChain);
+		    	for (Filter filter : filters) {
+		    		System.out.println(filter.getClass());
+				}
+		    	System.out.println("************************************************");
+			}
+
+		System.out.println("***********************END*************************");
+	}
+	 
+	
 ================================================================
 
 
@@ -366,6 +468,18 @@ HS256(base64Encode(header).base64Encode(payload).secret)
 Now no one will be able to tamper the payload unless they know the secret.
 But still if anyone steals jwt token then he can access all the resources authorized for that particular user.
 First user can authenticate himself with username and password.then server can return jwt token(no need to store claims on session).JWT token should be sent by client in the request(Authorization header) to access protected resources.
+
+IN JWT clain section we can specify expire_date  using exp, expired token is also considered invalid like tampered token.
+
+
+Why public instead of symmetric secret key?
+Instead of using secret key we can alternatively use public key,this approach is more secured.
+It is not good practice to keep secret in our application source code as it is hard to protect the secrets specially if you have microservices and secret is stored in multiple places..
+JWT token creation and verification may be done by two different microservices and both of then need to know the secret.
+In ideal case each service should be able to validate a token without making call to another service.
+
+se we can use a purivate key for creating jwt and use coresponding public key for  jwt decoding/validating.
+
 
 ==========================
 Oauth entities: 
