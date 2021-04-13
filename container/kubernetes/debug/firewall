@@ -1,0 +1,16 @@
+table has multiple chains
+chain has multiple rules
+
+rule has matching criteria and target
+target can be  DROP(No other rule is evaluated),ACCEPT(default)
+
+iptables -t filter -A INPUT -p icmp -j DROP     # other options=>  --dport  22   -s 192.169.1.23
+filter=>table name
+-A =>append
+INPUT=>chain name
+icmp=>protocol
+DROP =>target
+No -s=> alll source
+No --dport  => all destination ports
+
+iptables -t filter -A OUTPUT -d  google.com -j DROP  

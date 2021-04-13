@@ -1,0 +1,59 @@
+
+pipeline can have multiple stages
+Stage can have number of jobs
+Job can have multiple steps
+steps can have multiple tasks which runs sequentially on same agent.
+
+by default all job runs parallely on different agents, we can use dependsOn to control the order of job execution.
+Steps in a job always runs sequentially(Steps of a job runs on same agent).
+By default stages runs sequentially.Using dependsOn(list of string) parameter we can run multiple stages parallely
+
+
+
+stages:
+- stage: A
+  jobs:
+  - job: A1
+    steps:
+     - script: echo Hello from A>A1>step1
+       displayName: 'step1'
+  - job: A2
+
+- stage: B
+  jobs:
+  - job: B1
+  - job: B2
+
+===================================================
+
+
+- script: |
+    mvn package
+    docker build -t myapp:01 .
+    docker tag myapp:01 tamajitacr.azurecr.io/myapp:01
+    echo <password>| docker login tamajitacr.azurecr.io  --username tamajitacr --password-stdin
+    docker push tamajitacr.azurecr.io/myapp:01
+  displayName: 'Run a multi-line script'
+
+
+-----------------------
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    publishJUnitResults: false
+    javaHomeOption: 'JDKVersion'
+    mavenVersionOption: 'Default'
+    mavenAuthenticateFeed: false
+    effectivePomSkip: false
+    sonarQubeRunAnalysis: false
+
+- task: Docker@2
+  inputs:
+    containerRegistry: 'tamajitacr-connection'
+    repository: 'testapp'
+    command: 'buildAndPush'
+    Dockerfile: '**/Dockerfile'
+    tags:
+     - latest
+
+

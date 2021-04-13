@@ -1,0 +1,80 @@
+
+
+Extentions:
+
+Spring Boot Developer Extension Pack
+   -Java Extension Pack (MS)
+         -language support for java(redhat)
+		 -Maven for java(MS)
+		 -Debugger for java(MS)
+		 -Java Test Runner(MS)
+		 -Project manager for java(MS)
+		 -Visual studio intelli code(MS)
+   -Spring Boot Extension Pack(Pivotal)
+         -Spring boot tools
+		 -Spring Initializer java support
+		 -Spring boot dashboard
+		 ...
+   -Java Code Generators
+   -Spring Boot Snippets
+
+Java Decompiler
+
+===============================
+
+
+file>preferences>settings(Ctl + ,)
+
+
+set jdk path:
+search "java.home" and set the path of java home(excluding /bin)
+
+you will see this value will be present in .vscode/settings.json
+==================================
+set java  run configuration:
+
+select debug option on left
+select drop down and add configuration.
+
+ .vscode/launch.json file will be created here you can add multiple run configuration as shown below.
+
+ ---.vscode/launch.json----
+{
+    "configurations": [
+
+    
+        {
+            "type": "java",
+            "name": "Spring Boot-DemoApplication<demo>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "mainClass": "com.example.demo.DemoApplication",
+            "projectName": "demo",
+            
+        },
+
+        {
+            "type": "java",
+            "name": "Spring Boot-DemoApplication<demo>2",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "mainClass": "com.example.demo.DemoApplication",
+            "projectName": "demo",
+            "args": "arg1 arg2",
+            "env": {
+                "name":"tamajit"
+            },
+            "vmArgs": " -mx200m  -Dserver.port=8083"
+        }
+    ]
+}
+
+=================================================
+   
+open resource  =>ctrl +p
+open Class/Type =>Ctrl +T  
+quick fix =>CTRL + .
+search /replace text in  a folder=>  Ctl+Shift+F
+search /replace text in  a file => Ctrl+F

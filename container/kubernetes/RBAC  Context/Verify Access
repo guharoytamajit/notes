@@ -1,0 +1,52 @@
+Verifying if you Have Access
+If you are not sure if your (or another) user is allowed to do a certain action, you can verify that with the kubectl auth can-i command.
+
+$ kubectl auth can-i create deployments \
+  --namespace production
+yes
+
+
+You can also impersonate users to check their access:
+
+$ kubectl auth can-i create deployments \
+  --namespace production \
+  --as jane
+no
+
+or impersonate a Service Account to check if it is set up right:
+
+$ kubectl auth can-i use podsecuritypolicies/privileged \
+  -n kube-system \
+  --as=system:serviceaccount:kube-system:calico-node
+yes
+
+
+You can also verfiy access for a whole group:
+
+$ kubectl auth can-i get pods --as-group=system:masters
+yes
+
+syntax:
+>kubectl auth can-i <verb> <resource> --as=system:serviceaccount:<namespace>:<serviceaccountname> [-n <namespace>]
+
+To check whether the tiller account has the right to create a ServiceMonitor object:
+>kubectl auth can-i create servicemonitor --as=system:serviceaccount:staging:tiller -n staging
+kubectl auth can-i list pod --as=system:serviceaccount:kube-system:default -n kube-system
+
+===================================
+Get all clusterrolebindings of ServiceAccount node-controller in kube-system namespace
+
+kubectl get clusterrolebindings -o json | jq -r '
+  .items[] |
+  select(
+    .subjects // [] | .[] |
+    [.kind,.namespace,.name] == ["ServiceAccount","kube-system","node-controller"]
+  ) |
+  .metadata.name'
+
+----------
+rbac-lookup:
+RBAC Lookup is a CLI that allows you to easily find Kubernetes roles and cluster roles bound to any user, service account, or group name.
+https://github.com/FairwindsOps/rbac-lookup
+
+>rbac-lookup <user|group|sa> --output wide

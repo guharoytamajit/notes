@@ -1,0 +1,20 @@
+Admission Controllers(AC):
+A piece of code that intercepts the request to API server after authentication and authorization but prior to persistance in etcd.
+AC can reject or modify request based on custom logic.
+
+Two types of AC:
+1)Validating(eg PodSecurityPolicy).  For example make sure pods are not created in privileged mode
+2)Mutating(eg PodNodeSelector ). For example Change api object to add/remove capabilitieseg  nodeselector: env=prod
+
+
+Admission Controllers examples:
+AlwaysPullImages
+PodNodeSelector
+PodSecurityPolicy
+LimitRanger
+NamespaceExists
+EventRateLimit
+
+
+
+

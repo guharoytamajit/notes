@@ -1,0 +1,250 @@
+
+
+1)Source-To_Sink
+
+Event Source
+Knative Eventing Sources are software components that emit events. 
+
+----eventinghello-source.yaml----
+apiVersion: sources.knative.dev/v1alpha2
+kind: PingSource
+metadata:
+  name: eventinghello-ping-source
+spec:
+  schedule: "*/2 * * * *"
+  jsonData: '{"message": "Thanks for doing Knative Tutorial"}'
+  sink:  
+    ref:
+      apiVersion: serving.knative.dev/v1 
+      kind: Service
+      name: eventinghello 
+
+ jsonData=> that will be sent as part of the event.	  
+ schedule=>cron expression
+ 
+Create Sink Service
+Run the following command to create the Knative service that will be used as the subscriber for the cron events:
+
+----eventing-hello-sink.yaml----
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: eventinghello
+spec:
+  template:
+    metadata:
+      name: eventinghello-v1
+      annotations:
+        autoscaling.knative.dev/target: "1"
+    spec:
+      containers:
+      - image: quay.io/rhdevelopers/eventinghello:0.0.2
+	  
+
+>kubectl apply -n knativetutorial -f eventing-hello-sink.yaml
+>kubectl apply -n knativetutorial -f eventinghello-source.yaml
+
+verify:
+>kubectl -n knativetutorial get \
+  pingsources.sources.knative.dev \
+  eventinghello-ping-source
+	  
+
+See what you have deployed:
+
+sources:
+kubectl --namespace knativetutorial get pingsource.sources.knative.dev  eventinghello-ping-source
+
+services:
+kubectl --namespace knativetutorial get service.serving.knative.dev eventinghello
+
+
+Cleanup:
+kubectl -n knativetutorial delete -f eventinghello-source.yaml
+kubectl -n knativetutorial delete -f eventing-hello-sink.yaml
+========================================================================================
+
+2)Channel and Subscribers:
+
+Channels
+Channels are an event forwarding and persistence layer where each channel is a separate Kubernetes Custom Resource. A Channel may be backed by Apache Kafka or InMemoryChannel. This recipe focuses on InMemoryChannel.
+
+Subscriptions
+Subscriptions are how you register your service to listen to a particular channel.
+
+
+
+Channel(Sink)
+The channel or sink is an interface between the event source and the subscriber. The channels are built in to store the incoming events and distribute the event data to the subscribers. When forwarding event to subscribers the channel transforms the event data as per CloudEvent specification.
+
+Create Event Channel
+
+----channel.yaml----
+apiVersion: messaging.knative.dev/v1beta1
+kind: Channel
+metadata:
+  name: eventinghello-ch
+  
+  
+>kubectl apply -n knativetutorial -f channel.yaml
+  
+verify:
+>kubectl -n knativetutorial get channels.messaging.knative.dev
+
+
+
+Event Source:
+The event source listens to external events e.g. a kafka topic or for a file on a FTP server. It is responsible to drain the received event(s) along with its data to a configured sink.
+
+Create Event Source:
+----event-source.yaml----
+apiVersion: sources.knative.dev/v1alpha2
+kind: PingSource
+metadata:
+  name: event-greeter-ping-source
+spec:
+  schedule: "*/2 * * * *"
+  jsonData: '{"message": "Thanks for doing Knative Tutorial"}'
+  sink:
+   ref:
+    apiVersion: messaging.knative.dev/v1alpha1 
+    kind: Channel 
+    name: eventinghello-ch
+	
+>kubectl apply -n knativetutorial -f event-source.yaml
+
+verify:
+>kubectl -n knativetutorial get pingsource.sources.knative.dev
+
+
+
+
+
+Event Subscriber:
+The event subscription is responsible of connecting the channel(sink) with the service. Once a service is connected to a channel it starts receiving the events (cloud events).
+
+Create Subscriber Services
+----eventing-helloa-sink.yaml----
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: eventinghelloa
+spec:
+  template:
+    metadata:
+      name: eventinghelloa-v1 
+      annotations:
+        autoscaling.knative.dev/target: "1"
+    spec:
+      containers:
+      - image: quay.io/rhdevelopers/eventinghello:0.0.2
+	  
+	  
+The string of eventinghelloa will help you identify this particular service.
+----eventing-hellob-sink.yaml----
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: eventinghellob
+spec:
+  template:
+    metadata:
+      name: eventinghellob-v1 
+      annotations:
+        autoscaling.knative.dev/target: "1"
+    spec:
+      containers:
+      - image: quay.io/rhdevelopers/eventinghello:0.0.2	
+
+
+>kubectl apply -n knativetutorial -f eventing-helloa-sink.yaml
+>kubectl apply -n knativetutorial -f eventing-hellob-sink.yaml
+
+
+Create Channel Subscribers:
+Now create the appropriate Subscription for eventinghelloa to the Channel eventinghello-ch:
+
+apiVersion: messaging.knative.dev/v1beta1
+kind: Subscription
+metadata:
+  name: eventinghelloa-sub
+spec:
+  channel:
+    apiVersion: messaging.knative.dev/v1beta1
+    kind: Channel
+    name: eventinghello-ch
+  subscriber:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: eventinghelloa
+	  
+	  
+And create the appropriate Subscription for eventinghellob to the Channel eventinghello-ch:
+
+apiVersion: messaging.knative.dev/v1beta1
+kind: Subscription
+metadata:
+  name: eventinghellob-sub
+spec:
+  channel:
+    apiVersion: messaging.knative.dev/v1beta1
+    kind: Channel
+    name: eventinghello-ch
+  subscriber:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: eventinghellob
+
+
+>kubectl apply -n knativetutorial -f eventing-helloa-sub.yaml
+>kubectl apply -n knativetutorial -f eventing-hellob-sub.yaml
+
+verify:
+>kubectl -n knativetutorial get subscription.messaging.knative.dev
+
+
+If you wait approximately 2 minutes for the PingSource then you will see both eventinghelloa and eventinghellob begin to run in the knativetutorial.
+
+Watch pods in the knativetutorial
+NAME                                                      READY STATUS  AGE
+eventinghelloa-v1-deployment-d86bf4847-hvbk6               2/2   Running 5s
+eventinghellob-v1-deployment-5c986c7586-4clpb              2/2   Running 5s
+
+
+
+See what you have deployed:
+channel
+>kubectl --namespace knativetutorial channels.messaging.knative.dev eventinghello-ch
+
+source
+>kubectl --namespace knativetutorial get pingsource.sources.knative.dev  eventinghello-ping-source
+
+subscriptions
+>kubectl --namespace knativetutorial get subscriptions.knative.dev
+
+
+cleanup:
+kubectl -n knativetutorial delete -f eventing-helloa-sink.yaml
+kubectl -n knativetutorial delete -f eventing-helloa-sub.yaml
+kubectl -n knativetutorial delete -f eventing-hellob-sink.yaml
+kubectl -n knativetutorial delete -f eventing-hellob-sub.yaml
+kubectl -n knativetutorial delete -f event-source.yaml
+
+==========================================================================================
+3)Brokers and Triggers
+
+
+
+
+
+
+
+
+
+
+
+
+IP='172.42.42.101'
+IP_ADDRESS="$IP:$(kubectl get svc kourier --namespace kourier-system --output 'jsonpath={.spec.ports[?(@.port==80)].nodePort}')"		

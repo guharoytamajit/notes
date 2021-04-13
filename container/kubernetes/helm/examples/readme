@@ -1,0 +1,14 @@
+Install jenkins with default settings
+>helm install stable/jenkins --name myjenkinsrelease
+
+
+But in real world we may want to make some cnanges rather than using default falues for all configurations.
+We can get a copy of default values like:
+>helm inspect values stable/jenkins  > myvalues.yaml
+
+Now we can edit myvalues.yaml according to our requirement.
+Then install jenkins chart as:
+>helm install stable/jenkins  --name myJenkinsRelease  --values myvalues.yaml
+
+To delete chart use:
+>helm delete --purge myJenkinsRelease

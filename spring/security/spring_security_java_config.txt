@@ -7,7 +7,7 @@ dependency:
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
-Just by adding above dependency by default spring will create a user with name user and an aoto generated password printed during startup.
+Just by adding above dependency by default spring will create a user with name user and an auto generated password printed during startup.
 creates login page(/login GET & POST) and logout page(/logout)
 All endpoints are secured other than /login and /logout
 		

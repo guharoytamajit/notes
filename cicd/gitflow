@@ -1,0 +1,23 @@
+Permanent branches:
+1)Master: 
+   - Production ready
+   - commits are marked with tags(release version).
+   - we should never directly commit on master(can only be merged with hotfix or release branch)
+
+2)Develop(integration branch): Latest completed development features intended for next release
+
+Temporary branches:
+1)Feature branch: 
+   - created for new feature and non-emergency bug fix, 
+   - starts from Develop branch
+   - merged back to develop branch once complete
+2)Release branch:
+    - When enough features have accumulated or the next release time frame comes near this is created.
+    - Created from develop branch when all the current release features are available on develop branch.
+    - Which is solely dedicated to testing/bug fixing and any cleanup necessary 
+    - When ready marged into both develop and master branch,a tag is created on master, and this branch is deleted.
+3)Hotfix branch:
+    - created from master when a bug is found on production code.(this is not created from develop branch because it may hav new features not targeted for release currently in production)
+    - When ready marged into both develop and master branch
+4)Tags:
+    -created on master branch for every release

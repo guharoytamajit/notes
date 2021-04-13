@@ -31,31 +31,80 @@ Caching
 Security
 Logging
 
+Transaction:  All or nothing.
 
 Distributed Transcation:
 eg. For taking an order we need a transaction across 1)payment service 2)order service 3)product service(for inventory update)
 
-Two patterns:
+Every Distributed sytem components at some point of time needs to agree upon some decisions to work together.
+This process is called consensus
+
+Common consensus algorithms:
+raft
+saga
+paxos
+chubby
+Two phase commit
+
+
 1)Two phase commit:  
-   Phase 1:Coordinator sends query to all the services to execute.
+   Phase 1(Prepare phase):Coordinator sends query to all the services to execute.
            Here no service actually commits, it just replies yes/no to coordinator if transaction will be possible.
   Phase 2(commit/rollback): Coordinator checks response from each service, if all responses are yes the cordinator instructs services to commit.                
            If one or more service replies no, coordinator instructs to all services to rollback.
+
+Disadvantages:
+a)What if coordinator fails?
+b)In Prepare phase multiple  resources are in locked state.
+c)What if a connection in phase 2 fails?
+Advantage:
+Strong consistency model
 
 2)SAGA Pattern:
 Sequence of local transactions from different microservices
 Each microservice updates its own database,if succuesful then publish an event so that next microservice can do its local transaction and update its own database.So on.
 If any local transaction fails in the sequence of local transactions,SAGA executes a series of compensating local transaction that rollbacks all the local transactions.
 
+Advantags:
+1)Asynchronous in nature ,lesser synchronization/blocking
+
+Disadvantage:
+1)Eventually Consistent(Not stringly Consistent)
+
 There are two types of SAGA implementation:
 a)Choreograph based SAGA:Each service updates transactions independently depending upon the event received and publish its own event for other microservices.
 b)Orchestrator based SAGA: A central coordinator looks after all the local transactions and instructs services to carry local transactions or rollback
+
+Advantage of Choreograph model over Orchestrator:
+Our system will be over dependent on Orchestrator and there could be a single point of failure.
+
 
 2PC vs SAGE:
 In saga pattern local transactions are commited sequentially as they progress, in case of any transaction failure another set of local transaction are carried which baically does the rollback.
 In two phase commit after 2nd phase either all local transaction are committed or all of them are rolled back.
 
+https://medium.com/trendyol-tech/saga-pattern-briefly-5b6cf22dfabc#:~:text=It%20is%20used%20in%20where,acts%20like%20a%20single%20request.
 
 Books:
 Art of scaling
 Microservices patterns
+
+-------------------------------
+Optimistic lock vs pessimistic lock:
+
+pessimistic lock:
+locks rows or table, do the update, release the lock
+
+
+optimistic lock:
+no lock,first reads the version/timestammp/hash, then updates the record with updated value. if version/timestammp/hash is same then update is allowed else redo.
+
+In microservices generally optimistic lock is better.
+If a same row is updated from multiple places too many times then pessimistic lock can be a better option(it will reduce number of redos)
+Pessimistic lock can result in deadlock when lock is done in multiple items by multiple clients
+
+rule of thumb:
+few conflicts =>use optimistic lock
+many conflicts =>use pessimistic lock
+
+-------------------------

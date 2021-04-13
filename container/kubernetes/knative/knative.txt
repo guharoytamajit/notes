@@ -1,0 +1,550 @@
+git clone https://github.com/redhat-developer-demos/knative-tutorial
+export TUTORIAL_HOME="$(pwd)/knative-tutorial"
+
+Install Custom Resource Definitions:
+
+>kubectl apply --selector knative.dev/crd-install=true \
+  --filename https://github.com/knative/serving/releases/download/v0.14.0/serving-crds.yaml \
+  --filename https://github.com/knative/eventing/releases/download/v0.14.0/eventing.yaml
+  
+  
+All Knative Serving resources:
+>kubectl api-resources --api-group='serving.knative.dev'
+NAME             SHORTNAMES      APIGROUP              NAMESPACED   KIND
+configurations   config,cfg      serving.knative.dev   true         Configuration
+revisions        rev             serving.knative.dev   true         Revision
+routes           rt              serving.knative.dev   true         Route
+services         kservice,ksvc   serving.knative.dev   true         Service
+
+
+All Knative Eventing resources will be under the one of following API groups:
+messaging.knative.dev
+eventing.knative.dev
+sources.knative.dev
+
+
+All Knative Eventing resources:
+>kubectl api-resources --api-group='messaging.knative.dev'
+NAME               SHORTNAMES   APIGROUP                NAMESPACED   KIND
+channels           ch           messaging.knative.dev   true         Channel
+inmemorychannels   imc          messaging.knative.dev   true         InMemoryChannel
+subscriptions      sub          messaging.knative.dev   true         Subscription
+
+
+>kubectl api-resources --api-group='eventing.knative.dev'
+NAME         SHORTNAMES   APIGROUP               NAMESPACED   KIND
+brokers                   eventing.knative.dev   true         Broker
+eventtypes                eventing.knative.dev   true         EventType
+triggers                  eventing.knative.dev   true         Trigger
+
+
+>kubectl api-resources --api-group='sources.knative.dev'
+NAME               SHORTNAMES   APIGROUP              NAMESPACED   KIND
+apiserversources                sources.knative.dev   true         ApiServerSource
+containersources                sources.knative.dev   true         ContainerSource
+pingsources                     sources.knative.dev   true         PingSource
+sinkbindings                    sources.knative.dev   true         SinkBinding
+
+
+
+Install knative serving:
+>kubectl apply \
+  --filename \
+  https://github.com/knative/serving/releases/download/v0.14.0/serving-core.yaml
+  
+>watch "kubectl get pods -n knative-serving"
+
+
+Install Kourier(like ingress for knative):
+>kubectl apply \
+  --filename \
+    https://github.com/knative/net-kourier/releases/download/v0.14.0/kourier.yaml
+	
+>watch "kubectl get pods -n kourier-system"
+
+
+Now configure Knative serving to use Kourier as the ingress:
+>kubectl patch configmap/config-network \
+  -n knative-serving \
+  --type merge \
+  -p '{"data":{"ingress.class":"kourier.ingress.networking.knative.dev"}}'	
+  
+  
+Install Knative Eventing:
+>kubectl apply \
+  --filename \
+  https://github.com/knative/eventing/releases/download/v0.14.0/eventing.yaml
+  
+>watch "kubectl get pods -n knative-eventing"  
+
+
+
+
+
+Configuring Kubernetes namespace for tutorial:
+>kubectl create namespace knativetutorial
+
+download examples:
+git clone https://github.com/redhat-developer-demos/knative-tutorial
+export TUTORIAL_HOME="$(pwd)/knative-tutorial"
+cd $TUTORIAL_HOME/basics
+
+
+----service.yaml----
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    spec:
+      containers:
+      - image: quay.io/rhdevelopers/knative-tutorial-greeter:quarkus
+        livenessProbe:
+          httpGet:
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            path: /healthz
+			
+>kubectl apply -n knativetutorial -f service.yaml
+
+IP='172.42.42.101'
+IP_ADDRESS="$IP:$(kubectl get svc kourier --namespace kourier-system --output 'jsonpath={.spec.ports[?(@.port==80)].nodePort}')"			
+
+http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com'
+
+See what you have deployed:
+
+>kubectl --namespace knativetutorial  get services.serving.knative.dev greeter
+NAME      URL                                          LATESTCREATED   LATESTREADY     READY   REASON
+greeter   http://greeter.knativetutorial.example.com   greeter-zt78h   greeter-zt78h   True    
+
+OR
+>kubectl --namespace knativetutorial  get ksvc greeter                        
+
+>kubectl --namespace knativetutorial get configurations.serving.knative.dev greeter
+NAME      LATESTCREATED   LATESTREADY     READY   REASON
+greeter   greeter-zt78h   greeter-zt78h   True  
+OR
+>kubectl --namespace knativetutorial get config greeter
+
+
+>kubectl --namespace knativetutorial get routes.serving.knative.dev greeter
+NAME      URL                                          READY   REASON
+greeter   http://greeter.knativetutorial.example.com   True    
+
+OR
+>kubectl --namespace knativetutorial get rt greeter
+
+Note:
+When the service was invoked with http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com', you noticed that we added a Host header to the request with value greeter.knativetutorial.example.com. This FQDN is automatically assigned to your Knative service by the Knative Routes and uses the following format: <service-name>.<namespace>.<domain-suffix>.
+
+The domain suffix in this case example.com is configurable via the config map config-domain of knative-serving namespace.
+
+>kubectl --namespace knativetutorial get rev \
+--selector=serving.knative.dev/service=greeter \
+--sort-by="{.metadata.creationTimestamp}"
+NAME            CONFIG NAME   K8S SERVICE NAME   GENERATION   READY   REASON
+greeter-zt78h   greeter       greeter-zt78h      1            True 
+
+
+
+To deploy a new revision of the greeter service, we will add an environment variable to the existing service as shown below:
+
+----service-env.yaml----
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    spec:
+      containers:
+      - image: quay.io/rhdevelopers/knative-tutorial-greeter:quarkus
+        env:
+        - name: MESSAGE_PREFIX
+          value: Namaste
+        livenessProbe:
+          httpGet:
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            path: /healthz
+			
+			
+Adding an environment variable that will be used as the message prefix
+
+>kubectl apply -n knativetutorial -f service-env.yaml			
+
+Now if you list revisions, you will see two of them, named similar to greeter-v1 and greeter-v2.
+
+>kubectl --namespace knativetutorial get rev \
+--selector=serving.knative.dev/service=greeter \
+--sort-by="{.metadata.creationTimestamp}"
+NAME            CONFIG NAME   K8S SERVICE NAME   GENERATION   READY   REASON
+greeter-zt78h   greeter       greeter-zt78h      1            True    
+greeter-dslc2   greeter       greeter-dslc2      2            True    
+
+Invoking Service will now show an output  like:
+
+http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com'
+HTTP/1.1 200 OK
+content-length: 39
+content-type: text/plain;charset=UTF-8
+date: Thu, 15 Oct 2020 17:43:01 GMT
+server: envoy
+x-envoy-upstream-service-time: 1896
+
+Namaste  greeter => '9861675f8845' : 1
+
+
+clean up:
+kubectl -n knativetutorial delete services.serving.knative.dev greeter
+
+
+What is a "revision" in simpler terms?
+A Revision is an immutable snapshot of code and configuration. Each change to an application’s Configuration creates a new Revision, which allows an application to be rolled back to any previous “known good configuration”.
+
+================================================================================================================
+Knative Client:
+Knative Client is the command line utility aimed at enhancing the developer experience when doing Knative Serving and Eventing tasks.
+
+Note:
+Knative Client (kn) is still under aggressive development, so commands and options might change rapidly.
+
+
+install :
+>wget https://github.com/knative/client/releases/download/v0.14.0/kn-linux-amd64
+>mv kn-linux-amd64 kn
+>chmod +x kn
+>sudo mv kn /usr/local/bin
+>kn -h
+
+
+Create Service
+To create the greeter service using kn run the following command:
+
+>kn service create greeter \
+  --namespace knativetutorial \
+  --image quay.io/rhdevelopers/knative-tutorial-greeter:quarkus
+  
+  
+  You can list the created services using the command:
+  
+  >kn service list --namespace knativetutorial
+  
+  
+IP='172.42.42.101'
+IP_ADDRESS="$IP:$(kubectl get svc kourier --namespace kourier-system --output 'jsonpath={.spec.ports[?(@.port==80)].nodePort}')"			
+
+http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com'
+O/P:
+Hi  greeter => '9861675f8845' : 1
+
+
+
+In previous chapter we deployed a new revision of Knative service by adding an environment variable. Lets try do the same thing with kn to trigger a new deployment:
+
+>kn service update greeter --env "MESSAGE_PREFIX=Namaste" --namespace knativetutorial
+
+
+>http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com'
+O/P:
+Namaste  greeter => '9861675f8845' : 1
+
+>kn service describe greeter -n knativetutorial
+Name:       greeter
+Namespace:  knativetutorial
+Age:        18m
+URL:        http://greeter.knativetutorial.example.com
+
+Revisions:  
+  100%  @latest (greeter-thnvf-2) [2] (1m)
+        Image:  quay.io/rhdevelopers/knative-tutorial-greeter:quarkus (pinned to 767e2f)
+
+Conditions:  
+  OK TYPE                   AGE REASON
+  ++ Ready                   1m 
+  ++ ConfigurationsReady     1m 
+  ++ RoutesReady             1m 
+  
+  
+>kn revision list -n knativetutorial
+NAME              SERVICE   TRAFFIC   TAGS   GENERATION   AGE     CONDITIONS   READY   REASON
+greeter-thnvf-2   greeter   100%             2            2m59s   3 OK / 4     True    
+greeter-mhswd-1   greeter                    1            19m     3 OK / 4     True 
+
+
+
+>kn revision describe greeter-thnvf-2 -n knativetutorial 
+Name:       greeter-thnvf-2
+Namespace:  knativetutorial
+Age:        4m
+Image:      quay.io/rhdevelopers/knative-tutorial-greeter:quarkus (pinned to 767e2f)
+Env:        MESSAGE_PREFIX=Namaste
+Service:    greeter
+
+Conditions:  
+  OK TYPE                  AGE REASON
+  ++ Ready                  4m 
+  ++ ContainerHealthy       4m 
+  ++ ResourcesAvailable     4m 
+   I Active                 2m NoTraffic
+
+
+>kn revision delete  greeter-thnvf-2 -n knativetutorial 
+Revision 'greeter-thnvf-2' deleted in namespace 'knativetutorial'.
+
+
+> kn route list -n knativetutorial
+NAME      URL                                          READY
+greeter   http://greeter.knativetutorial.example.com   True
+
+
+delete knative service:
+>kn service delete greeter -n knativetutorial 
+ >kn service list  -n knativetutorial 
+No services found.
+================================================================================================
+Traffic Distribution:
+
+As you noticed, Knative service always routes traffic to the latest revision of the service deployment. It is possible to split the traffic amongst the available revisions.
+
+
+Deploy greeter service revision v1:
+
+----greeter-v1-----
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    metadata:
+      name: greeter-v1
+    spec:
+      containers:
+        - image: quay.io/rhdevelopers/knative-tutorial-greeter:quarkus
+          livenessProbe:
+            httpGet:
+              path: /healthz
+          readinessProbe:
+            httpGet:
+              path: /healthz
+
+			  
+>kubectl apply -n knativetutorial -f greeter-v1-service.yaml
+
+----greeter-v2----
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    metadata:
+      name: greeter-v2
+    spec:
+      containers:
+        - image: quay.io/rhdevelopers/knative-tutorial-greeter:quarkus
+          env:
+            - name: MESSAGE_PREFIX
+              value: Namaste
+          livenessProbe:
+            httpGet:
+              path: /healthz
+          readinessProbe:
+            httpGet:
+              path: /healthz
+			  
+			  
+>kubectl apply -n knativetutorial -f greeter-v2-service.yaml
+
+
+Check to ensure you have two revisions of the greeter service:
+>kubectl --namespace knativetutorial get rev \
+--selector=serving.knative.dev/service=greeter \
+--sort-by="{.metadata.creationTimestamp}"
+NAME         CONFIG NAME   K8S SERVICE NAME   GENERATION   READY   REASON
+greeter-v1   greeter       greeter-v1         1            True    
+greeter-v2   greeter       greeter-v2         2            True    
+
+
+http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com'
+Namaste  greeter => '9861675f8845' : 1
+
+-----------------
+Applying Blue-Green Deployment Pattern:
+Knative offers a simple way of switching 100% of the traffic from one Knative service revision (blue) to another newly rolled out revision (green). If the new revision (e.g. green) has erroneous behavior then it is easy to rollback the change.
+
+ You have already deployed two revisions of greeter named greeter-v1 and greeter-v2 earlier in this chapter.
+With the deployment of greeter-v2 you noticed that Knative automatically started to routing 100% of the traffic to greeter-v2. Now let us assume that we need to roll back greeter-v2 to greeter-v1 for some critical reason.
+
+All traffic to greeter-v1:
+
+---service-pinned.yaml------
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    metadata:
+      name: greeter-v1
+    spec:
+      containers:
+        - image: quay.io/rhdevelopers/knative-tutorial-greeter:quarkus
+          livenessProbe:
+            httpGet:
+              path: /healthz
+          readinessProbe:
+            httpGet:
+              path: /healthz
+  traffic:
+    - tag: v1
+      revisionName: greeter-v1
+      percent: 100
+    - tag: v2
+      revisionName: greeter-v2
+      percent: 0
+    - tag: latest
+      latestRevision: true
+      percent: 0
+
+
+The above service definition creates three sub-routes(named after traffic tags) to existing greeter route.
+
+v1 - The revision is going to have all 100% traffic distribution
+
+v2 - The previously active revision, which will now have zero traffic
+
+latest - The route pointing to any latest service deployment, by setting to zero we are making sure the latest revision is not picked up automatically.
+	  
+Note:
+If you observe the resource YAML above, we have added a special tag latest. Since you have defined that all 100% of traffic need to go to greeter-v1, this tag can be used to suppress the default behavior of Knative Service to route all 100% traffic to latest revision.	  
+
+
+>kubectl -n knativetutorial apply -f service-pinned.yaml
+
+http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com'
+
+Hi  greeter => '9861675f8845' : 1
+
+>kubectl -n knativetutorial get ksvc greeter -o yaml
+
+see status.traffic section:
+
+  traffic:
+  - latestRevision: false
+    percent: 100
+    revisionName: greeter-v1
+    tag: current
+    url: http://current-greeter.knativetutorial.example.com
+  - latestRevision: false
+    percent: 0
+    revisionName: greeter-v2
+    tag: prev
+    url: http://prev-greeter.knativetutorial.example.com
+  - latestRevision: true
+    percent: 0
+    revisionName: greeter-9rvj5
+    tag: latest
+    url: http://latest-greeter.knativetutorial.example.com
+
+
+
+The above command should return you three sub-routes for the main greeter route:
+
+- http://current-greeter.knativetutorial.example.com 
+- http://prev-greeter.knativetutorial.example.com 
+- http://latest-greeter.knativetutorial.example.com 
+
+>kubectl -n knativetutorial delete  -f service-pinned.yaml
+service.serving.knative.dev "greeter" deleted
+
+------------------------------
+Applying Canary Release Pattern:
+
+
+To see this in action, apply the following Knative service definition that will split the traffic 80% to 20% between greeter-v1 and greeter-v2.
+
+
+Canary between greeter v1 and v2:
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    metadata:
+      name: greeter-v2
+    spec:
+      containers:
+        - image: quay.io/rhdevelopers/knative-tutorial-greeter:quarkus
+          env:
+            - name: MESSAGE_PREFIX
+              value: Namaste
+          livenessProbe:
+            httpGet:
+              path: /healthz
+          readinessProbe:
+            httpGet:
+              path: /healthz
+  traffic:
+    - tag: v1
+      revisionName: greeter-v1
+      percent: 80
+    - tag: v2
+      revisionName: greeter-v2
+      percent: 20
+    - tag: latest
+      latestRevision: true
+      percent: 0
+	  
+>kubectl -n knativetutorial apply -f service-canary.yaml	  
+
+how hit:
+ http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com'
+
+80% of request will go to v1 and remaining to v2
+
+
+clean up:
+>kubectl -n knativetutorial delete services.serving.knative.dev greeter
+
+======================================================
+Scaling:
+
+The following snippet shows what a Knative service YAML will look like:
+
+----service.yaml----
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    spec:
+      containers:
+      - image: quay.io/rhdevelopers/knative-tutorial-greeter:quarkus
+        livenessProbe:
+          httpGet:
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            path: /healthz
+
+>kubectl apply -n knativetutorial -f service.yaml
+
+>http $IP_ADDRESS 'Host:greeter.knativetutorial.example.com'
+
+Hi  greeter => '9861675f8845' : 1
+
+
+
+
+Scale to zero:
+
+			

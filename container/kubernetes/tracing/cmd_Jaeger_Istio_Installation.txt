@@ -1,0 +1,10 @@
+kubectl get all --all-namespaces
+
+curl -L https://istio.io/downloadIstio | sh -
+
+istioctl install --set profile=demo
+
+kubectl label namespace default istio-injection=enabled
+
+
+

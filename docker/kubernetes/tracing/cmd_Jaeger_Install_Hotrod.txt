@@ -1,8 +1,0 @@
-docker run --rm -it \
-    --link jaeger \
-    -p8080-8083:8080-8083 \
-    jaegertracing/example-hotrod:1.6 \
-    all \
-    --jaeger-agent.host-port=jaeger:6831
-    
-http://192.168.0.51:8080    

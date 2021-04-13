@@ -1,0 +1,96 @@
+Use a .dockerignore file:
+The directory where you issue the docker build command is called the build context. Docker will send all of the files and directories in your build directory to the Docker daemon as part of the build context. If you have stuff in your directory that is not needed by your build, you’ll have an unnecessarily larger build context that results in a larger image size.
+You can remedy this situation by adding a .dockerignore file that works similarly to .gitignore. You can specify the list of folders and files that should be ignored in the build context.
+If you want to have a look at the size of your build context, just check out the first line of your docker build output.
+
+The basic instructions to get you started:
+
+FROM - every Dockerfile starts with FROM, with the introduction of multi-stage builds as of version 17.05, you can have more than one FROM instruction in one Dockerfile.
+
+RUN - let’s run commands.
+
+---------------
+ADD:
+ADD has two forms:
+
+ADD [--chown=<user>:<group>] <src>... <dest>
+ADD [--chown=<user>:<group>] ["<src>",... "<dest>"] (this form is required for paths containing whitespace)
+
+example:
+ADD --chown=55:mygroup files* /somedir/
+ADD --chown=bin files* /somedir/
+ADD --chown=1 http://example.com/foobar /
+
+The directory itself is not copied, just its contents.
+If <src> is a local tar archive in a recognized compression format (identity, gzip, bzip2 or xz) then it is unpacked as a directory.
+-------------
+COPY:
+
+COPY [--chown=<user>:<group>] <src>... <dest>
+COPY [--chown=<user>:<group>] ["<src>",... "<dest>"] (this form is required for paths containing whitespace)
+
+
+
+--------------
+
+EXPOSE:
+example:
+EXPOSE 80/tcp
+EXPOSE 80/udp
+Expose 8080   #tcp
+
+You can specify whether the port listens on TCP or UDP, and the default is TCP if the protocol is not specified.
+The EXPOSE instruction does not actually publish the port.
+It functions as a type of documentation between the person who builds the image and the person who runs the container, about which ports are intended to be published. 
+To actually publish the port when running the container, use the -p flag on docker run to publish and map one or more ports.
+Regardless of the EXPOSE settings, you can override them at runtime by using the -p flag.
+
+----------------
+ENTRYPOINT:
+An ENTRYPOINT allows you to configure a container that will run as an executable.
+ENTRYPOINT has two forms:
+ENTRYPOINT ["executable", "param1", "param2"] (exec form, preferred)
+ENTRYPOINT command param1 param2 (shell form)
+
+eg. ENTRYPOINT exec top -b
+
+docker run -i -t --rm -p 80:80 nginx
+Command line arguments to docker run <image> will be appended after all elements in an exec form ENTRYPOINT, and will override all elements specified using CMD.
+Only the last ENTRYPOINT instruction in the Dockerfile will have an effect.
+
+
+----------------
+CMD :
+The CMD instruction has three forms:
+
+CMD ["executable","param1","param2"] (exec form, this is the preferred form)
+CMD ["param1","param2"] (as default parameters to ENTRYPOINT)
+CMD command param1 param2 (shell form)
+---------------
+ENV:
+The ENV instruction sets the environment variable <key> to the value <value>. 
+
+syntax :
+ENV <key>=<value>  <key>=<value>  <key>=<value>   #multi values allowed,if '=' used
+ENV <key> <value>                                 #single value allowed
+
+example:
+ENV myName="John Doe" myDog=Rex\ The\ Dog \
+    myCat=fluffy
+ENV myName John Doe
+--------------------
+WORKDIR:
+The WORKDIR instruction sets the working directory for any RUN, CMD, ENTRYPOINT, COPY and ADD instructions that follow it in the Dockerfile
+WORKDIR /a
+WORKDIR b
+WORKDIR c
+RUN pwd
+The output of the final pwd command in this Dockerfile would be /a/b/c.
+If the WORKDIR doesn’t exist, it will be created 
+
+
+ENV DIRPATH /path
+WORKDIR $DIRPATH/$DIRNAME
+RUN pwd
+
+

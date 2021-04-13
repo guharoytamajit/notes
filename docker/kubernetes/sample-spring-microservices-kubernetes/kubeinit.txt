@@ -1,7 +1,0 @@
-
-
-kubectl apply -f kubernetes/mongodb-deployment.yaml
-
-kubectl apply -f kubernetes/mongodb-configmap.yaml
-
-kubectl apply -f kubernetes/mongodb-secret.yaml

@@ -1,0 +1,173 @@
+
+
+windows 10:
+>docker-machine create --driver hyperv manager1
+
+windows 7:
+>docker-machine create --driver virtualbox manager1
+
+
+Similarly, create the other  nodes:
+>docker-machine ls
+NAME     DRIVER URL                     STATE
+manager1 hyperv tcp://192.168.1.8:2376  Running
+worker1  hyperv tcp://192.168.1.9:2376  Running
+worker2  hyperv tcp://192.168.1.10:2376 Running
+worker3  hyperv tcp://192.168.1.11:2376 Running
+worker4  hyperv tcp://192.168.1.12:2376 Running
+worker5  hyperv tcp://192.168.1.13:2376 Running
+
+Note down the IP Address of the manager1
+>docker-machine ip manager1
+192.168.1.8
+
+Keep in mind that using docker-machine utility, you can SSH into any of the machines as follows:
+>docker-machine ssh <machine-name>
+
+Swarm Cluster setup:
+The first thing to do is initialize the Swarm. We will SSH into the manager1 machine and initialize the swarm in there.
+
+>docker-machine ssh manager1
+>docker swarm init --advertise-addr MANAGER_IP
+O/P:
+Swarm initialized: current node (5oof62fetd4gry7o09jd9e0kf) is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+docker swarm join \
+ — token SWMTKN-1–5mgyf6ehuc5pfbmar00njd3oxv8nmjhteejaald3yzbef7osl1-ad7b1k8k3bl3aa3k3q13zivqd 192.168.1.8:2377
+
+To add a manager to this swarm, run ‘docker swarm join-token manager’ and follow the instructions.
+
+Keep in mind that you can have a node join as a worker or as a manager. At any point in time, there is only one 
+LEADER and the other manager nodes will be as backup in case the current LEADER opts out.
+
+>docker node ls
+ID              HOSTNAME STATUS AVAILABILITY MANAGER STATUS
+5oof62fetd..*   manager1 Ready  Active       Leader
+
+This shows that there is a single node so far i.e. manager1 and it has the value of Leader for the MANAGER column.
+
+-------------------------
+Joining as Worker Node:
+To find out the join command for a worker, fire the following command:
+>docker swarm join-token worker
+O/P:
+docker swarm join token SWMTKN-1–5mgyf6ehuc5pfbmar00njd3oxv8nmjhteejaald3yzbef7osl1-ad7b1k8k3bl3aa3k3q13zivqd 192.168.1.8:2377
+
+Now fire above command to join
+----------------------------
+
+Joining as Manager Node:
+>docker swarm join-token manager
+O/P:
+docker swarm join  — token SWMTKN-1–5mgyf6ehuc5pfbmar00njd3oxv8nmjhteejaald3yzbef7osl1–8xo0cmd6bryjrsh6w7op4enos 192.168.1.8:2377
+ 
+Now use the output command to join
+------------------------------
+We have 5 worker machines (worker1/2/3/4/5). For the first worker1 Docker machine, do the following:
+
+    SSH into the worker1 machine i.e. docker-machine ssh worker1
+    Then fire the respective command that I got for joining as a worker.
+
+we do the same thing by launching SSH sessions for worker2/3/4/5 and then pasting the same command since I want all of them to be worker nodes.
+
+docker@manager1:~$ docker node ls
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+1ndqsslh7fpquc7fi35leig54    worker4   Ready   Active
+1qh4aat24nts5izo3cgsboy77    worker5   Ready   Active
+25nwmw5eg7a5ms4ch93aw0k03    worker3   Ready   Active
+5oof62fetd4gry7o09jd9e0kf *  manager1  Ready   Active        Leader
+5pm9f2pzr8ndijqkkblkgqbsf    worker2   Ready   Active
+9yq4lcmfg0382p39euk8lj9p4    worker1   Ready   Active
+
+-----------------------------
+Create a Service:
+>docker-machine ssh manager1
+>docker service create --replicas 5 -p 80:80 --name web nginx  #launch 5 replicas of the nginx container
+>docker service ls  #it may take some time for all replicas to be ready
+ID            NAME  REPLICAS  IMAGE  COMMAND
+ctolq1t4h2o8  web   5/5       nginx
+
+We can see the status of the service and how it is getting orchestrated to the different nodes by using the following command:
+>docker service ps web
+ID  NAME   IMAGE  NODE      DESIRED STATE  CURRENT STATE      ERROR
+7i*  web.1  nginx  worker3   Running        Preparing 2 minutes ago
+17*  web.2  nginx  manager1  Running        Running 22 seconds ago
+ey*  web.3  nginx  worker2   Running        Running 2 minutes ago
+bd*  web.4  nginx  worker5   Running        Running 45 seconds ago
+dw*  web.5  nginx  worker4   Running        Running 2 minutes ago
+
+>docker ps #on manager1 machine
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS               NAMES
+933309b04630        nginx:latest        "nginx -g 'daemon off"   2 minutes ago       Up 2 minutes        80/tcp, 443/tcp     web.2.17d502y6qjhd1wqjle13nmjvc
+--------------------------------
+
+Accessing the Service:
+Now you can access nginx using http://<machine-ip>, where ip can be any manager1 or worker1/2/3/4/5
+
+Ideally you would put the Docker Swarm service behind a Load Balancer.
+-------------------------------
+Scaling up and Scaling down:
+$ docker service scale web=8 #from manager1
+O/P:
+web scaled to 8
+
+>docker service ps web
+ID   NAME   IMAGE  NODE      DESIRED STATE  CURRENT STATE                 ERROR
+7i*  web.1  nginx  worker3   Running    Running 14 minutes ago
+17*  web.2  nginx  manager1  Running    Running 17 minutes ago
+ey*  web.3  nginx  worker2   Running    Running 19 minutes ago
+bd*  web.4  nginx  worker5   Running    Running 17 minutes ago
+dw*  web.5  nginx  worker4   Running    Running 19 minutes ago
+8t*  web.6  nginx  worker1   Running    Starting about a minute ago
+b8*  web.7  nginx  manager1  Running    Ready less than a second ago
+0k*  web.8  nginx  worker1   Running    Starting about a minute ago
+
+Note:worker1 has 2 instance running
+
+you can inspect any node.
+>docker node inspect worker1
+
+we can see the list of nodes and their status by firing the following command on the manager1 node:
+>docker node ls
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+1ndqsslh7fpquc7fi35leig54    worker4   Ready   Active
+1qh4aat24nts5izo3cgsboy77    worker5   Ready   Active
+25nwmw5eg7a5ms4ch93aw0k03    worker3   Ready   Active
+5oof62fetd4gry7o09jd9e0kf *  manager1  Ready   Active        Leader
+5pm9f2pzr8ndijqkkblkgqbsf    worker2   Ready   Active
+9yq4lcmfg0382p39euk8lj9p4    worker1   Ready   Active
+
+let us use another command to check what is going on in node worker1:
+>docker node ps worker1
+ID   NAME   IMAGE  NODE     DESIRED STATE  CURRENT STATE           8t*  web.6  nginx  worker1  Running        Running 44 minutes ago
+0k*  web.8  nginx  worker1  Running        Running 44 minutes ago
+
+>docker node inspect worker1 #worker1 node details
+
+
+We can see that it is “Active” for its Availability attribute.
+ 
+Now, let us set the Availability to DRAIN. When we give that command, the Manager will stop tasks running on that node and launches the 
+replicas on other nodes with ACTIVE availability.
+So what we are expecting is that the Manager will bring the 2 containers running on worker1 and schedule them on the other nodes 
+(manager1 or worker2 or worker3 or worker4 or worker5).
+
+This is done by updating the node by setting its availability to “drain”.
+
+>docker node update --availability drain worker1
+>docker service ps web #verify
+-------------------------------------------------
+Remove the Service:
+>docker service rm web
+>docker service ls
+>docker service inspect web #Error: no such service: web
+--------------------------------------------------
+Applying Rolling Updates:
+This is straight forward. In case you have an updated Docker image to roll out to the nodes, all you need to do is fire an service update command.
+
+>docker service update --image <imagename>:<version> web
+-------------------------------------------------
+docker service create --name go-demo-2 --env DB=go-demo-2-db \
+    --network go-demo-2 -p 1234:8080 $DOCKER_HUB_USER/go-demo-2:beta

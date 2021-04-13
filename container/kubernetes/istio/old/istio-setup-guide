@@ -1,0 +1,45 @@
+Download istio
+>url -L https://git.io/getLatestIstio | sh -
+
+Add istio_home/bin in path
+>export PATH=$PWD/bin:$PATH
+
+
+>kubectl apply -f  /usr/local/istio-1.1.3/install/kubernetes/helm/istio-init/files/crd-11.yaml
+
+>kubectl apply -f install/kubernetes/istio-demo.yaml
+
+You can check if all the pods are running by executing following command:
+>kubectl get pod -n istio-system
+NAME                                      READY   STATUS      RESTARTS   AGE
+grafana-688b8999cd-88rl6                  1/1     Running     0          19m
+istio-citadel-5749f4b6dd-zx9sk            1/1     Running     0          19m
+istio-cleanup-secrets-1.1.3-wmdbt         0/1     Completed   0          19m
+istio-egressgateway-666b76dbf7-rxhm4      1/1     Running     0          19m
+istio-galley-d68bdc684-9wmx7              1/1     Running     0          19m
+istio-grafana-post-install-1.1.3-hkr7x    0/1     Completed   0          19m
+istio-ingressgateway-d67598f4-6gwxg       1/1     Running     0          19m
+istio-pilot-865f6997cd-lq4vp              2/2     Running     0          19m
+istio-policy-56957d4666-vmpzv             2/2     Running     7          19m
+istio-security-post-install-1.1.3-zz58s   0/1     Completed   0          19m
+istio-sidecar-injector-5cf67ccc65-pprzg   1/1     Running     0          19m
+istio-telemetry-786796559d-q4dk6          2/2     Running     6          19m
+istio-tracing-5d8f57c8ff-xh28c            1/1     Running     0          19m
+kiali-95fcf457f-nb9pk                     1/1     Running     0          19m
+prometheus-5554746896-j2qpk               1/1     Running     0          19m
+
+
+We all start by adding istio-injection label to default namespace
+>kubectl label namespace default istio-injection=enabled --overwrite
+
+check if kubectl is pointing to minikube
+>kubectl config get-contexts
+CURRENT   NAME       CLUSTER    AUTHINFO   NAMESPACE
+*         minikube   minikube   minikube  
+
+
+Deploy helloworld sample application(comes with istio):
+>kubectl create -f samples/helloworld/helloworld.yaml
+
+Deploy bookinfo app:
+>kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml 

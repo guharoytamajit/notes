@@ -1,0 +1,50 @@
+kubectl get events -n <name space>
+kubectl describe pod < pod name>
+kubectl logs pod <pod name>
+
+Run the following :
+
+1- kubectl run -it --rm aks-ip --image=debian --generator=run-pod/v1
+2- apt-get update && apt-get install telnet -y
+3- telnet <pod or service IP> 8080
+
+
+tcpdump -D
+tcpdump -nni eth0 -vvv -A  src host 192.168.0.100 and tcp and port 80
+netstat -nltp
+ss -nltp
+
+traceroute www.google.com
+tracepath www.google.com
+mrt www.google.com
+
+bmon
+
+kubectl run --rm -it --image amouat/network-utils  test
+
+kubectl run --rm -it --image guharoytamajit/trivy  test
+
+
+sql server client:
+kubectl run --rm -it --image mcr.microsoft.com/mssql-tools  sqlclient
+>sqlcmd -S <servername>.database.windows.net  -U <user> -P <pass> -I
+>SELECT name, database_id, create_date  FROM sys.databases ;  
+>go
+
+
+
+
+postgres cli:
+docker run -it --rm dencold/pgcli postgresql://user:password@host:port/dbname
+>\d    //list tables
+
+
+Connect to redis:
+kubectl run --rm -it --image redis  myredis bash
+>redis-cli -h rdc-tdsit-st-ci-pay-01.redis.cache.windows.net -p 6380 -a "password"
+
+
+telnet:
+
+kubectl run --rm -it  multitool --image=praqma/network-multitool bash
+>telnet rdc-tdsit-st-ci-pay-01.redis.cache.windows.net 6380

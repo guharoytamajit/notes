@@ -1,0 +1,69 @@
+Tips:
+
+---tips1----------
+Use short cut
+
+Find all shortnames
+>kubectl api-resources
+
+>kubectl get componentstatuses 
+>kubectl get cs
+
+----------------------
+
+-------tip2---
+use alias for kubectl
+>alias k=kubectl
+
+
+
+----tip3----------
+enable auto completion:
+
+>source /etc/bash_completion 
+>source <(kubectl completion bash).
+>kub<tab> g<tab> de<tab>
+
+
+---tip4---------
+create a manifest via cli
+
+>kubectl run nginx --image=nginx --port=80 --dry-run -o yaml >deploy.yaml
+>kubectl run nginx --image=nginx --port=80 --restart=Never --dry-run -o yaml >pod.yaml     #--restart=Never would create a pod instead of deploy
+
+
+in kubernetes.io/docs  search for manifest eg. "cronjob"
+open those linke which has "/task" in URL
+---------------
+
+---tip5-----------------
+
+https://kubernetes.io/docs/reference/kubectl/cheatsheet/
+-------------------------
+
+To modify anything on existing pod use following steps:
+
+we can do
+>k edit po p1
+
+but someimes all thinds are not editable,then apply the following steps:
+
+1)take yaml of pod
+>k get po p1 -o yaml >pod.yaml
+2)delete pod
+>k delete po p1
+3)modify yaml and apply
+>k apply -f pod.yaml
+
+-------------------------------------
+
+
+
+
+
+
+
+
+
+
+

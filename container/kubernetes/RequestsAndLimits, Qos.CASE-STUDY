@@ -1,0 +1,509 @@
+Requests and Limits:
+
+Requests in partucular are very important if we want a well behaved cluster.
+In pods  or Deployment we can define requests and limit like this:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo
+spec:
+  containers:
+  - name: demo1
+  image: demo/demo1
+  resources:
+    requests:
+      memory: "16Mi"
+      cpu: "100m"
+    limits:
+      memory: "32Mi"
+      cpu: "200m"
+  - name: demo2
+  image: demo/demo2
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "200m"
+    limits:
+      memory: "128Mi"
+      cpu: "400m"
+
+
+ ---------------
+Requests and Limits are actually specified inside container definition and they are feature of container not pod
+If no pods has resource req or limit defined, a single pod with memory leak may evict all other pods in the node.
+---------------------------
+Requests:
+ Amount of resources "we think" each Container would require.During execution it may not comsume that much. 
+If request value not provided by defualt 0 memory and cpu requests will be considered.
+So even if actual resource consumption is more than requested resources, pods will continue to run if resource is available.
+Requests value is very important to resource scheduler,if requested resource of pod is not available in any node,then pod will be in pending state("kubectl get pods") instead of running.
+We should not over estimate this request resources values otherwise even if resource is available in node, additional pods will be in pending state or not scheduled(because total request limit exceeds node capacity  ) 
+if we do "kubectl describe pod <pending pod name>" in pending pod, in event section we will see "Failed Scheduling" with reason
+
+cpu: "200m"     =>  200 mill core or .2 core (cpu: .2)
+memory: "32Mi"  =>  32*1024 Ki(kilo-bytes)            
+
+Note:
+1Mi=1024Ki=1024*1024 bytes 
+1M=1000K=1000*1000 bytes
+if you specify just number without any unit in memory then it will be considered bytes eg. memory: "1000000"
+
+What is the advantage of defining requests resource?
+Resource scheduler will look into this and schedule the pod in a node which has enougn resource to run.
+
+
+
+>kubectl get nodes #get list of node names
+>kubectl describe node <node name>
+It will show all details of node like:
+Capacity,allocatable,list of pods running in this node and their requests and limits,Total cpu requests,Total cpu limits,Total memory requests,Total memory limits,events etc
+
+------------------------
+
+Limits:
+If the actual memory usage of the container at run time exceeds the limit defined,then container will be killed(pod will still remain there,container will attempt to restart)
+If the actual CPU usage of the container at run time exceeds the limit,then container will continue to run but the CPU will be clamped(ie. cpu will not be allowed to go over the limit)
+
+Memory Limits can be very useful to prevent memory leak
+=========================
+
+Keep Limits >= Requests 
+Main purpose of Requests and Limits to give signals to scheduler. 
+========================
+
+Quality of service(QOS) and Eviction: 
+
+Schudeler:
+distributes load(pods) across nodes,it tries to distribute load proportionally among nodes.
+
+QOS:
+Guarenteed=> all containers of a pod have same resource request and resource limit( Note: if only resource limit is provided in pod then by default request = limit, so Qos is guarenteed)		
+Burstable=> if only resource request != resource limit(Note: if only resource request is defuned ,by default limit=0. So Qos is burstable)
+BestEffort=>resource request and limit not defined	 
+
+We can view QoS label of a pod as:
+>kubectl describe pod <name>
+
+QoS label decides which pod to evict if node is under pressure/resource shortage.
+
+Scheduler will evict "QoS:BestEffort" pods first to free resources,if that is not enough it will start evecting "QoS:Burstable".
+Eviction doesnt mean pod will be terminated for ever,it is basically rescheduled.
+
+Priority:Higher value more priority
+
+example:
+In a Node of 900mb capacity,one pod of  "QoS:Guaranteed" type with memory 500mb and priority:5 is running.
+Now  a new pos of  "QoS:Guaranteed" type with memory 500mb and priority:10 is scheduled.
+1st pod will be evicted because although both have "QoS:Guaranteed" type,but 2nd pod has higher priority. 
+
+ 
+==============================================================
+NodeSelector: 
+schedule pod to a specific node(or subset of nodes) in cluster:
+helps to target a specific set of nodes for pod scheduling
+this is achieved by assigning few labels on node eg disktype=ssd,cputype=gpu,gpu-present=true
+This concept is very useful we can schedule high priority pods in the node which has better hardware.
+
+We can attach label using "kubectl label" command
+To attach label to a node:
+>kubectl label node node1 disktype=fast
+>kubectl get node node1 --show-labels
+
+We configure nodeSelector inside spec of deployment
+====deployment.yaml====
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamer-v4-deployment
+  labels:
+    app: streamer-v4
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: streamer-v4
+  template:
+    metadata:
+      labels:
+        app: streamer-v4
+    spec:
+      containers:
+      - name: streamer-v4
+        image: coolregistryusa.biz/jmarhee/streamer-v4
+        ports:
+        - containerPort: 8880
+      nodeSelector:
+        disktype: "fast"
+		
+>kubectl apply -f .       #deployment deployed
+>kubectl get pod -o wide  #here you will see pods will be deployed in node with label 	 disktype: "fast"	
+---------------
+Using NodeSelectors in Kubernetes is a common practice to influence scheduling decisions, which determine on which node (or group of nodes) a pod should be run. 
+NodeSelectors are based on key-value pairs as labels. Common use cases include:
+
+1)Dedicate nodes to certain teams or customers (multi-tenancy)
+2)Distinguish between different types of nodes (“expensive” nodes with specialized hardware, e.g. GPUs and FPGAs, or resources, ephemeral “spot” instances)
+3)Define topologies for rack/zone/region awareness and high-availability
+
+---------------------
+NodeSelector VS PodNodeSelector
+NodeSelector: depending upon NodeSelector label,pod or deployment ends up in a subset of worker nodes.
+PodNodeSelector: depending upon pod or deployment namespaces they ends up in a subset of worker nodes(actually it injects NodeSelector labes in pods 
+which can be confirmed by "kubectl desc pods").
+
+----------------------
+PodNodeSelector:
+
+When we deploy a pod(or deploy,Daemonset etc) to a namespace eg. dev,test,prod it should be scheduled in a subset of worker nodes(identified by labels)
+We dont have to declare NodeSelector.
+prod worker node set can have better hardware quality than test worker-node set.
+
+Now, you can specify scheduler.alpha.kubernetes.io/node-selector option in annotations for your namespace, example:
+
+apiVersion: v1
+kind: Namespace
+metadata
+ name: ns1
+ annotations:
+   scheduler.alpha.kubernetes.io/node-selector: env=test
+spec: {}
+status: {}
+
+After these steps, all the pods created in this namespace will have this section automatically added:
+
+nodeSelector
+  env: test
+  
+We also need to label our worker nodes as per our requirements: 
+kubectl label node <yournode> env=test 
+
+
+For PodNodeSelector to work we have to enable admission control plugin.
+Inside master node we have to edit kube-apiserver.yaml (/etc/kubernetes/manifests/kube-apiserver.yaml)
+update spec,add PodNodeSelector in enable-admission-plugins as shown below:
+
+spec:
+  containers:
+  - command"
+    - kube-apiserver
+	- --enable-admission-plugins=NodeRestriction,PodNodeSelector 
+
+After saved it will restsrt kube-apiserver pod in kube-system namespace.
+
+===================================================================================================
+
+Init Containers:
+As we know a pod can have one or more containers
+Init-containers is the container that runs(like a job it completes) before the actual containers starts
+We can have multiple init containers,ther run sequentially one after the another,finally actual container starts.
+If any of the init container fails it wont proceed by creating the actual container,instead pod will be restarted and the same cycle continues.
+If you set restart policy of pod to "never",it will not be restarted on any init container failure.
+example:
+init container may checkout source code and build artifact and save it in a volume
+then actual container starts and use that artifact to run.
+
+example:
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: ic-deploy
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ic
+    spec:
+      initContainers:
+      - name: msginit
+        image: centos:7
+        command:
+        - "bin/bash"
+        - "-c"
+        - "echo INIT_DONE > /ic/this"
+        volumeMounts:
+        - mountPath: /ic
+          name: msg
+      containers:
+      - name: main
+        image: centos:7
+        command:
+        - "bin/bash"
+        - "-c"
+        - "while true; do cat /ic/this; sleep 5; done"
+        volumeMounts:
+        - mountPath: /ic
+          name: msg
+      volumes:
+      - name: msg
+        emptyDir: {}
+		
+================================================
+Case study:
+
+Using a cluster with 1 node(2 cpu, 4 Gb)
+
+
+
+> kubectl describe  node aks-agentpool-22638277-vmss000000
+....
+Capacity:
+ attachable-volumes-azure-disk:  4
+ cpu:                            2
+ ephemeral-storage:              129901008Ki
+ hugepages-1Gi:                  0
+ hugepages-2Mi:                  0
+ memory:                         4040316Ki
+ pods:                           110
+Allocatable:
+ attachable-volumes-azure-disk:  4
+ cpu:                            1900m
+ ephemeral-storage:              119716768775
+ hugepages-1Gi:                  0
+ hugepages-2Mi:                  0
+ memory:                         2223740Ki
+ pods:                           110
+....
+Non-terminated Pods:         (10 in total)
+  Namespace                  Name                                                                 "CPU Requests"  "CPU Limits"  "Memory Requests"  "Memory Limits"  AGE
+  ---------                          ----                                                                      ------------               ----------         ---------------              -------------          ---
+  kube-system                coredns-869cb84759-frvg8                                     100m (5%)          0 (0%)           70Mi (3%)                170Mi (7%)        7m52s #% with respect to Allocatable
+  kube-system                coredns-869cb84759-vjsgh                                     100m (5%)          0 (0%)           70Mi (3%)                170Mi (7%)        5m45s
+  kube-system                coredns-autoscaler-5b867494f-w5kx2                       20m (1%)          0 (0%)           10Mi (0%)                    0 (0%)            7m49s
+  kube-system                dashboard-metrics-scraper-566c858889-m4zhm      100m (5%)       100m (5%)       50Mi (2%)                500Mi (23%)       7m49s
+  kube-system                kube-proxy-h4pj8                                                    100m (5%)          0 (0%)            0 (0%)                        0 (0%)            6m15s
+  kube-system                kubernetes-dashboard-7f7d6bbd7f-kpj5f                   100m (5%)       100m (5%)       50Mi (2%)               500Mi (23%)        7m49s
+  kube-system                metrics-server-6cd7558856-5wdl5                              44m (2%)           0 (0%)          55Mi (2%)                   0 (0%)             7m52s
+  kube-system                omsagent-hmmcs                                                      75m (3%)       150m (7%)       225Mi (10%)            600Mi (27%)        6m15s
+  kube-system                omsagent-rs-b64686fc7-hf8hq                                   150m (7%)         1 (52%)        250Mi (11%)             750Mi (34%)        7m52s
+  kube-system                tunnelfront-6865485dfd-2lwsq                                   100m (5%)         90m (4%)      128Mi (5%)               64Mi (2%)            7m49s  
+  
+  Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource                               Requests                    Limits
+  --------                                      --------                      ------
+  cpu                                          889m (46%)             1440m (75%)                  #this percent is wrt Allocatable resource(not actual usage) ie. 1900x.46= ~889     1900x.75= ~1440
+  memory                                   908Mi (41%)            2754Mi (126%)                #this percent is wrt Allocatable resource(not actual usage)
+  ephemeral-storage                   0 (0%)                     0 (0%)
+  attachable-volumes-azure-disk  0                             0
+  --------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  kubectl top nodes
+>NAME                                              CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
+aks-agentpool-22638277-vmss000000   154m           8%        1058Mi                  48%   #this % is actual usage wrt allocatable resource
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------  
+
+
+
+Findings:
+1)"kubectl top nodes"  returns current actual  CPU and Memory utilization WRT allocatable resource(in output of "kubectl describe  node")
+
+2)"Allocated resources"  section in "kubectl describe  node" represents total cpu and memory  request and limit  defuned in yaml of all running pods. And the percent is wrt Allocatable resource(not actual usage)
+  
+3)percentage defined  in  "Non-terminated Pods" section  of "kubectl describe  node" is percentage wrt actual cpu /memory usage, we can get the actual cpu/memory usage per pod by "kubectl top po"
+
+
+Now lets deploy a deployment which donot have any resource request and  limit defined.
+
+-----deployment1.yaml------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mychart-without-req
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mychart
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mychart
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+        - name: mychart
+          image: "nginx:1.16.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+
+Findings:
+1)"Allocated resources"  section in "kubectl describe  node" is unchanged as new pod dont have resource request or  limit defined
+2)output of memory and CPU  utilization in "kubectl top node" may increase as new pods will take some additional resources.
+
+
+
+
+Now lets  delete previous deployment and deploy a  new deployment with resource request and  limit defined.
+
+-----deployment2.yaml------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mychart
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mychart
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mychart
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+        - name: mychart
+          image: "nginx:1.16.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+
+>kubectl describe node
+
+Non-terminated Pods:         (12 in total)
+  Namespace                  Name                                          CPU Requests  CPU Limits  Memory Requests  Memory Limits  AGE
+  ---------                  ----                                          ------------  ----------  ---------------  -------------  ---
+  default                    my-release-mychart-649d7599f7-c6lsd           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m35s
+  default                    my-release-mychart-649d7599f7-tf8vc           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m35s
+  kube-system                coredns-869cb84759-frvg8                      100m (5%)     0 (0%)      70Mi (3%)        170Mi (7%)     116m
+  kube-system                coredns-869cb84759-vjsgh                      100m (5%)     0 (0%)      70Mi (3%)        170Mi (7%)     114m
+  kube-system                coredns-autoscaler-5b867494f-w5kx2            20m (1%)      0 (0%)      10Mi (0%)        0 (0%)         116m
+  kube-system                dashboard-metrics-scraper-566c858889-m4zhm    100m (5%)     100m (5%)   50Mi (2%)        500Mi (23%)    116m
+  kube-system                kube-proxy-h4pj8                              100m (5%)     0 (0%)      0 (0%)           0 (0%)         115m
+  kube-system                kubernetes-dashboard-7f7d6bbd7f-kpj5f         100m (5%)     100m (5%)   50Mi (2%)        500Mi (23%)    116m
+  kube-system                metrics-server-6cd7558856-5wdl5               44m (2%)      0 (0%)      55Mi (2%)        0 (0%)         116m
+  kube-system                omsagent-hmmcs                                75m (3%)      150m (7%)   225Mi (10%)      600Mi (27%)    115m
+  kube-system                omsagent-rs-b64686fc7-hf8hq                   150m (7%)     1 (52%)     250Mi (11%)      750Mi (34%)    116m
+  kube-system                tunnelfront-6865485dfd-2lwsq                  100m (5%)     90m (4%)    128Mi (5%)       64Mi (2%)      116m
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource                                       Requests                          Limits
+  --------                                            --------                              ------
+  cpu                                                1089m (57%)              1840m (96%)
+  memory                                         1164Mi (53%)             3266Mi (150%)
+  ephemeral-storage                               0 (0%)                     0 (0%)
+  attachable-volumes-azure-disk              0                             0
+
+
+ Findings:
+ 1)Allocated resources increased:
+    cpu request =889m+  2x100=1089m,   cpu limit   1440m+ 200 x 2=1840m
+	memory request =908Mi +2 x 128=1164Mi, memory limit   2754m+2 x 256=3266Mi
+	
+---------------------------------------------	
+Lets change the replica=12 of deployment.yaml and redeploy:
+
+Now three of them are in pending state 	
+>kubectl get deploy,rs,po
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/my-release-mychart   9/12    12           9           17m
+
+NAME                                            DESIRED   CURRENT   READY   AGE
+replicaset.apps/my-release-mychart-649d7599f7   12        12        9       17m
+
+NAME                                      READY   STATUS    RESTARTS   AGE
+pod/my-release-mychart-649d7599f7-7cnlw   1/1     Running   0          6m35s
+pod/my-release-mychart-649d7599f7-7z8r4   1/1     Running   0          6m35s
+pod/my-release-mychart-649d7599f7-bd4xd   1/1     Running   0          6m35s
+pod/my-release-mychart-649d7599f7-c6lsd   1/1     Running   0          17m
+pod/my-release-mychart-649d7599f7-cr7f2   1/1     Running   0          6m35s
+pod/my-release-mychart-649d7599f7-hk62b   0/1     Pending   0          6m35s
+pod/my-release-mychart-649d7599f7-jbjjq   0/1     Pending   0          6m35s
+pod/my-release-mychart-649d7599f7-kwlq9   1/1     Running   0          6m35s
+pod/my-release-mychart-649d7599f7-nb8tv   0/1     Pending   0          6m35s
+pod/my-release-mychart-649d7599f7-tf8vc   1/1     Running   0          17m
+pod/my-release-mychart-649d7599f7-w5vt5   1/1     Running   0          6m35s
+pod/my-release-mychart-649d7599f7-z9wpc   1/1     Running   0          6m35s
+
+>kubectl get nodes:
+
+Non-terminated Pods:         (19 in total)
+  Namespace                  Name                                          CPU Requests  CPU Limits  Memory Requests  Memory Limits  AGE
+  ---------                  ----                                          ------------  ----------  ---------------  -------------  ---
+  default                    my-release-mychart-649d7599f7-7cnlw           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m48s
+  default                    my-release-mychart-649d7599f7-7z8r4           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m48s
+  default                    my-release-mychart-649d7599f7-bd4xd           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m48s
+  default                    my-release-mychart-649d7599f7-c6lsd           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    14m
+  default                    my-release-mychart-649d7599f7-cr7f2           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m48s
+  default                    my-release-mychart-649d7599f7-kwlq9           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m48s
+  default                    my-release-mychart-649d7599f7-tf8vc           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    14m
+  default                    my-release-mychart-649d7599f7-w5vt5           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m48s
+  default                    my-release-mychart-649d7599f7-z9wpc           100m (5%)     200m (10%)  128Mi (5%)       256Mi (11%)    2m48s
+  kube-system                coredns-869cb84759-frvg8                      100m (5%)     0 (0%)      70Mi (3%)        170Mi (7%)     128m
+  kube-system                coredns-869cb84759-vjsgh                      100m (5%)     0 (0%)      70Mi (3%)        170Mi (7%)     126m
+  kube-system                coredns-autoscaler-5b867494f-w5kx2            20m (1%)      0 (0%)      10Mi (0%)        0 (0%)         128m
+  kube-system                dashboard-metrics-scraper-566c858889-m4zhm    100m (5%)     100m (5%)   50Mi (2%)        500Mi (23%)    128m
+  kube-system                kube-proxy-h4pj8                              100m (5%)     0 (0%)      0 (0%)           0 (0%)         126m
+  kube-system                kubernetes-dashboard-7f7d6bbd7f-kpj5f         100m (5%)     100m (5%)   50Mi (2%)        500Mi (23%)    128m
+  kube-system                metrics-server-6cd7558856-5wdl5               44m (2%)      0 (0%)      55Mi (2%)        0 (0%)         128m
+  kube-system                omsagent-hmmcs                                75m (3%)      150m (7%)   225Mi (10%)      600Mi (27%)    126m
+  kube-system                omsagent-rs-b64686fc7-hf8hq                   150m (7%)     1 (52%)     250Mi (11%)      750Mi (34%)    128m
+  kube-system                tunnelfront-6865485dfd-2lwsq                  100m (5%)     90m (4%)    128Mi (5%)       64Mi (2%)      128m
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource                       Requests      Limits
+  --------                       --------      ------
+  cpu                            1789m (94%)   3240m (170%)
+  memory                         2060Mi (94%)  5058Mi (232%)
+  ephemeral-storage              0 (0%)        0 (0%)
+  attachable-volumes-azure-disk  0             0
+  
+  
+  Try describe in one of the pending pods:
+  $ kubectl describe pod/my-release-mychart-649d7599f7-nb8tv
+  ...
+  Events:
+  Type     Reason            Age        From               Message
+  ----     ------            ----       ----               -------
+  Warning  FailedScheduling  <unknown>  default-scheduler  0/1 nodes are available: 1 Insufficient memory.
+  Warning  FailedScheduling  <unknown>  default-scheduler  0/1 nodes are available: 1 Insufficient memory.
+  
+  Findings:
+  1)There is not enough memory so so three pods are in pending state 
+  2)Three pending pods are not shown in "kubectl get nodes" as pending pods are not part of any nodes
+  		
+		
+===============================================
+Cluster Autoscaler:
+Cluster Autoscaler on scaling up only when there are no resources for starting containers at all(may be triggered by shortage of memory ,cpu,pod ip etc).
+For scaling down Cluster Autoscaler doesn't care about real resource usage. It's operates on pods' resource requests. The utilization in this case is sum(requested_resources) / available_resources.
+
+The reason for that is because that's how kubernetes scheduling works - CA's primary job is making sure every pod can schedule and actual resource usage doesn't matter for scheduling. To autoscale based on real usage you need to use CA and HPA together.
+
+https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#ca-doesnt-work-but-it-used-to-work-yesterday-why
+
+
+
+
+
+
+
+
+

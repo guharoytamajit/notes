@@ -1,0 +1,12 @@
+
+docker run --entrypoint bash maven:3.6.3 -c pwd 
+
+docker run -v $(pwd):/app  -v ~/.m2/repository:/root/.m2/repository --entrypoint mvn  maven:3.6.3 -f /app/pom.xml package
+
+
+
+wget -O - registry.hub.docker.com/v1/repositories/openjdk/tags|jq '.[].name'|grep 11|grep slim
+
+docker run -v $(pwd)/target:/app  -p 8080:8080 -d  openjdk:11-jre-slim java -jar /app/myapp-0.0.1-SNAPSHOT.jar
+
+

@@ -1,0 +1,72 @@
+
+
+
+kubectl create secret generic azdevops \
+  --from-literal=AZP_URL=https://dev.azure.com/guharoytamajit \
+  --from-literal=AZP_TOKEN=4isy6kj4xltnh4lw2ipbkssean66aqg424rjyndsjqe3arfitb4a \
+  --from-literal=AZP_POOL=aks-pool
+
+az aks update --resource-group myRg --name tamajitaks  --attach-acr tamajitacr
+
+https://dev.azure.com/guharoytamajit
+
+4isy6kj4xltnh4lw2ipbkssean66aqg424rjyndsjqe3arfitb4a
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azdevops-deployment
+  labels:
+    app: azdevops-agent
+spec:
+  replicas: 1 #here is the configuration for the actual agent always running
+  selector:
+    matchLabels:
+      app: azdevops-agent
+  template:
+    metadata:
+      labels:
+        app: azdevops-agent
+    spec:
+      containers:
+      - name: kubepodcreation
+        image: tamajitacr.azurecr.io/dockeragent:latest
+        env:
+          - name: AZP_URL
+            valueFrom:
+              secretKeyRef:
+                name: azdevops
+                key: AZP_URL
+          - name: AZP_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: azdevops
+                key: AZP_TOKEN
+          - name: AZP_POOL
+            valueFrom:
+              secretKeyRef:
+                name: azdevops
+                key: AZP_POOL
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-volume
+      volumes:
+      - name: docker-volume
+        hostPath:
+          path: /var/run/docker.sock
+
+===============================
+
+---pipeline---
+
+trigger:
+- main
+
+pool:
+  name: aks-pool
+  # vmImage: ubuntu-latest
+
+steps:
+- script: sleep 120
+  displayName: 'Run a one-line script'

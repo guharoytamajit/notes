@@ -1,0 +1,88 @@
+kubernetes operations:
+using kops we can deploy k8s cluster in aws,gcp,azure(currently beta version)
+it is most mature in aws
+
+This is not a managed k8s service(like AKS),here we have to manage both master and worker nodes.
+
+https://github.com/kubernetes/kops
+goto releases tab and download latest stable release (kops-linux-amd64).
+
+>wget https://github.com/kubernetes/kops/releases/download/v1.16.0/kops-linux-amd64
+>sudo mv kops-linux-adm64 /usr/local/bin/kops
+>sudo chmod /usr/local/bin/kops
+>kops version
+>kops help
+
+>kops create help
+>kops create cluster help
+>kops create cluster --name <name>   --state=s3://mybucket --zones=eu-west-1a,eu-west-1b  --node-count=2 --node-size=t2.micro  --dns-zone=example.com
+One master node will be created for every AZ(in above cammand 2 master)
+It will create a new vpc and subnet (if we dont provide any)     
+
+create s3 bucket
+>aws s3api create-bucket --bucket mybucket --region us-east-1
+>aws s3 ls     #see available buckets
+>aws s3 ls mybucket   #see content of bucket
+>aws s3api put-bucket-versioning --bucket mybucket --region us-east-1  --versoning-configuration Status=Enabled
+
+>export KOPS_STATE_STORE=s3://mybucket    #after this no need to specify --state flag when using "kops create cluster" command
+
+
+>kops get cluster
+>kops create cluster --name  mycluster.k8s.local --zones=eu-west-1a --master-size t2.micro    --node-size=t2.micro --master-count=2 --node-count=5  --kubernetes-version 1.15.0 
+--master-size=>master node size
+--node-size=>worker node size
+----kubernetes-version ,if not specified latest version will be installed 
+By default one master node will ve created for each AZ, eg.  for --zones=eu-west-1a,eu-west-1b  we get 2 master node
+By default 2 worker node gets created
+Even if we have a single master node it will be behind a loadbalancer,later if we add more master the requests to masters are balanced using this loadbalancer
+All the interaction with API server is done through this load balancer
+Master and Worker nodes are created with their own autoscaling group 
+
+Note:"kops create cluster" does not create the cluster but generates all the config files
+
+>ssh-keygen -b 2048 -t rsa -i ~/.ssh/mykey
+>kops create secret --name mycluster.k8s.local  sshpublickey admin ~i ~/.ssh/mykey.pub
+
+>kops get cluster   #we can cluster config,but it is not deployed yet.
+Note: default editor here is vi, to change it >export EDITOR=nano 
+>kops edit cluster --name  mycluster.k8s.local   #see yaml of cluster
+
+similarly we can change instance group(ig), there are two id one for worker nodes and other for master,here we can change node related config eg machinetype,image,min-max size,subnets(AZ) etc
+If we specify 5 nodes and two AZ then,those nodes will be distributed across thoze AZs.
+>kops get ig --name  mycluster.k8s.local
+>kops edit ig nodes --name  mycluster.k8s.local
+
+Deloy cluster: 
+>kops update cluster --name  mycluster.k8s.local --yes   #deploy cluster
+>kops validate cluster  --name  mycluster.k8s.local  #validate cluster,it will give error if cluster is not up yet
+>kubectl get nodes  
+>kubectl get sc
+>kubectl get ns #list namespace
+>kubectl -n kube-system get all
+>kubectl run nginx --image nginx
+
+
+Changing kubernetes version of cluster:
+>kops edit cluster --name  mycluster.k8s.local
+update cluster version in yaml,then fire "kops update"
+first master is updated,then worker nodes are updated one by one,this way down time is avoided
+Before a node is updated its pods are drained ,other nodes deploys these pods
+When master is updated,if you have a single master then at that time no kubectl commands will work as api-server is down
+
+>kops update cluster --name  mycluster.k8s.local --yes 
+>kops rolling-update cluster --name  mycluster.k8s.local --yes  #this will trigger kubernetes version update set in previous step
+>kops validate cluster  --name  mycluster.k8s.local  #validate cluster
+
+
+update cluster to latest k8s version:(use "kops upgrade followed by previous 2 commands update and rolling-update")
+>kops upgrade cluster --name  mycluster.k8s.local --yes 
+>kops update cluster --name  mycluster.k8s.local --yes 
+>kops rolling-update cluster --name  mycluster.k8s.local --yes 
+
+
+delete cluster:
+>kops delete cluster --name  mycluster.k8s.local --yes
+
+
+

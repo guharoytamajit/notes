@@ -1,0 +1,32 @@
+Intall prometheus chart with default configuration:
+>helm install  stable/prometheus --name myPrometheusRelease
+
+But in real world we may want to make some cnanges rather than using default falues for all configurations.
+We can get a copy of default values like:
+>helm inspect values stable/prometheus  > myvalues.yaml
+
+Now we can edit myvalues.yaml according to our requirement.
+Then install jenkins chart as
+>helm install stable/prometheus  --name myPrometheusRelease  --values myvalues.yaml
+>helm delete --purge myPrometheusRelease
+
+Access prometheus
+$ export POD_NAME=$(kubectl get pods --namespace default -l "app=prometheus,component=server" -o jsonpath="{.items[0].metadata.name}")
+$ kubectl --namespace default port-forward $POD_NAME 9090
+
+
+Install grafana:
+>helm install --name grafana stable/grafana
+
+
+
+Port forward to connect to Grafana
+
+$ kubectl --namespace default port-forward grafana-b85d975bd-hvngq 3000
+
+username : admin
+we can get the password from following command:
+>kubectl get secret --namespace default grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+
+
+

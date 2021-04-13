@@ -1,1 +1,0 @@
-docker build -t guharoytamajit/my-jenkins:1.0 .

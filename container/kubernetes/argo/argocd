@@ -1,0 +1,55 @@
+Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
+Advantage:  Application deployment and lifecycle management is  automated, auditable, and easy to understand.
+Using argocd we can not only deploy k8s apps in current cluster but also other clusters(we need argo-cli to add additional cluster, at present cannot be done fro web UI)
+
+We can interact with argocd server using argo-cli of web UI.
+
+argocd components:
+1)argocd server:  like api-server of k8s,it takes request from argocd cli or web
+2)repo-server: synchronizes remote git repo with local git repo
+3)app-controller: contiously checks if current state of cluster matches the state defined in local git repo.
+4)redis: For caching
+5)dex-server: integrate different IAM solutions with argocd
+
+
+install:
+>kubectl create namespace argocd
+>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+>kubectl get deploy,svc -n argocd
+NAME                                                  READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.extensions/argocd-application-controller   0/1     1            0           40s
+deployment.extensions/argocd-dex-server               0/1     1            0           40s
+deployment.extensions/argocd-redis                    0/1     1            0           40s
+deployment.extensions/argocd-repo-server              0/1     1            0           40s
+deployment.extensions/argocd-server                   0/1     1            0           40s
+
+NAME                            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
+service/argocd-dex-server       ClusterIP   10.110.237.230   <none>        5556/TCP,5557/TCP,5558/TCP   40s
+service/argocd-metrics          ClusterIP   10.108.171.80    <none>        8082/TCP                     40s
+service/argocd-redis            ClusterIP   10.103.228.13    <none>        6379/TCP                     40s
+service/argocd-repo-server      ClusterIP   10.105.60.168    <none>        8081/TCP,8084/TCP            40s
+service/argocd-server           ClusterIP   10.107.0.246     <none>        80/TCP,443/TCP               40s
+service/argocd-server-metrics   ClusterIP   10.106.117.87    <none>        8083/TCP                     40s
+
+
+Argo CD follows the GitOps pattern of using Git repositories as the source of truth for defining the desired application state. Kubernetes manifests can be specified in several ways:
+kustomize applications
+helm charts
+ksonnet applications
+jsonnet files
+Plain directory of YAML/json manifests
+Any custom config management tool configured as a config management plugin
+
+
+agocd supports two modes of sync between git yaml state and current yaml state:
+1)manual=>It shows the diff of git yaml and deployed yaml of your argocd app, you need to manually click a button for making sure state defined in git is restored in k8s cluster
+2)automatic=>
+
+Argocd Application:
+It belongs to an argocd project
+It points to a git repo, branch name,and takes a path inside repo where yaml files are present
+It has sync policy manual/automatic
+The cluster where to deploy  manifest yaml and namespace
+
+

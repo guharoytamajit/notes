@@ -1,0 +1,27 @@
+
+		List<Integer> asList2 = Arrays.asList(1,3,5,6,2);
+		List<Long> collect = asList2.parallelStream().map(Long::new).collect(Collectors.toList());
+ asList2.parallelStream().forEach(System.out::println);
+
+----------------------------------
+public class Animal {
+String name;
+public Animal(String name) {this.name = name;}
+}
+
+List<String> asList = Arrays.asList(new String[] { "bob", "tom", "bill", "joe", "tom" });
+List collect = asList.parallelStream().map(String::toUpperCase).map(Animal::new).collect(Collectors.toList());
+
+stream().map(this::myMethod).collect(Collectors.toList());
+-----------------
+Consumer<String> c=s->{};
+Consumer<String> c1=System.out::println;
+Supplier<Long> l=()->1l;
+upplier<Long> l=Long::new;
+=======================
+Flat map can be used to convert Stream<String[]> or Stream<List<String>>  into Stream<String>
+example:
+		List<String> asList = Arrays.asList(new String[] { "bob bob2", "tom", "bill bill2", "joe", "tom" });
+		asList.stream().map(s->s.split(" ")).flatMap(s->Arrays.stream(s)).forEach(System.out::println);
+		System.out.println("====================================");
+		asList.stream().map(s->Arrays.asList(s.split(" "))).flatMap(s->s.stream()).forEach(System.out::println);

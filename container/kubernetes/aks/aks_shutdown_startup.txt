@@ -1,0 +1,135 @@
+
+#############Shutdown script############
+$subscription=$args[0]
+$group=$args[1]
+$clustername=$args[2]
+az aks  get-credentials --resource-group $group --name $clustername --subscription $subscription 
+
+#read value of enableAutoScaling
+$autoscale = az aks show --resource-group $group --name $clustername --subscription $subscription --query  "agentPoolProfiles[0].enableAutoScaling"
+
+#delete state file if exist
+Remove-Item $clustername  -ErrorAction Ignore
+
+#check if cluster is autoscalable
+if($autoscale -eq 'true'){
+   write-host("Auto scaling is enabled for this cluster,saving the cluster state")
+   #read min and max count of VM
+   $minCount = az aks show --resource-group $group --name $clustername --subscription $subscription --query  "agentPoolProfiles[0].minCount"
+   $maxCount = az aks show --resource-group $group --name $clustername --subscription $subscription --query  "agentPoolProfiles[0].maxCount"
+   #save state of min and max vm count in a file with name=clustername
+   Set-Content $clustername  $minCount','$maxCount
+
+   write-host("Disable autoscaling...")
+   az aks update  --name $clustername --resource-group $group  --subscription $subscription  --disable-cluster-autoscaler
+}
+
+write-host("AKS shutting down...")
+az aks stop --name $clustername --resource-group  $group   --subscription $subscription  
+--------------------------------------------------------
+#############Statup script############
+
+$subscription=$args[0]
+$group=$args[1]
+$clustername=$args[2]
+az aks  get-credentials --resource-group $group --name $clustername --subscription $subscription 
+
+write-host("Starting AKS cluster...")
+az aks start --name $clustername  --resource-group $group  --subscription $subscription  
+
+#if a file with name=clustername present we have to enable-cluster-autoscaler
+if(Test-Path $clustername  -PathType Leaf){
+$content=Get-Content -Path $clustername -TotalCount 1
+$minCount,$maxCount = $content.split(',')
+
+write-host("Enabling autoscaling...")
+az aks update  --name $clustername --resource-group $group  --subscription $subscription  --enable-cluster-autoscaler  --max-count   $maxCount  --min-count  $minCount
+}
+
+=================================================================
+Using function:
+using namespace System.Net
+
+# Input bindings are passed in via param block.
+param($Request, $TriggerMetadata)
+$subscriptions = "fed7bc8d--43fb-ba61-9e1a05b7ec85"
+$rg ="rgp-tdlsit-st-ci-akstest-01"
+$cluster = "aks-tdsit-st-ci-akstest-01"
+
+
+ $resourceURI = "https://management.azure.com/"
+
+$tokenAuthURI = $env:IDENTITY_ENDPOINT + "?resource=$resourceURI&api-version=2019-08-01"
+Write-Host '======tokenAuthURI======================'$tokenAuthURI
+
+$tokenResponse = Invoke-RestMethod -Method Get -Headers @{"X-IDENTITY-HEADER"="$env:IDENTITY_HEADER"} -Uri $tokenAuthURI
+
+$accessToken = $tokenResponse.access_token
+
+$checkDisable = $false
+
+Write-Host '=============accessToken================'$accessToken
+
+$getResponse = (Invoke-RestMethod -Uri "https://management.azure.com/subscriptions/${subscriptions}/resourceGroups/${rg}/providers/Microsoft.ContainerService/managedClusters/${cluster}?api-version=2020-09-01" -Method GET  -Headers @{ Authorization ="Bearer $accessToken"})
+
+echo '==========powerState============'$getResponse.properties.powerState.code
+#echo '==========count============'$getResponse.properties.agentPoolProfiles[0].count
+#echo '==========enableAutoScaling============'$getResponse.properties.agentPoolProfiles.enableAutoScaling
+#echo '==========maxCount============'$getResponse.properties.agentPoolProfiles.maxCount
+#echo '==========minCount============'$getResponse.properties.agentPoolProfiles.minCount
+
+
+#if($getResponse.properties.agentPoolProfiles[0].count -gt 0){
+if(($getResponse.properties.powerState.code -eq 'Running') -Or $checkDisable){    
+echo "Cluster is runnng. Shutting it down..."
+$res = (Invoke-WebRequest -Uri "https://management.azure.com/subscriptions/${subscriptions}/resourceGroups/${rg}/providers/Microsoft.ContainerService/managedClusters/${cluster}/stop?api-version=2020-09-01" -Method POST -ContentType "application/json" -Headers @{ Authorization ="Bearer $accessToken"}).content
+echo '==========cluster shutdown response============'$res
+}
+else{
+echo "Cluster is already stopped. exiting.. "    
+}
+===================================
+using namespace System.Net
+
+# Input bindings are passed in via param block.
+param($Request, $TriggerMetadata)
+$subscriptions = "fed7bc8d-2068-43fb-ba61-9e1a05b7ec85"
+$rg ="rgp-tdlsit-st-ci-akstest-01"
+$cluster = "aks-tdsit-st-ci-akstest-01"
+
+
+ $resourceURI = "https://management.azure.com/"
+
+$tokenAuthURI = $env:IDENTITY_ENDPOINT + "?resource=$resourceURI&api-version=2019-08-01"
+Write-Host '======tokenAuthURI======================'$tokenAuthURI
+
+$tokenResponse = Invoke-RestMethod -Method Get -Headers @{"X-IDENTITY-HEADER"="$env:IDENTITY_HEADER"} -Uri $tokenAuthURI
+
+$accessToken = $tokenResponse.access_token
+
+$checkDisable = $false
+
+Write-Host '=============accessToken================'$accessToken
+
+$getResponse = (Invoke-RestMethod -Uri "https://management.azure.com/subscriptions/${subscriptions}/resourceGroups/${rg}/providers/Microsoft.ContainerService/managedClusters/${cluster}?api-version=2020-09-01" -Method GET  -Headers @{ Authorization ="Bearer $accessToken"})
+
+echo '==========powerState============'$getResponse.properties.powerState.code
+#echo '==========count============'$getResponse.properties.agentPoolProfiles[0].count
+#echo '==========enableAutoScaling============'$getResponse.properties.agentPoolProfiles.enableAutoScaling
+#echo '==========maxCount============'$getResponse.properties.agentPoolProfiles.maxCount
+#echo '==========minCount============'$getResponse.properties.agentPoolProfiles.minCount
+
+
+#if($getResponse.properties.agentPoolProfiles[0].count -gt 0){
+if(($getResponse.properties.powerState.code -eq 'Stopped') -Or $checkDisable){    
+echo "Starting the cluster..."
+$res = (Invoke-WebRequest -Uri "https://management.azure.com/subscriptions/${subscriptions}/resourceGroups/${rg}/providers/Microsoft.ContainerService/managedClusters/${cluster}/start?api-version=2020-09-01" -Method POST -ContentType "application/json" -Headers @{ Authorization ="Bearer $accessToken"}).content
+echo '==========cluster shutdown response============'$res
+}
+else{
+echo "Cluster is already running. exiting.. "    
+}
+
+
+
+

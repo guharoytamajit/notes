@@ -1,0 +1,124 @@
+
+Event Source:
+consume events from external sources (SNS, SQS, GCP PubSub, Webhooks)
+ transforms the events into the cloudevents
+ dispatches them over to the eventbus
+ 
+
+ Available event-sources:
+
+AMQP
+AWS SNS
+AWS SQS
+Cron Schedules
+GCP PubSub
+GitHub
+GitLab
+HDFS
+File Based Events
+Kafka
+Minio
+NATS
+MQTT
+K8s Resources
+Slack
+NetApp StorageGrid
+Webhooks
+Stripe
+NSQ
+Emitter
+Redis
+Azure Events Hub
+ 
+ 
+ Sensor:
+ It listens to events on the eventbus
+ acts as an event dependency manager to resolve and execute the triggers.
+ 
+ Eventbus
+The eventbus acts as the transport layer of Argo-Events by connecting the event-sources and sensors.
+Event-Sources publish the events while the sensors subscribe to the events to execute triggers.
+The current implementation of the eventbus is powered by NATS streaming.
+
+
+Trigger:
+A Trigger is the resource/workload executed by the sensor once the event dependencies are resolved.
+ 
+ Trigger Types:
+Argo Workflows
+Standard K8s Objects
+HTTP Requests
+AWS Lambda
+NATS Messages
+Kafka Messages
+Slack Notifications
+Argo Rollouts CR
+Custom / Build Your Own Triggers
+Apache OpenWhisk
+
+=======================================
+
+EventSourceController:
+creates event source deployments
+watches event sources
+
+EventBusController:
+Creates and watches Eventbus
+
+SensorController:
+creates sensor deployments
+watches sensors
+
+==========================================
+Install:
+
+Let' set up the eventbus:
+>kubectl -n argo-events apply -f https://raw.githubusercontent.com/argoproj/argo-events/stable/examples/eventbus/native.yaml
+
+Create the webhook event source
+>kubectl -n argo-events apply -f https://raw.githubusercontent.com/argoproj/argo-events/stable/examples/event-sources/webhook.yaml
+
+Create the webhook sensor.
+>kubectl -n argo-events apply -f https://raw.githubusercontent.com/argoproj/argo-events/stable/examples/sensors/webhook.yaml
+
+
+>kubectl get deploy,sts,svc -n argo-events 
+NAME                                              READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.extensions/eventbus-controller         1/1     1            1           3d16h
+deployment.extensions/eventsource-controller      1/1     1            1           3d16h
+deployment.extensions/sensor-controller           1/1     1            1           3d16h
+deployment.extensions/webhook-eventsource-wvsz4   1/1     1            1           35s
+deployment.extensions/webhook-sensor-qvr4x        1/1     1            1           27s
+
+NAME                                     READY   AGE
+statefulset.apps/eventbus-default-stan   3/3     3d16h
+
+NAME                                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
+service/eventbus-default-metrics-svc   ClusterIP   None            <none>        7777/TCP                     3d16h
+service/eventbus-default-stan-svc      ClusterIP   None            <none>        4222/TCP,6222/TCP,8222/TCP   3d16h
+service/webhook-eventsource-svc        ClusterIP   10.108.73.246   <none>        12000/TCP                    35s
+
+
+You will also notice that a service is created for the event-source,we have to expose it:
+>kubectl -n argo-events port-forward service/webhook-eventsource-svc  12000:12000
+
+Use either Curl or Postman to send a post request to the:
+curl -d '{"message":"this is my first webhook"}' -H "Content-Type: application/json" -X POST http://localhost:12000/example
+
+>kubectl -n argo-events get workflows | grep "webhook"
+>argo list -n argo-events
+>argo logs  -n argo-events webhook-xxxxxx
+==========================
+argo CRD:
+>kubectl api-resources|grep argo
+applications                      app,apps             argoproj.io                        true         Application
+appprojects                       appproj,appprojs     argoproj.io                        true         AppProject
+clusterworkflowtemplates          clusterwftmpl,cwft   argoproj.io                        false        ClusterWorkflowTemplate
+cronworkflows                     cwf,cronwf           argoproj.io                        true         CronWorkflow
+eventbus                          eb                   argoproj.io                        true         EventBus
+eventsources                      es                   argoproj.io                        true         EventSource
+sensors                           sn                   argoproj.io                        true         Sensor
+workfloweventbindings             wfeb                 argoproj.io                        true         WorkflowEventBinding
+workflows                         wf                   argoproj.io                        true         Workflow
+workflowtemplates                 wftmpl               argoproj.io                        true         WorkflowTemplate
+

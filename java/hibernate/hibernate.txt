@@ -1,0 +1,98 @@
+hbm2ddl.autso
+@transient
+@Temporal(TemporalType.DATE)
+@LOB
+@Entity(name="Employee")
+@Id
+@GeneratedValue(strategy=GenerationType.AUTO)
+@Column(name="age")
+@Embeddable  eg address
+@Embedded
+@ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable
+==========================================
+<?xml version = "1.0" encoding = "utf-8"?>
+<!DOCTYPE hibernate-configuration SYSTEM 
+"http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+<hibernate-configuration>
+   <session-factory>
+   
+    <property name="hbm2ddl.auto">update</property>    
+        <property name="dialect">org.hibernate.dialect.Oracle9Dialect</property>    
+        <property name="connection.url">jdbc:oracle:thin:@localhost:1521:xe</property>    
+        <property name="connection.username">system</property>    
+        <property name="connection.password">jtp</property>    
+        <property name="connection.driver_class">oracle.jdbc.driver.OracleDriver</property>   
+       
+        <mapping class="com.javatpoint.mypackage.Employee"/>  
+
+   </session-factory>
+</hibernate-configuration>
+=========================================
+@Embeddable
+public class address {   
+    private String state;
+    private String city;
+    private String pincode;
+	//getter setter
+}
+
+
+@Entity    //hql query is written against  entity name by default that is entity class name 
+@Table (name="Emp")   //the name of the table will be Emp
+public class employee implements Serializable {
+    
+    @Id
+    @GeneratedValue(strategy=GenerationType.AUTO)
+    @Column(name="Employee_ID")  //name of table column
+    private int eid;
+   @Embedded
+    @AttributeOverrides (
+    {
+    @AttributeOverride (name="state", column=@Column(name="Street_Override")),    //name of table column will be Street_Override of table Emp
+    @AttributeOverride (name="city", column=@Column(name="City_Override")),
+    @AttributeOverride (name="pincode", column=@Column(name="Pincode_Override"))
+    })
+    private address address1;
+	//getter setter
+	}
+	
+	
+	    @ElementCollection(fetch = FetchType.EAGER)   //default is LAZY
+    @CollectionTable(name = "user_addresses", joinColumns = @JoinColumn(name = "user_id"))        //user_addresses table will have a user_id column
+    @AttributeOverrides({
+            @AttributeOverride(name = "addressLine1", column = @Column(name = "house_number")),   //name of table column will be house_number of table user_addresses
+            @AttributeOverride(name = "addressLine2", column = @Column(name = "street"))
+    })
+    private Set<Address> addresses = new HashSet<>();                //(default name is <Entity-name>_<property-name> can be overwritten @CollectionTable(name = "custom_name"))
+	
+	==========================
+	    StandardServiceRegistry ssr = new StandardServiceRegistryBuilder().configure("hibernate.cfg.xml").build();  
+    Metadata meta = new MetadataSources(ssr).getMetadataBuilder().build();  
+  
+SessionFactory factory = meta.getSessionFactoryBuilder().build();  
+Session session = factory.openSession();  
+Transaction t = session.beginTransaction();   
+            
+    Employee e1=new Employee();    
+    e1.setId(101);    
+    e1.setFirstName("Gaurav");    
+    e1.setLastName("Chawla");    
+        
+    session.save(e1);  
+    t.commit();  
+    System.out.println("successfully saved");    
+    factory.close();  
+    session.close();    
+	----------------------
+	
+	
+	LazyInitializationException
+	
+	====================
+	
+	Inheritance:
+	single table
+	table per class
+	joined

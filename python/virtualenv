@@ -1,0 +1,19 @@
+sudo pip install virtualenv
+sudo pip install virtualenvwrapper
+
+
+
+create a new env:
+>virtualenv -p python2.7 testenv
+
+activate an environent:
+>source testenv/bin/activate
+
+deactivate current env:
+>deactivate
+
+list all env:
+>lsvirtualenv
+
+remove an environment:
+>rmvirtualenv testenv

@@ -1,0 +1,128 @@
+
+install istio on minikube:
+
+minikube start --memory=5192 --cpus=3 --kubernetes-version=v1.10.0    --extra-config=controller-manager.cluster-signing-cert-file="/var/lib/localkube/certs/ca.crt"  --extra-config=controller-manager.cluster-signing-key-file="/var/lib/localkube/certs/ca.key" --vm-driver=virtualbox
+
+
+
+Install istio:
+download from https://github.com/istio/istio/releases
+Add bin in your classpath so that istiocli is accessible
+
+
+
+git clone https://github.com/istio/istio.git
+
+https://medium.com/@bufferings/istio-bookinfo-on-minikube-1-deploy-app-7c953d18913d
+
+kubectl create -f install/kubernetes/helm/helm-service-account.yaml
+
+
+I used kubectl -n kube-system delete deployment tiller-deploy and kubectl -n kube-system delete service/tiller-deploy. Then helm --init worked. I was missing removing the service previously.
+
+
+
+https://medium.com/@bufferings/start-understanding-istio-installation-on-minikube-cc06633eb055
+
+minikube start --vm-driver=virtualbox --extra-config=controller-manager.cluster-signing-cert-file="/var/lib/localkube/certs/ca.crt" --extra-config=controller-manager.cluster-signing-key-file="/var/lib/localkube/certs/ca.key" --extra-config=apiserver.admission-control="NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota" --kubernetes-version=v1.10.0 --memory=5096
+
+minikube start --vm-driver=virtualbox --extra-config=controller-manager.cluster-signing-cert-file="/e/DockerToolbox/Minikube/.minikube/ca.crt" --extra-config=controller-manager.cluster-signing-key-file="/e/DockerToolbox/Minikube/.minikube/ca.key" --extra-config=apiserver.admission-control="NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota" --kubernetes-version=v1.10.0 --memory=5096
+
+minikube start --vm-driver=virtualbox --extra-config=controller-manager.cluster-signing-cert-file="/c/Users/abc/ca.crt" --extra-config=controller-manager.cluster-signing-key-file="/c/Users/abc/ca.key" --extra-config=apiserver.admission-control="NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota" --kubernetes-version=v1.10.0 --memory=5096
+
+kubectl create -f install/kubernetes/helm/helm-service-account.yaml
+helm init --service-account tiller
+
+kubectl get pods -n kube-system
+
+helm install install/kubernetes/helm/istio --name istio --namespace istio-system     
+      
+kubectl get svc -n istio-system
+
+
+
+kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
+istioctl create -f samples/bookinfo/networking/bookinfo-gateway.yaml
+
+another resource:  https://medium.com/@bufferings/istio-bookinfo-on-minikube-1-deploy-app-7c953d18913d
+
+===================
+minikube start --memory=5192 --cpus=3 --kubernetes-version=v1.10.0   --vm-driver=virtualbox
+     
+ kubectl apply -f install/kubernetes/helm/istio/templates/crds.yaml
+ kubectl apply -f install/kubernetes/helm/istio/charts/certmanager/templates/crds.yaml
+ helm template install/kubernetes/helm/istio --name istio --namespace istio-system > $HOME/istio.yaml
+ kubectl create namespace istio-system
+ kubectl apply -f $HOME/istio.yaml
+
+
+From ISTIO_HOME:
+kubectl label namespace default istio-injection=enabled
+kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl get services
+kubectl get pods
+kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
+kubectl get gateway
+========================
+Every pod has an Envoy proxy.
+
+Features:
+1.Canary Deployment:
+   we can deploy new release with 20% of new instance and 80% old instance.Istio will take care of this routing(based of request ).
+   If new release instance works as expected then number of new instances can be increased gradually until all old instances are removed.
+   Routing can be done based on region or agent(browser / android).
+   This can be achieve without istio also but for that we need to make application level changes which is not good.
+   Canary rules are sent by a control plane component called "Pilot".
+   This feature provided by istio pilot+envoy.
+
+2.Resiliency:
+  An application may have multiple microservices which are dependent on each other.If one service fails many other service may fail as well which are dependent on it(cascading failure).
+  We can prevent this from hapenning by using circuit breaker by putting threshold by timeout,No. of request.Istio provide this feature. 
+  Sometime a service can be down temporarily in those case retry might be helpful, Istio also provides this retry feature.
+  Istio also support loadbalancing based of health check.
+  These all features are provided by istio pilot+envoy.
+
+3.Fault injection:
+  Istio has builtin feature like chaos monkey,used for testing the resiliency of your application.
+  It supports two types of fault injection:
+   a)delay
+   b)abort
+  This feature provided by istio pilot+envoy.
+
+4.Traffic mirroring:
+  A user requset going to production instance may be duplicated and sent to a test instance.This way we can test our test env with real data.
+  Note:the real request going to prod instance is not affected.
+
+5.Observability or telemetry:
+ Troubleshooting the application issues is a very big challange specially in microservices.
+  distributed tracing(Zipkin or Jaeger),monitoring and alerting (prometheus/data dog),service graph
+  Envoy + istio Mixer achieves this. Mixer has concept of plugins whict can connect to prometheus,aws,heapster,elk etc.We can visualize them with grafana.
+
+Istio also offere security features like mutual TLS authentication.
+
+
+All envoy together form Data plane, Istio is Control plane.
+
+
+Envoy(sidecar): 
+it acts as a proxy, by changing few iptables it makes sure all of its service traffic goes through it.
+
+Mixer(part of istio):
+For every outgoing request from service,envoy takes it and sends it to "Mixer" if it Oks it,then the request travel to another service but only via its envoy proxy.
+Even after request is successfully sent envoy sends telemetry data about that request to Mixer.
+Every envoy talks to the mixer the same way.
+Mixer has concept of plugins whict can connect to prometheus,aws,heapster,elk etc.We can visualize them with grafana.
+
+Pilot(part of istio): 
+You can define rules(eg traffic routing) and policies in Pilot.Which are transferred to per  Envoy.
+
+catadel(part of istio):
+Store all security related stuffs.
+
+galley(part of istio):
+configuration manager  
+
+Data plane:
+The data plane is implemented in such a way that it intercepts all inbound (ingress) and outbound (egress) network traffic.
+Your business logic, your app, your microservice is blissfully unaware of the fact that a lot of interesting cross-cutting concerns are now being applied automatically.
+

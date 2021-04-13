@@ -1,1 +1,0 @@
-kubeless function deploy get-java --runtime java1.8 --handler Foo.foo --from-file Foo.java

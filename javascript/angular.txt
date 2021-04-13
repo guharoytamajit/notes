@@ -165,6 +165,10 @@ Another way to pass an element to function is by using local reference(using #)
 <input #myInput>
 <button (click)="myMethod(myInput)">submit</button>
 
+we can get value as:
+myMethod(myInput){
+console.log(myInput.value);
+}
 ==============
 Another way of doing the same is by using @ViewChild
 

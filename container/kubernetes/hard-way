@@ -1,0 +1,51 @@
+k8s cluster from scratch:
+
+using kubeadm:
+kubeadm allows us to quickly provision a secure k8s cluster.
+
+
+1)create to VM one for master another for worker node.
+
+install docker on each machine:
+>yum -y install docker
+>systemctl start docker
+>systemctl enable docker
+
+=======================
+Multi master configuration:
+Master has control-plane components like api-server,controller-manager,scheuler and etcd
+
+kube-api-server:
+multiple kube-api-server can run in parallel,but only one should serve the request from kubectl,so we can configure a load-balancer before set of kube-api-servers.
+------------------
+kube-controller-manager:
+In multiple master configuration there is more than one controller-manager  only one of them should be active and others should be in stand-by mode(to avoid duplicate work)
+
+>kube-controller-manager --leader-elect true [other options]   #--leader-elect by default is true allows to decide which is active controller-manager
+--leader-elect-lease-duration 15s                                          #after how much time active controller-manager can old the lock
+--leader-elect-renew-deadline 10s                                         #active controller-manager must renew its lease after this period to remain the active controller-manager,otherwise re-election
+--leader-elect-retry-period 2s                                                 
+-------------------
+kube-scheduler:
+kube-scheduler follows similar approach like kube-controller-manager for HA.also have similay command line options.
+
+
+-----------------
+etcd:
+Can be deployed in master, or can be an independent etcd cluster hosted outside master.
+Note: 
+   api-server is the only component that talks to  etcd server
+   
+Etcd cluster:
+etcd is a a distributed reliable key-value store 
+It can have leader node and multiple follower node.
+data can be read from any nodes.
+write operation only allowed from leader node(then data replicated on other nodes), if write req comes to a follower node it is forwarded to the leader to write.  
+It focuses highly on consistency,write is only considered comple it leader gets ack from majority of followers
+
+For leader election etcd uses RAFT protocol
+RAFT protocol uses random timer for  initiating request to be leader from each nodes to all other nodes. The first node to sent request with akc from others becomes leader.
+Master sends notification toother nodes at regular inter val,In future other nodes does not receive signal from leader then re-electtion will take place among remaining nodes.
+
+
+

@@ -1,0 +1,85 @@
+minikube start --memory=5192 --cpus=3 --kubernetes-version=v1.10.0   --vm-driver=virtualbox
+=================
+Install kubeless
+Step1: Download the kubeless CLI:
+https://github.com/kubeless/kubeless/releases
+keep this in PATH
+
+Step 2: Create a kubeless namespace
+>kubectl create ns kubeless
+
+Step 3:Then use one of the YAML manifests found in the release page
+There are several kubeless manifests being shipped for multiple k8s environments (non-rbac, rbac and openshift), pick the one that corresponds to your environment:
+
+    kubeless-$RELEASE.yaml is used for RBAC Kubernetes cluster.
+    kubeless-non-rbac-$RELEASE.yaml is used for non-RBAC Kubernetes cluster.
+    kubeless-openshift-$RELEASE.yaml is used to deploy Kubeless to OpenShift (1.5+).
+
+ >export RELEASE=$(curl -s https://api.github.com/repos/kubeless/kubeless/releases/latest | grep tag_name | cut -d '"' -f 4)
+ >kubectl create -f https://github.com/kubeless/kubeless/releases/download/$RELEASE/kubeless-$RELEASE.yaml
+===============
+ View all supported runtimes:
+ >kubeless get-server-config
+===test.py====
+def hello(event, context):
+  print event
+  return event['data']
+  
+  >kubeless function deploy hello --runtime python2.7  --from-file test.py  --handler test.hello
+								
+
+help:
+kubeless [command] --help 
+kubeless function deploy --help 
+
+$ kubectl get functions
+NAME         AGE
+hello        1h
+
+$ kubeless function ls  
+OR
+$ kubeless function list
+NAME            NAMESPACE   HANDLER       RUNTIME   DEPENDENCIES    STATUS
+hello           default     helloget.foo  python2.7                 1/1 READY
+
+
+$ kubeless function call hello --data "Hello world!"
+O/p:Hello world!
+
+$ kubectl proxy -p 8080 &
+
+$ curl -L --data '{"Another": "Echo"}' --header "Content-Type:application/json"  localhost:8080/api/v1/namespaces/default/services/hello:http-function-port/proxy/
+O/p:{"Another": "Echo"}
+
+
+update:
+>kubeless function update hello --runtime python2.7  --from-file test.py  --handler test.hello
+
+details:
+>kubeless function describe hello
+
+logs:
+>kubeless function logs hello
+
+metrics:
+>kubeless function top
+test changing metrics with multiple curl requests:
+>while true;do curl -L --data '{"Another": "Echo"}' --header "Content-Type:application/json"  localhost:8080/api/v1/namespaces/default/services/hello:http-function-port/proxy/; done
+
+
+delete function:
+$ kubeless function delete hello
+========================
+Debug:
+If a function doesnot starts up ie. >kubeless function ls <function_name> showing "NOT READY".
+step1=> find pod:
+get pods -l function=<function-name>
+
+step 2=> check that pod logs:
+kubectl logs <pod-name>
+
+OR
+
+kubectl logs -l function=<function_name>
+
+==============

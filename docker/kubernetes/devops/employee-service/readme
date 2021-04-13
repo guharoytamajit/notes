@@ -1,5 +1,0 @@
-mvn clean package
-docker login
-docker build -t employee:1.1 . 
-docker tag  employee:1.1 guharoytamajit/employee:1.1 
-docker push guharoytamajit/employee:1.1

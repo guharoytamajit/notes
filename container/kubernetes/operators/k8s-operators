@@ -1,0 +1,66 @@
+operator is a controller which manages the life cycle of particular kubernetes resource(s)
+Operator is a combination of "Custom Resource" and a "Controller" managing the custom resource. 
+
+There are many native kubernetes resources like pods, deployments, statefulsets, services etc. Each of resources have a corresponding controller process running(currently inside the controller manager).
+When you create/modify instance of one of the native kubernetes resources using kubectl apply for example, the new/updated object will stored in etcd and api-server will notify the controller about change. The specification in etcd is called the desired state. The job of the controller is to identify the actual state of the cluster and to reconcile it with desired state.
+
+Similar to native kubernetes resources, kubernetes also allows you to create new types of resources using "Custom Resource Definitions". You can also write a controller whose job is to reconcile the your new custom resource. This is called an operator. 
+Usually operators are written to manage the deployment, lifecycle of applications on kubernetes. For example  Prometheus guys have created a custom resource called Prometheus using which you can express the desired state of a Prometheus cluster and an controller which reconciles the desired state with actual state. This controller is called Prometheus operator.
+
+levels of operator maturity:
+1)install
+2)update/upgrade
+3)manage lifecycle eg automte backup and other lifecycle activities
+4)insight. eg metrics collection
+5)autopilot
+
+https://medium.com/@cloudark/kubernetes-operator-faq-e018132c6ea2
+https://medium.com/@cloudark/kubernetes-operators-and-helm-it-takes-two-to-tango-3ff6dcf65619
+
+An Operator Or A Custom Controller?
+A custom controller acts and listens on native Kubernetes resources(pod,configmap) and events, an Operator works with Custom Resource Definitions (CRDs), resources that the user creates to solve complex business problems. An Operator can be thought of as a replacement to the human operator. Someone who is aware of the technical details of the application and also knows the business requirements and acts accordingly.
+so operator is like controller of CRDs.
+
+https://www.magalix.com/blog/creating-custom-kubernetes-operators
+
+https://opensource.com/article/20/3/kubernetes-operator-sdk
+
+===========================
+Install the Operator SDK:
+$ wget https://github.com/operator-framework/operator-sdk/releases/download/v0.15.2/operator-sdk-v0.15.2-x86_64-linux-gnu
+$ sudo mv operator-sdk-v0.15.2-x86_64-linux-gnu /usr/local/bin/operator-sdk
+$ sudo chmod +x /usr/local/bin/operator-sdk
+
+
+The operator-sdk binary can be used to generate the boilerplate code common to many different Operators. 
+
+========================
+
+No matter how complex or simple your controller is, these three steps—read resource state ˃ change the world ˃ update resource status—remain the same.
+
+
+Controller typically uses the following data structures:
+ 1.Informers:
+ Informers watch the desired state of resources in a scalable and sustainable fashion. They also implement a resync mechanism (see “Informers and Caching” for details) that enforces periodic reconciliation, and is often used to make sure that the cluster state and the assumed state cached in memory do not drift
+ 
+ 2)Work queues:
+ =================================
+ k8s terms:
+ 
+ Kind  => like java class
+ resource =>A usually lowercase, plural word (e.g., pods) identifying a set of HTTP endpoints (paths) exposing the CRUD 
+ API group=> like package(allows two kind with same name if api group is different)  or maven groupid
+ Version => like maven artifact version
+ 
+ 
+ Resources and kinds are often mixed up. 
+ Note the clear distinction:
+ Resources correspond to HTTP paths.
+ Kinds are the types of objects returned by and received by these endpoints, as well as persisted into etcd.
+ 
+  /apis/batch/v1/namespaces/default/jobs
+  
+  batch=>group name
+  v1=>version
+  default=>namespace
+  jobs=>resource

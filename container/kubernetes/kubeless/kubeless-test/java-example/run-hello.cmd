@@ -1,0 +1,1 @@
+kubeless function deploy get-java-deps --runtime java1.8 --handler Hello.sayHello --from-file Hello.java --dependencies pom.xml

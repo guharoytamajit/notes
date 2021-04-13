@@ -1,0 +1,125 @@
+
+
+
+
+
+
+
+Microservices Pattern:
+https://dzone.com/articles/design-patterns-for-microservices#:~:text=There%20are%20many%20other%20patterns,Continuous%20Delivery%20Patterns%2C%20and%20more.
+https://medium.com/edureka/microservices-design-patterns-50640c7bf4a9
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------
+DDD:
+
+What is Domain?
+ The domain is the “sphere of knowledge and activity around which the application logic revolves."
+ Domain in the realm of software engineering commonly refers to the subject area on which the application is intended to apply.
+ A domain in software engineering field is business on which application is intended to build.
+ 
+Domain-Driven Design (DDD) is a set of principles and tools that helps us design effective software architectures to deliver higher business value.  
+
+Domain = Your Business
+domain logic = Business logic
+Domain Model = Code that represents this business
+
+The business logic of an application is a set of rules and guidelines that explain how business object should interact with each other to process modeled data.
+
+
+Suppose we have designed software using all latest tech stack and infrastructure and our software design architecture is fabulous, but when we release this software in market, it is ultimately end user who decides whether our system is great or not.
+According to Eric Evans, When we are developing software our focus should not be primarily on technology, rather it should be primarily on business
+
+Domain-driven design talks about two kinds of design tools, first one is Strategic design tools and another one is Tactical design tools. The programmers or developers usually deal with tactical design tools but if we have knowledge and a good understanding of strategic design tools then it will help us in architecting good software.
+
+Do not start applying DDD by Tactical (creation of Entities, Repositories, Value Objects and etc.). Spend time on Strategic because that’s where your architecture will be defined!
+
+-------------------
+strategy vs tactics:
+Strategy defines your long-term goals and how you're planning to achieve them.
+Tactics are the specific actions or steps you undertake to accomplish your strategy.
+For example, in a war, a nation’s strategy might be to win the hearts and minds of the opponent’s civilian population. To achieve this they could use tactics such as radio broadcasts or building hospitals.
+-------------------
+
+--------Strategic Design ------
+The strategic design tools help us to solve all problems that are related to software modeling. It is a design approach that is similar to Object-oriented design where we are forced to think in terms of objects. Herewith strategic design we are forced to think in terms of a context.
+
+Context: The setting in which a word or statement appears that determines its meaning. Statements about a model can only be understood in a context.
+
+Model: A system of abstractions that describes selected aspects of a domain and can be used to solve problems related to that domain.
+
+Ubiquitous Language: A language structured around the domain model and used by all team members to connect all the activities of the team with the software.
+ DDD focuses on collaboration between technical experts and do experts
+ 
+Bounded Context: A description of a boundary (typically a subsystem, or the work of a specific team) within which a particular model is defined and applicable.
+A Bounded Context is a logical boundary of a domain where particular terms and rules apply consistently. Inside this boundary, all terms, definitions, and concepts form the Ubiquitous Language.
+Bounded Context is one of the central and essential patterns to rescue architecture from the Big Ball Of Mud by segregating the whole application domain into multiple semantically-consistent parts.
+
+A Context Map is a visual description of relationships between different contexts of the system. 
+-------Tactical Design------
+Tactical design talks about implementation details i.e., modeling domain. It generally takes care of components inside a bounded context.
+
+Entity:
+Objects that have a distinct identity
+Remember there can be a change in state of property but identity never changes.
+In context of programming, it generally persisted as a row in DB and it consists of value objects.
+It implements some business logic specific to the entity.
+
+Value Objects:
+@Embeddable in hibernate
+immutable, light-weight objects that don’t have any identity.
+
+User=>Entity
+Address=>Value Object
+
+Services:
+contains business logic which are not in realm of Entity.	
+A service is a stateless class
+
+Aggregates:
+An aggregate is a collection of entities and values which come under a single transaction boundary.
+Aggregate is always consistent in nature.Domain events are generated to ensure eventual consistency
+Aggregates basically, control change and have a root entity called aggregate roots.
+The root entity governs lifetime of other entities in aggregates.
+If root entity is deleted  other entities will be of no use and this associated information will also be deleted. 
+
+Domain events:
+It enables microservices to interact asynchronously, for every publisher there can be n number of consumers.
+ Domain Events strategy is nothing more than an event fired from a Context X microservice with information that may interest other contexts.
+ if address of User has been changed then it has to be reflected in Order as well. To do so we can fire a domain event from User to Order so that Order updates address so that we have eventual consistency and Order will be eventually consistent.
+ 
+ Event Sourcing ,CQRS or Message broker.
+
+Factories: 
+Factories help in creating aggregates.
+Some of these patterns are: Factory Method, Abstract Factory, and Builder.
+
+Repositories:
+Repositories help in persisting aggregates. We should always create a repository per aggregate root but not for all entities.
+
+Commands: that request a change of state within the Bounded Context
+Queries: that request the state of the Bounded Context
+Events: that notify the state change of the Bounded Context
+

@@ -1,0 +1,15 @@
+Distributed transaction:
+
+Transaction:  All or nothing.
+
+Every Distributed sytem components at some point of time needs to agree upon some decisions to work together.
+This process is called consensus
+
+Common consensus algorithms:
+raft
+saga
+paxos
+chubby
+Two phase commit
+narayan lra
+

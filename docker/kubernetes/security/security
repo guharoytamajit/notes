@@ -1,4 +1,0 @@
-kubernetes attack server:
-1)attack on api server,kubelet or etcd
-2)attack on exposed web app endpoint
-3)getting access to container

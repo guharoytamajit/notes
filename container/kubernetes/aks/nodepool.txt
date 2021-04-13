@@ -1,0 +1,60 @@
+#sets auto scaling in default pool
+az aks create \
+  --resource-group myResourceGroup \
+  --name myAKSCluster \
+  --node-count 1 \
+  --vm-set-type VirtualMachineScaleSets \
+  --load-balancer-sku standard \
+  --enable-cluster-autoscaler \
+  --min-count 1 \
+  --max-count 2 \
+  --enable-addons monitoring --node-vm-size Standard_B2ms  --zones 1 2 3  --vnet-subnet-id /subscriptions/563ac70a-e26c-48fd-a47c-8b4c35ef90cf/resourceGroups/MyResourceGroup/providers/Microsoft.Network/virtualNetworks/MyVnet/subnets/MySubnet --network-plugin azure   --network-policy   azure  --service-cidr 11.2.0.0/19  --dns-service-ip 11.2.0.10
+  
+  
+    az aks nodepool add \
+    --resource-group myResourceGroup \
+    --cluster-name myAKSCluster \
+    --name mynodepool \
+    --node-count 1 \
+    --enable-cluster-autoscaler \
+    --min-count 1 \
+    --max-count 2 \
+	--node-vm-size Standard_B2ms \
+   --zones 1 2 3	
+	
+	
+	
+	
+	
+    --scale-down-delay-after-add=1m
+
+  
+ ---------------------------------------------------------------------------- 
+  az aks nodepool update \
+  --resource-group myResourceGroup \
+  --cluster-name myAKSCluster \
+  --name mynodepool \
+  --enable-cluster-autoscaler \
+  --min-count 1 \
+  --max-count 3
+  
+  
+  az aks nodepool list --resource-group myResourceGroup --cluster-name myAKSCluster
+  
+  az aks nodepool add \
+    --resource-group myResourceGroup \
+    --cluster-name myAKSCluster \
+    --name mynodepool \
+    --node-count 3 \
+    --kubernetes-version 1.15.5
+    --vnet-subnet-id <YOUR_SUBNET_RESOURCE_ID>
+	
+	
+	az aks nodepool scale \
+    --resource-group myResourceGroup \
+    --cluster-name myAKSCluster \
+    --name mynodepool \
+    --node-count 5 \
+    --no-wait
+	
+	az aks nodepool delete -g myResourceGroup --cluster-name myAKSCluster --name mynodepool --no-wait

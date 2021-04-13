@@ -1,9 +1,0 @@
-
-open dashboard:
-az aks browse --resource-group cin-s03-uat-rsg-ibg-01 --name clst-cin-s03-dev-kub-01
-
-Still showing no resources,execute the below commands
-
-
-kubectl delete clusterrolebinding kubernetes-dashboard
-kubectl create clusterrolebinding kubernetes-dashboard --clusterrole=cluster-admin --serviceaccount=kube-system:kubernetes-dashboard --user=clusterUser

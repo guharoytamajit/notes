@@ -1,2 +1,0 @@
-For ReadWriteMany use Deployment
-For ReadWriteOnce use Statefulset

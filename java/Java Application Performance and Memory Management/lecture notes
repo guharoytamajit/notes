@@ -244,3 +244,6 @@ GC vm args:
 -verbose:gc
 
 in output GC => minor GC    and  "Full GC" => a mojir GC
+
+
+-XX:-UseAdaptiveSizePolicy

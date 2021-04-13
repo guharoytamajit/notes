@@ -1,0 +1,15 @@
+This is only readonly,can only see cannot manage
+We can visualize our cluster
+all nodes
+what pods are running in which node(dynamic)
+how healthy our system is.
+======================
+download repo  from git:  https://github.com/hjacobs/kube-ops-view.git
+goto "deploy" ditectory,which has all k8s yaml files.
+If you want you can make changes for example you can change service type to nodeport and delete ingress
+
+>kubectl create -f .
+
+now you can acces it as https://<ip of any worker node>:<nodeport>
+
+to scale image size  to 2X  append "/#scale=2.0" to above url

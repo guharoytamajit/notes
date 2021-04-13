@@ -1,0 +1,72 @@
+kubeadm init --apiserver-advertise-address=10.122.0.2  --pod-network-cidr 10.32.0.0/12 --service-cidr 10.96.0.0/12 --node-name master
+ip route add 10.96.0.0/12 dev eth1
+
+
+cat >>/etc/hosts<<EOF
+10.122.0.2 master
+10.122.0.3 node1
+EOF
+
+kubeadm join 10.122.0.4:6443 --token 17zw7o.jv3h76si6iy1qh94 \
+    --discovery-token-ca-cert-hash sha256:4c3b8a9bea5f6d076eb5554cea93c325559632dae09fe6eef18a13aa1a1ca428 --node-name node1
+
+apt-cache madison kubeadm|less
+apt-cache show kubeadm|less
+
+
+---------------
+scheduler and controller-manager health issue fix:
+
+NAME                 STATUS      MESSAGE                                                                                       ERROR
+scheduler            Unhealthy   Get "http://127.0.0.1:10251/healthz": dial tcp 127.0.0.1:10251: connect: connection refused   
+controller-manager   Unhealthy   Get "http://127.0.0.1:10252/healthz": dial tcp 127.0.0.1:10252: connect: connection refused   
+etcd-0               Healthy     {"health":"true"}  
+
+
+
+cd /etc/kubernetes/manifests/
+
+comment "- --port=0 " on below two fles
+
+vi kube-scheduler.yaml
+vi kube-controller-manager.yaml 
+
+systemctl restart kubelet.service
+
+kubectl get cs
+Warning: v1 ComponentStatus is deprecated in v1.19+
+NAME                 STATUS    MESSAGE             ERROR
+controller-manager   Healthy   ok                  
+scheduler            Healthy   ok                  
+etcd-0               Healthy   {"health":"true"} 
+----------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
