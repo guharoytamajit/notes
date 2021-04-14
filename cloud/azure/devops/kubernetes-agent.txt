@@ -10,7 +10,7 @@ az aks update --resource-group myRg --name tamajitaks  --attach-acr tamajitacr
 
 https://dev.azure.com/guharoytamajit
 
-4isy6kj4xltnh4lw2ipbkssean66aqg424rjyndsjqe3arfitb4a
+4isy6kj4xltnh4lwu2ipbkssean66aqg424rjynd#sjqe3ahrfitb4a
 
 
 apiVersion: apps/v1
