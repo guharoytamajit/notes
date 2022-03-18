@@ -1,0 +1,204 @@
+----------------------------
+Common predefined variables:
+----------------------------
+Build.SourcesDirectory(or Build.Repository.LocalPath):
+The local path on the agent where your source code files are downloaded. For example: c:\agent_work\1\s
+
+Build.ArtifactStagingDirectory:
+The local path on the agent where any artifacts are copied to before being pushed to their destination. For example: c:\agent_work\1\a
+
+Build.BinariesDirectory:
+The local path on the agent you can use as an output folder for compiled binaries.
+By default, new build pipelines are not set up to clean this directory. You can define your build to clean it up on the Repository tab.
+For example: c:\agent_work\1\b.
+
+
+------------------
+Common Tasks:
+------------------
+Copy Files task:
+
+Copy files from a source folder to a target folder using patterns matching file paths (not folder paths)
+
+syntax:
+
+- task: CopyFiles@2
+  inputs:
+    #sourceFolder: #Optional  by default the copying is done from the root folder of the repo (ie. $(Build.SourcesDirectory)).
+    #contents: '**' # *=> all files in a path, **=> all files and directory of a path, **/bin/**=> all bin directories
+    targetFolder:  $(build.artifactstagingdirectory)  #destination 
+    #cleanTargetFolder: false # Optional
+    #overWrite: false # Optional
+    #flattenFolders: false # Optional
+    #preserveTimestamp: false # Optional
+	
+--example--
+Copy all files and directories from _buildOutput of source repository to artifact directory and publish it using name MyBuildOutputs.
+
+steps:
+- task: CopyFiles@2
+  inputs:
+    contents: '_buildOutput/**'
+    targetFolder: $(Build.ArtifactStagingDirectory)
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathToPublish: $(Build.ArtifactStagingDirectory)
+    artifactName: MyBuildOutputs	
+	
+-----------------------------
+Publish artifacts:
+
+
+Pipeline artifacts provide a way to share files between stages in a pipeline or between different pipelines. 
+They are typically the output of a build process that needs to be consumed by another job or be deployed. 
+Artifacts are associated with the run they were produced in and remain available after the run has completed.
+.artifactignore uses the identical file-globbing syntax of .gitignore
+
+Note:It is recommend upgrading from build artifacts (PublishBuildArtifacts@1 and DownloadBuildArtifacts@0) to pipeline artifacts (PublishPipelineArtifact@1 and DownloadPipelineArtifact@2) for faster output storage speeds.
+
+--example--
+steps:
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: $(System.DefaultWorkingDirectory)/bin/WebApp
+    artifactName: WebApp
+	
+Download artifacts:
+
+--example--
+steps:
+- task: DownloadPipelineArtifact@2
+  inputs:
+    artifact: WebApp  # The name of the artifact to download.If left empty, all artifacts associated with the pipeline run will be downloaded.
+
+The following example illustrates how to download all *.js from an artifact WebApp:
+steps:
+- task: DownloadPipelineArtifact@2
+  inputs:
+    artifact: WebApp
+    patterns: '**/*.js'
+    path: $(Build.SourcesDirectory)/bin	
+	
+---------------
+Maven task:
+
+https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/build/maven?view=azure-devops
+
+# Maven
+# Build, test, and deploy with Apache Maven
+- task: Maven@3
+  inputs:
+    #mavenPomFile: 'pom.xml' 
+    #goals: 'package' # Optional
+    #options: # Optional
+    #publishJUnitResults: true 
+    #testResultsFiles: '**/surefire-reports/TEST-*.xml' # Required when publishJUnitResults == True
+    #testRunTitle: # Optional
+    #allowBrokenSymlink: false # Optional. Has effect only when publishJUnitResults == True
+    #codeCoverageToolOption: 'None' # Optional. Options: none, cobertura, jaCoCo. Enabling code coverage inserts the `clean` goal into the Maven goals list when Maven runs.
+    #codeCoverageClassFilter: # Optional. Comma-separated list of filters to include or exclude classes from collecting code coverage. For example: +:com.*,+:org.*,-:my.app*.*
+    #codeCoverageClassFilesDirectories: # Optional
+    #codeCoverageSourceDirectories: # Optional
+    #codeCoverageFailIfEmpty: false # Optional
+    #javaHomeOption: 'JDKVersion' # Options: jDKVersion, path
+    #jdkVersionOption: 'default' # Optional. Options: default, 1.11, 1.10, 1.9, 1.8, 1.7, 1.6
+    #jdkDirectory: # Required when javaHomeOption == Path
+    #jdkArchitectureOption: 'x64' # Optional. Options: x86, x64
+    #mavenVersionOption: 'Default' # Options: default, path
+    #mavenDirectory: # Required when mavenVersionOption == Path
+    #mavenSetM2Home: false # Required when mavenVersionOption == Path
+    #mavenOptions: '-Xmx1024m' # Optional
+    #mavenAuthenticateFeed: false 
+    #effectivePomSkip: false 
+    #sonarQubeRunAnalysis: false 
+    #sqMavenPluginVersionChoice: 'latest' # Required when sonarQubeRunAnalysis == True# Options: latest, pom
+    #checkStyleRunAnalysis: false # Optional
+    #pmdRunAnalysis: false # Optional
+    #findBugsRunAnalysis: false # Optional
+	
+----------------------
+Docker:
+
+commands available: buildAndPush(default), build, push, login, logout,start, stop
+	
+--example1--	
+- task: Docker@2
+  displayName: Login to ACR
+  inputs:
+    command: login
+    containerRegistry: dockerRegistryServiceConnection1
+
+--example2--
+steps:
+- task: Docker@2
+  displayName: Login to ACR
+  inputs:
+    command: login
+    containerRegistry: dockerRegistryServiceConnection1
+- task: Docker@2
+  displayName: Login to Docker Hub
+  inputs:
+    command: login
+    containerRegistry: dockerRegistryServiceConnection2
+- task: Docker@2
+  displayName: Build and Push
+  inputs:
+    command: buildAndPush
+    repository: contosoRepository
+    tags: |
+      tag1
+      tag2	
+
+In the above snippet, the images contosoRepository:tag1 and contosoRepository:tag2 are built and pushed to the container registries corresponding to dockerRegistryServiceConnection1 and dockerRegistryServiceConnection2.	  
+------------------
+
+Kubernetes task:
+
+variables:
+  azureSubscriptionEndpoint: Contoso
+  azureContainerRegistry: contoso.azurecr.io
+  azureResourceGroup: Contoso
+  kubernetesCluster: Contoso
+  useClusterAdmin: false
+
+steps:
+- task: Kubernetes@1
+  displayName: kubectl apply
+  inputs:
+    connectionType: Azure Resource Manager
+    azureSubscriptionEndpoint: $(azureSubscriptionEndpoint)
+    azureResourceGroup: $(azureResourceGroup)
+    kubernetesCluster: $(kubernetesCluster)
+    useClusterAdmin: $(useClusterAdmin)
+	
+---kubernetes command----	
+- task: Kubernetes@1
+  displayName: kubectl apply using configFile
+  inputs:
+    connectionType: Azure Resource Manager
+    azureSubscriptionEndpoint: $(azureSubscriptionEndpoint)
+    azureResourceGroup: $(azureResourceGroup)
+    kubernetesCluster: $(kubernetesCluster)
+    command: apply
+    useConfigurationFile: true
+    configuration: mhc-aks.yaml	
+	
+-------------------
+
+Kubernetes Manifest task:
+
+steps:
+- task: KubernetesManifest@0
+  displayName: Deploy
+  inputs:
+    kubernetesServiceConnection: someK8sSC1
+    namespace: default
+    manifests: |
+      manifests/deployment.yml
+      manifests/service.yml
+    containers: |
+      foo/demo:$(tagVariable1)
+      bar/demo:$(tagVariable2)
+    imagePullSecrets: |
+      some-secret
+      some-other-secret

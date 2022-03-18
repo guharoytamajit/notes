@@ -1,0 +1,10 @@
+main config file:
+>$CONFLUENT_HOME/etc/kafka/server.properties
+
+Add $CONFLUENT_HOME/bin to path
+
+Start server:
+>confluent local services start
+
+Dashboard:
+localhost:9021/clusters

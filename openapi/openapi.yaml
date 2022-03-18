@@ -25,13 +25,13 @@ paths:
   /v1/customers:
     get:
       tags:
-      - Customers
-      summary: List Customers
-      description: Get a list of customers in the system
-      operationId: listCustomersV1
+      - customers                                             # name of controller hyphen seperated instead of camelcase
+      summary: List Customers                                 #@Operation(summary = "List Customers")
+      description: Get a list of customers in the system      #@Operation(description = "")
+      operationId: listCustomersV1                            #controller method name
       parameters:
-      - name: pageNumber
-        in: query
+      - name: pageNumber                                      #parameter name
+        in: query                                             #query =>query param, path=> path param
         description: Page Number
         required: false
         style: form

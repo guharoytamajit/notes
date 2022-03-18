@@ -1,11 +1,7 @@
-when you attach a new harddisk it will be added as
-/dev/sda
-/dev/sdb
-/dev/sdc
 
-
-here we have 4 disks a,b,c,d. disk a is partitioned.other three disks are available for use 
-
+lsblk=> see all  disks , physical partitions and mountpoint
+lsblk -f =>see all physical partition's filesystem and mountpoint
+df =>see all physical and logical partition's mountpoints. Also used and available space
 
 Physical Volumes:
 LVM utility prefix: pv...
@@ -18,6 +14,17 @@ LVM utility prefix: lv... (generic LVM utilities might begin with lvm...)
 Description: A volume group can be sliced up into any number of logical volumes. Logical volumes are functionally equivalent to partitions on a physical disk, but with much more flexibility. Logical volumes are the primary component that users and applications will interact with.
 
 In summary, LVM can be used to combine physical volumes into volume groups to unify the storage space available on a system. Afterwards, administrators can segment the volume group into arbitrary logical volumes, which act as flexible partitions.
+
+when you attach a new harddisk it will be added as
+/dev/sda
+/dev/sdb
+/dev/sdc
+
+
+here we have 4 disks a,b,c,d. disk a is partitioned.other three disks are available for use 
+
+>lsblk
+
 
 >sudo lvmdiskscan
   /dev/sda1 [     <40.00 GiB] 
@@ -131,6 +138,11 @@ Now we can see no more space is left in LVMVolGroup(as VFree = 0)
   workspace LVMVolGroup -wi-ao---- 852.00m                                                    
   www       LVMVolGroup -wi-ao---- 300.00m 
 =========================================
+>pvdisplay
+>lvdisplay
+>vgdisplay
+
+
 Format and Mount the Logical Volumes:
 The logical devices are available within the /dev directory just like other storage devices. You can access them in two places:
 /dev/volume_group_name/logical_volume_name
@@ -138,7 +150,7 @@ The logical devices are available within the /dev directory just like other stor
 
 Format  logical volumes with the Ext4 filesystem:
 
->sudo mkfs.ext4 /dev/LVMVolGroup/projects
+>sudo mkfs.ext4 /dev/LVMVolGroup/projects    #you can get this path from >lvdisplay command
 >sudo mkfs.ext4 /dev/LVMVolGroup/www
 >sudo mkfs.ext4 /dev/LVMVolGroup/db
 >sudo mkfs.ext4 /dev/LVMVolGroup/workspace
@@ -165,6 +177,17 @@ We can then mount the logical volumes to the appropriate location:
 >sudo mount /dev/LVMVolGroup/www /mnt/www
 >sudo mount /dev/LVMVolGroup/db /mnt/db
 >sudo mount /dev/LVMVolGroup/workspace /mnt/workspace
+
+Note:
+This mount is not permanent and will be reverted after restart.
+For persistent mounting edit /etc/fstab  and enter below:
+/dev/group1/it <space/tab> /mnt/it <space/tab> ext4  <space/tab>  defaults   <space/tab>     0 <space/tab> 0
+
+reload fstab(otherwise mounting will be effective after a restart or we can mount using mount command):
+>mount -a
+
+check if mounting was successful:
+>df -h
 
 
 >lsblk -f
@@ -323,11 +346,61 @@ Do you really want to reduce LVMVolGroup/db? [y/n]: y
   Size of logical volume LVMVolGroup/db changed from 556.00 MiB (139 extents) to 504.00 MiB (126 extents).
   Logical volume LVMVolGroup/db successfully resized.
 
+single line commands:
+reduce to 64Mb, with auto filesystem resize
+> lvreduce --resizefs -L 64M vg00/lvol1
+reduce by 64Mb, with auto filesystem resize
+> lvreduce --resizefs -L -64M vg00/lvol1
 
+flage:
+--resizefs or  -r=> Auto resizefs no need to explicitly call resize2fs
+--size  or -L =>you can sepecify an absolute size(a fixed value eg 500M), or relative size using  + or -(eg reduce by 5Mb =>  -5M)
+-l =>specify size in %
+=============
+commands:
 
+vgcreate group1 /dev/sdb /dev/sdc
+vgdisplay
+vgs
+vgextend group1 /dev/sdd
+vgreduce group1 /dev/sdb   #remove pv from vg, U might get Physical volume "/dev/sdb" still in use error(in that case run >pvmove /dev/sdb to move the content of pv to other available pv)
+vgchange
+vgremove group1
+vgmerge  group1 group2                 #group 2 will be merged in group1
+vgrename oldgroup newgroup
+-------
+lvcreate -n cse -L 600M group1
+lvextend /dev/group1/cse -L 1.6G -r    #-r takes care of filesystem resize
+lvreduce /dev/group1/it -L -.2G -r     #for size reduction we have to umount first, if not done it will show prompt.
 
+------
+Remove a pv from vg:
+We cannot always directly remove pv from vg as it may be holding some application data which are used by lv.
+So the before removing a pv from vg we have to make sure its data is distributed across other pv
+pvmove /dev/sdb    #move data of pv /dev/sdb  to other pv
+vgreduce group1 /dev/sdb   #remove a pv from vg
+-----------
+Merge to vg:
 
+If we want to merge vg group2 into group1.Then first of all we have to deactivate vg group2.
 
+steps to deactivate a vg:
+1)unmount all lv in the vg( umount /dev/group2/ece)
+2)vgchange -an group2   (-an=> "activate No" . similarly -ay="activate yes")
+
+Verify if griup2 is inactive:
+>vgscan
+>lvscan   #all lv in the vg group2 will be in active
+
+Merge vg:
+>vgmerge group1 group2
+
+Activate lv:
+Now we cannot activate group2 as it is part of group1.So instead we have to activate lv which were part of group2.
+>lvchange -ay /dev/group1/ece
+
+Remount lv:
+>mount /dev/group1/ece /mnt/ece
 
 
 

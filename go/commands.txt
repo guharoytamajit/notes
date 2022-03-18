@@ -1,0 +1,30 @@
+>go help
+
+Run a program from source(compile + run)
+>go run hello.go
+
+Build/Compile one or more files:
+>go build
+It will create the executable in same location
+
+Format each file of a given directory
+>go format
+
+Compiles and installs a package: 
+>go install
+
+Download raw source code of someone else's package:
+>go get <name>
+
+Run test cases associated to the project:
+>go test  
+
+============================
+Go packages:
+Golang has two types of packages:
+1)Executable=> Generates a file that can be run.
+if the pakage name of file is "main" it becomes Executable package.
+If this file has a main() function it will be executed on "go run" command or binary file execution.
+
+2)Reusable(dependencies/libraries)=>Basically helper/utiliy reusable code
+It package name is any ither than "main" then it is called reusable package and they dont creates any binary file on "go build" command

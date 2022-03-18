@@ -1,0 +1,96 @@
+
+public class PosValidator {
+    private static final Logger logger = LogManager.getLogger();
+
+    @SuppressWarnings("InfiniteLoopStatement")
+    public static void main(String[] args) {
+
+        Properties consumerProps = new Properties();
+        consumerProps.put(ConsumerConfig.CLIENT_ID_CONFIG, AppConfigs.applicationID);
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers);
+        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        consumerProps.put(JsonDeserializer.VALUE_CLASS_NAME_CONFIG, PosInvoice.class);
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, AppConfigs.groupID);
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        KafkaConsumer<String, PosInvoice> consumer = new KafkaConsumer<>(consumerProps);
+        consumer.subscribe(Arrays.asList(AppConfigs.sourceTopicNames));
+
+        Properties producerProps = new Properties();
+        producerProps.put(ProducerConfig.CLIENT_ID_CONFIG, AppConfigs.applicationID);
+        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers);
+        producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+
+        KafkaProducer<String, PosInvoice> producer = new KafkaProducer<>(producerProps);
+
+        while (true) {
+            ConsumerRecords<String, PosInvoice> records = consumer.poll(Duration.ofMillis(100)); //gets n number of messages
+            for (ConsumerRecord<String, PosInvoice> record : records) {
+                if (record.value().getDeliveryType().equals("HOME-DELIVERY") &&
+                    record.value().getDeliveryAddress().getContactNumber().equals("")) {
+                    //Invalid
+                    producer.send(new ProducerRecord<>(AppConfigs.invalidTopicName, record.value().getStoreID(),
+                        record.value()));
+                    logger.info("invalid record - " + record.value().getInvoiceNumber());
+                } else {
+                    //Valid
+                    producer.send(new ProducerRecord<>(AppConfigs.validTopicName, record.value().getStoreID(),
+                        record.value()));
+                    logger.info("valid record - " + record.value().getInvoiceNumber());
+                }
+            }
+        }
+    }
+}
+
+Kafka consumers can be scaled using the concept of Consumer Group.
+
+Consumer group:
+Is is a list of consumers,each receives only a part of data.
+if you have 8 partitions and 4 consumers in a CG. Kafka will assigh two partitions to each consumer group.
+max usable consumers in a CG is <= partition size. excess consumers will sit idle.
+
+Kaffa automatically assigns CG consumers to partitions and also autometically rebalances when No. of consumer is changed in CG.  
+Developer just had to set the group id of consumer and kafka will take care of creating CG and add all consumers to CG with same same group id.
+Kafka will also take care of assigning partitions to consumers in CG dynamically it will rebalance on every consumer addition in CG.
+If a consumer in a CG fails its partitions are automatically assigned to a working consumer in same CG.
+Consumers in a CG can be on some or different machine(all of them must have same group id)
+
+
+Scenario:
+One of the conssumer in GC was assigned a partition.It was consuming message but suddenly it crashed.
+Now that partition is assigned to a new consumer. 
+Now the question is how the new consumer knows from which offset in topic partition it should start reading messages?
+
+Soution:
+Kafka internally maintains two offset position for each partition to avoid duplicate message consumtion.
+1)Current Offset=>Points to next offset of consumer which will be polled using poll() method.
+2)Committed Offset=>After every consumer.poll() consumer will automatically update the earlier offset(previous  consumer.poll() ) in "Committed Offset"
+This process is called auto commit, this is the default. If we can we can disable this and update "Committed Offset" manually
+
+during consumer subscribe we can set auto-offset-reset=earliest or latest, 
+earliest=>read message from beginning,"Current Offset" will be set to 0. 
+latest=>read from last committed offset, "Current Offset" will be set to equal to "Committed Offset".
+
+Note:
+consumer.poll() generally read multiple messages hence "Committed Offset' is incremented with a value greater than 1 on each next consumer.poll() call.
+
+
+
+Still there is a problem after 1st consumer.poll() "Committed Offset" is still null. it is only updated when 2nd consumer.poll() call is made.
+What if consumer fails before 2nd consumer.poll() call.Now "Committed Offset" is still null and new assigned consumer will re-read 1st consumer.poll() messages again(message duplication).
+
+To resolve this we have to implement transaction but here coding is difficult.
+
+ 
+
+
+
+
+
+
+
+
+Kafka stream takes care of these offsets issues internally, so no need to worry.

@@ -29,6 +29,10 @@ GET _cluster/health
   "task_max_waiting_in_queue_millis" : 0,
   "active_shards_percent_as_number" : 75.0
 }
+
+Note:
+_cluster=> API name(APIs begin with _ by convention)
+health=> Command name 
 ---
 GET _cat/indices?v
 
@@ -37,19 +41,37 @@ green  open   .kibana_1            vH3FQyy8RMCE5WUqRRDM-g   1   0          4    
 green  open   .kibana_task_manager erl1B4bURiy6CXnsDDQ-Wg   1   0          2            5     65.7kb         65.7kb
 yellow open   my-index-000001      eA6nNCJhRqOWKsau6qmjZQ   1   1          0            0       283b           283b
 
+Note:
+v=> This request parameter requests to return the column names(header) in the response. 
+Headers:
+pri=> No. of shards
+rep=> No. of relicas 
+
 ---
 GET _cat/shards?v
 
 index                shard prirep state      docs  store ip        node
 my-index-000001      0     p      STARTED       0   283b 127.0.0.1 tamajit
-my-index-000001      0     r      UNASSIGNED                       
+my-index-000001      0     r      UNASSIGNED                                 #replica(r=> replica) of shard 0 is unassigned as we have only one node
 .kibana_task_manager 0     p      STARTED       2 65.7kb 127.0.0.1 tamajit
 .kibana_1            0     p      STARTED       4 23.9kb 127.0.0.1 tamajit
+
+Note:
+An index contains a single shard by default from  ES7. Before ES7 5 shards were created by default per index.
+We can use split API from ES7 to increase the number of shards(reindexing happens in background).
+Similarly use Shrink API to reduce the number of shards.
 ---
 GET _cat/nodes?v
 
 ip        heap.percent ram.percent cpu load_1m load_5m load_15m node.role master name
 127.0.0.1           11          61   4    0.57    0.63     1.10 mdi       *      tamajit
+
+
+We can use _nodes API for getting indept insights of nodes. https://www.elastic.co/guide/en/elasticsearch/reference/current/cluster-nodes-info.html
+---------
+Replicaton vs Snapshot:
+ES supports both.
+Using snapshot we can go ack to a consistent state in case of any corruption.
 ---
 elasticsearch configuration properties:
 
@@ -59,7 +81,7 @@ path.data=>
 path.log=>
 
 
-we can aso uperwrite properties as command line arguments as:
+we can aso overwrite properties as command line arguments as:
 >./elasticsearch -Ename.name=node2 -Ecluster.name=mycluster -Epath.data="" -Epath.log=""
 
 
@@ -91,6 +113,9 @@ node.ml: true|false  Enables a node to run machine learning jobs
 xpack.ml.enabled: true|false   enable or disable ML API for the node.  
 
 5)Coordination nodes(Like loadbalancers):
+By default every node can act as a coordinating node(accept client request)
+The node in the Elasticsearch cluster that you connect with as a client is called the coordinating node. 
+The coordinating node routes the client requests to the appropriate shard in the cluster.
 Distribution of queries and aggregation of results.
 It doesnot search any data It handles and delegates requests to data nodes.
 Very useful in large clusters
@@ -125,11 +150,11 @@ Replicas are always created on a different node form primary shard node.For sing
 Two different shard of same index can live in same node but same shard(replica) cannot. 
 This is because the concept of replica was created for HA but if same replicas lives in same node there is no way we can achieve it.All replicas of same shard should be spread across different nodes.
 
-Yellow(Warning)=> atleast one replica of an index is unallocated(cannot be placed in any node)
+Yellow(Warning)=> atleast one replica of an index is unallocated(cannot be placed in any node), eg. No of nodes < replicas
 Red=> atleast one primary shard of an index is unallocated(no place in cluster)
 
 
-No. of PS is manually defined during index creation.We have to re-index every thing if we decide to change No. of PS. But we can increase No. Of RS any time which will increase read performance
+No. of PS(ie. partition) is manually defined during index creation.We have to re-index every thing if we decide to change No. of PS. But we can increase No. Of RS any time which will increase read performance
 
 Write requests only goes to  primary shards of an index, Read request can go to primary or replica shards
 we can improve read performance by increasing number of RS,To increase write performance only way is increasing the number of shards.
@@ -295,24 +320,126 @@ Write operation flow:
 4)Coordination nodes forward the request to the data node where the required shard is present.
 5)coordinating nodes collects the response from data node and sends the response back to the client.
 
+
+What if node with primary shard goes down before new record is replicated to replicas?
+Senario:
+1.We have 3 nodes where n1 node has primary shard,n2 and n3 node has the replicas.
+2.In a write request ,new record is successfully updated in n1 and 2, then n1(node with primary shard) goes down.
+3.suppose now node 3's shard is  promoted to primary shard(which still dont have the new record).
+4.Now problem is all write request goes to primary shard, so n3 shard will never get that record.
+
+This issue is solved by using primary terms ans sequence number.
+primary term=>each time when a replica shard is promoted to  primary shard this counter is increased by 1.
+sequence number=>each time a record/document is changed this sequence number is increased by 1.
+ 
+ES uses primary term and sequence number to recover from failures described above.
+It enables ES to decide which write operation is needed to be aplied.
+For large indices this process is really expensive, to speed things up ES uses checkpoints.
+
+Checkpoins:
+These checkpoints arejust sequence numbers
+Each replica group(shards + replicas of a single partition ) has a global checkpoint. replica group is like replica set in mongodb.
+Each replica shard has a local checkpoint.
+
+Global checkpoints=>The sequence number that all shards(including replicas) within a replication group have been aligned at least up to.
+That means any update operation on a document has sequence number lower then Global checkpoints has be updated in all shards of a replication group(RG).
+If a primary shard fails and rejoins the cluster then EE only has to compare the operations that are above the global checkpoint sequence number.(As if atleast one partition is unavailale then global checkpoint will not increase, it it specifies upto which seq No. all shards in RG are in sync)
+
+Local checkpoints(each replica shard)=>The seq No. for last write operation.
+--------------------------
+Document Versioning:
+ES stores a _version metadata field with each document.
+The starts with 1 and updated by 1 each time the document is updated/deleted.
+The value of version is retained for 60 seconds when deleting a document.
+
+Perviously this version was used to achieve optemestic concurrency control. this way of versioning is no longer recommended (use primary term and sequence number instead)
+
+---------------------------
+Optimistic Concurrency control:
+scenario:
+Suppose there is a couter field in document.
+We know update operation can be broken down to 1)fetch  2)change 3)save
+Now since this is not an atomic operation if two clients tries to increment the counter value at same time we can have race condition.
+
+Solution 1(old approach):
+As we know nn every document update the _version fields value is incremented.
+While updating the client also needs to send _version. ES only allows those updates where _version is same as current version.
+
+Solution 2(use primary term and sequence number):
+For example bolow opdate will on be successful if primary term=1 and sequence number=9:
+POST products/_update/100?if_primary_term=1&if_seq_no=9  
+{
+"doc":{
+ "in_stock": 1000
+ }
+}
+ 
+Note:
+We can check seq No and pri term from get request:
+GET products/_docs/100 
+-------------------
+Update multiple documents by query:
+
+Scripted update:
+
+POST /products/_update_by_query
+{
+"script":{
+"source":"ctx._source.in_stock--"
+},
+"query": {
+ "match_all": {}
+}
+}
+
+
+Delete by query:
+
+POST /products/_delete_by_query
+{
+"query": {
+ "match_all": {}
+}
+}
+
+This will delete all records of product index.
+-------------------------
+Batch processing:
+
+
+
 ==========================
 Test analyzer:
 
 POST _analyze
 {
   "tokenizer": "standard",
-  "char_filter": [],
+  "char_filter": [],                            //we can skip as no value specified.
   "filter":  [ "lowercase", "asciifolding" ],
   "text":      "Is this déja vu?"
 } 
 
-
+Note:
 Only text datatype  is parsed into inverted index.
 Other datatypes like number,date,geospatial  are stored as BKD tree. 
+
+POST _analyze
+{
+  "analyzer": "standard",
+  "text":      "Is this déja vu?"
+} 
+
+POST _analyze
+{
+  "analyzer": "keyword",
+  "text":      "Is this déja vu?"
+} 
+
 
 =========================
 
 Mapping:
+Api name: _mapping
 A mapping is a schema definition.
 ES has resonable defaults but sometimes you need to customize them.
 We can use combination of explicit and dynamic(autodetect by value) mapping.
@@ -343,14 +470,21 @@ curl -XGET  127.0.0.1:9200/movies/_mapping
 
 
 types(defines datatype):       
-index(enable/disable full-text search for a field) :     analyzed ,not_analyzed(disable full-text search)
+index(enable/disable full-text search for a field) :     analyzed(default) ,not_analyzed(disable full-text search)
 analyzer(define tokenizer and token filter): standard,whitespace,simple,english  
 
 
 Analyzer does 3 things:
-1)Character filter: Remove HTML encoding, convert & => "and"  etc.
-2)Tokenizer: spilts the work by space,punctuations,non-letter. keyworks are never tokenozed.
-3)Token Filter: Lowercasing,stemming(["drives", "drove", and "driven"]=>"drive"),synonyms,stopwords
+1)Character filter(an analyzer has 0 to n number of Character filters): Remove HTML encoding, convert & => "and"  etc.
+2)Tokenizer(an analyzer has exactly one tokenizer): spilts the work by space,punctuations,non-letter. keyworks are never tokenozed.
+3)Token Filter(an analyzer has 0 to n number of Token Filter):It adds ,removes or modifies tokens. eg.Lowercasing,stemming(["drives", "drove", and "driven"]=>"drive"),synonyms,stopwords
+
+ES has lots of inbuilt Analyzes, we can create our own by mixing them.
+
+Default Analzer(ie. Standard Analyzer) features:
+Character filter: No character filter is used by default.
+Tokenizer: Default Tokenizer is "standard"=>  split on word boundary,removes punctuations. 
+Token Filter: By default "lowercase" Token Filter is used.
 
 
 Common Analyzers:
@@ -358,10 +492,71 @@ Common Analyzers:
 2.Simple: splits on anything that is not a letter, lowercase
 3.Whitespace: splits on whitespace, dosent lowercase
 4.Language(eg. english):Accounts for language specific stopwords and stemming
-5.KeywordAnalyzer: doesn't split the text 
+5.KeywordAnalyzer: doesn't split the text . example email address
 6. Snowball: standard + stemming
 ==============================
 https://www.baeldung.com/lucene-analyzers
+
+===================================
+See mapping of a index:
+GET products/_mapping
+
+See mapping of a particular field:
+GET products/_mapping/field/productdesc
+
+Nested field:
+GET book/_mapping/field/author.email
+
+Adding mapping to existing indices:
+PUT /movies/_mapping
+{
+      "properties":{
+	     "year": {"type":"date"},
+		 "id": {"type":"long"},
+		 "genre":{"index": "not_analyzed","type":"text"},
+		 "description":{"analyzer":"english","type":"text"}
+	  }
+}
+
+==============
+Dates in ES:
+
+It can be specified in one of the format:
+1)Specifically formatted string(custom format also possible)
+"1988-12-25"
+"1988-12-25T16:30:00"
+"1988-12-25T16:30:00+05:30"
+2)Milli seconds since epoc(1st jan 1970)=> long
+
+3)Seconds since epoc(1st jan 1970)=>int
+
+Inside ES dates are always stored as long
+Dates are converted to UTC timezone before storing.
+If we provide a number it will be treated as  Milli seconds since epoc
+
+We can customize date format by providing format parameter while defining mapping.
+================
+Reindex:
+reindex the source data from one index to another.
+
+POST /_reindex
+{
+"source":{
+  "index": "source_index",
+  "query":{"match_all": {} },    //By default all records are moved  so this id not needed
+  "_source": ["field1","field2"]  //fields to migrate. default is all.
+  },
+"dest":{
+   "index": "destination_index"
+  }
+}
+
+we can use "script" to handle complex transformation.
+
+
+
+
+
 
 ===================================
 CRUD:

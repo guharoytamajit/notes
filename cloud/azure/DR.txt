@@ -1,0 +1,68 @@
+Disaster can be because of :
+natural disaster
+hardware failure
+cyberattacks
+human errors
+-----------
+Disaster solutions:
+1)Multiple data centers
+-Secondary regions
+
+2)Azure Traffic Manager:
+-Automate trafficflow in unaffected regions
+
+3)It assures 3 copies of data in same region for SQL databases.
+
+4)Acailability sets for VM
+
+5)Cosmos DB has automatic backup replicated to another region.
+6)Mysql and Postgres has automatic backup as well.
+
+----------------
+Disaster Recovery Plan:
+1)Planning
+2)Testing
+3)Same location
+4)Different location(hot,warm or cold site)
+
+-----------------
+Recovery Time Objective(RTO):
+Max Duration or length of time within which business must be functional after disaster(max downtime).
+Achieved using "Azure Site Recovery"
+
+
+Recovery point Objective(RPO):
+Max amount of data that can be lost after a disaster.
+Achieved using "Azure backup" 
+We decide frequency of backup
+=========================
+Azure Backup:
+
+Types of Azure Backups:
+1)Files and Folders
+2)Azure VM
+3)Linux and Windows systems.
+4)Hyper-V and VMware VM
+5)System state
+6)SQL Server, Sharepoint and Exchange workloads.
+7)Bare Metal
+8)Azure file share.
+9)Azure SQL Database(long term backup)
+
+Note: 
+There is no egress charges for azure backup service.
+All backups are incremental.
+Storage is automatically provisioned for storing backup(pay for what we use).
+Backup storage can be of type:
+ a)Locally redundant storage(LRS)=> stores 3 copy of data within single region   
+ b)Geo-redundant storage(GRS)=>Data is replicated to another region.Protects against regional outage.
+Data is encrypted during transmission.
+
+Constraints/limits:
+25 recovery services or backup vaults per subscription
+registers 50 machines per vault
+200 Azure VM per vault 
+
+--------------
+Azure Recovery Vault:
+This is the place which holds our backup.

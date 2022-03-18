@@ -1,0 +1,29 @@
+One of the most notable reasons why the release is so important is that OpenAPI 3.0 is the first official release of the specification since it was donated to the OpenAPI Initiative by SmartBear Software and renamed from the Swagger Specification to OpenAPI specification in 2015.
+
+
+The easiest way to understand the difference is:
+
+OpenAPI = Specification
+Swagger = Tools for implementing the specification(other implementations are also available)
+
+
+OpenAPI Initiative, which involves more the 30 organizations from different areas of the tech world — including Microsoft, Google, IBM, and CapitalOne.
+
+
+Swagger is the name associated with some of the most well-known, and widely used tools for implementing the OpenAPI specification. The Swagger toolset includes a mix of open source, free, and commercial tools, which can be used at different stages of the API lifecycle.
+
+
+These tools include:
+
+Swagger Editor: Swagger Editor lets you edit OpenAPI specifications in YAML inside your browser and to preview documentations in real time.
+Swagger UI: Swagger UI is a collection of HTML, Javascript, and CSS assets that dynamically generate beautiful documentation from an OAS-compliant API.
+Swagger Codegen: Allows generation of API client libraries (SDK generation), server stubs and documentation automatically given an OpenAPI Spec.
+Swagger Parser: Standalone library for parsing OpenAPI definitions from Java
+Swagger Core: Java-related libraries for creating, consuming, and working with OpenAPI definitions
+Swagger Inspector (free): API testing tool that lets you validate your APIs & generate OpenAPI definitions from an existing API
+SwaggerHub (free and commercial): API design and documentation, built for teams working with OpenAPI.
+
+
+But the Swagger tools are not the only tools that are available for implementing the OpenAPI Specification. There are a wide variety of API design, documentation, testing, management, and monitoring solutions that support version 2.0 of the specification, and are actively working on adding 3.0 support.
+
+SmartBear donated the Specification, but the popular open source Swagger tooling still retained the original branding due to the strong association developers, tech writers, testers and designers had with the tooling. 

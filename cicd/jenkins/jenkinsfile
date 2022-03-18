@@ -1,0 +1,61 @@
+pipeline {
+   agent any
+      environment {
+    //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+    ARTIFACT = readMavenPom().getArtifactId()
+    VERSION = readMavenPom().getVersion()
+    }
+
+//   tools {
+//      maven "M3"
+//   }
+
+   stages {
+      stage('Build') {
+              agent {
+        docker {
+            image 'maven:3.6.3-jdk-8'
+            args '-v $HOME/.m2:/root/.m2 --network password-masterslave_my_net'
+        }
+    }
+         steps {
+echo "build"
+            // Get some code from a GitHub repository
+           git credentialsId: 'bitbucket-ssh-pri', url: 'git@bitbucket.org:teamtamajit/demo.git'
+
+            // Run Maven on a Unix agent.
+            sh "mvn -Dmaven.test.failure.ignore=true clean package"
+
+            // To run Maven on a Windows agent, use
+            // bat "mvn -Dmaven.test.failure.ignore=true clean package"
+            sh "mvn sonar:sonar  -Dsonar.host.url=http://172.30.1.4:9000 -Dsonar.projectKey=myp  -Dsonar.login=48369a5cdb541efe9818b719974d8a722c12441c"
+         }
+         post {
+            // If Maven was able to run the tests, even if some of the test
+            // failed, record the test results and archive the jar file.
+            success {
+         //      junit '**/target/surefire-reports/TEST-*.xml'
+               archiveArtifacts 'target/*.jar'
+            }
+         }
+      }
+	  stage('Build Image') {
+	        when{
+	             expression {
+    1  == 2
+	             }
+  }
+	   steps {
+
+           sh 'docker build  -t ${ARTIFACT}:${VERSION} .'
+           sh 'docker tag ${ARTIFACT}:${VERSION} guharoytamajit/${ARTIFACT}:${VERSION}'
+
+          withDockerRegistry([ credentialsId: "dockerhub-id",url:""]){                      //empty url means dockerhub
+                      sh 'docker push guharoytamajit/${ARTIFACT}:${VERSION}'
+ 
+              }
+           }
+		 }
+
+   }
+}

@@ -1,0 +1,110 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+paths:
+  /api/book/{id}:
+    get:
+      tags:
+      - book-controller-2
+      summary: Get a book by its id
+      description: desc
+      operationId: findById22
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Invalid id supplied
+          content: {}
+        "404":
+          description: Book not found
+          content: {}
+        "200":
+          description: Found the book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+    put:
+      tags:
+      - book-controller-2
+      operationId: updateBook
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Book'
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: string
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: string
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Book'
+  /api/book/:
+    get:
+      tags:
+      - book-controller-2
+      operationId: findBooks
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                type: string
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                type: string
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+components:
+  schemas:
+    Book:
+      required:
+      - name
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          maxLength: 20
+          minLength: 0
+          type: string

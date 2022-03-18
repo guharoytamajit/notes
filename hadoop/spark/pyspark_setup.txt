@@ -1,0 +1,8 @@
+Must set JAVA_HOME,SPARK_HOME,PYSPARK_PYTHON(points to python executable)
+Set HADOOP_HOME for windows OS,in HADOOP_HOME/bin keep winutils.exe,hadoop.dll
+Add SPARK_HOME/bin and HADOOP_HOME/bin in path
+in windows disable firewall
+pip instal pyspark=3.0.2  #this version must match will the spark pointed by SPARK_HOME(otherwise it may not work) 
+
+
+>pyspark

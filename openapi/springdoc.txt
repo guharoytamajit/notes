@@ -1,0 +1,126 @@
+SpringDoc — a tool that simplifies the generation and maintenance of API docs based on the OpenAPI 3 specification for Spring Boot 1.x and 2.x applications.
+
+
+To have springdoc-openapi automatically generate the OpenAPI 3 specification docs for our API, we simply add the springdoc-openapi-ui dependency to our pom.xml:
+
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-ui</artifactId>
+    <version>1.5.2</version>
+</dependency>
+
+
+ The OpenAPI descriptions will be available at the  below path by default:
+ http://localhost:8080/v3/api-docs/ 
+ 
+ 
+ The OpenAPI definitions are in JSON format by default. For yaml format, we can obtain the definitions at:
+ http://localhost:8080/api-docs.yaml
+ 
+ 
+ To use a custom path, we can indicate in the application.properties file:
+ springdoc.api-docs.path=/api-docs
+ 
+ 
+ Now we can access the API documentation at:
+  http://localhost:8080/swagger-ui.html
+ 
+ 
+ 
+Support for swagger-ui Properties:
+We can do this by modifying our application.properties to include:
+  springdoc.swagger-ui.path=/swagger-ui-custom.html
+
+As another example, to sort the API paths in order of their HTTP methods, we can add:
+  springdoc.swagger-ui.operationsSorter=method
+
+----------------------
+@RestController
+@RequestMapping("/api/book")
+public class BookController {
+
+    @Autowired
+    private BookRepository repository;
+
+    @GetMapping("/{id}")
+    public Book findById(@PathVariable long id) {
+        return repository.findById(id)
+            .orElseThrow(() -> new BookNotFoundException());
+    }
+
+    @GetMapping("/")
+    public Collection<Book> findBooks() {
+        return repository.getBooks();
+    }
+
+    @PutMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public Book updateBook(
+      @PathVariable("id") final String id, @RequestBody final Book book) {
+        return book;
+    }
+}
+
+
+------------
+disable swagger ui:
+
+springdoc.swagger-ui.enabled=false
+
+
+Selecting the Rest Controllers to include in the documentation:
+# Packages to include
+springdoc.packagesToScan=com.package1, com.package2
+# Paths to include
+springdoc.pathsToMatch=/v1, /api/balance/**
+
+----------------
+Exposing swagger-ui on the Actuator port:
+springdoc.use-management-port=true
+# This property enables the openapi and swaggerui endpoints to be exposed beneath the actuator base path.
+management.endpoints.web.exposure.include=openapi, swaggerui
+management.server.port=9090
+
+Two endpoints will be available:
+REST API that holdes the OpenAPI definition:
+
+http://serverName:managementPort/actuator/openapi
+http://serverName:managementPort/actuator/swaggerui
+
+-----------------
+Populate info section of openapi:
+
+	   @Bean
+	    public OpenAPI customOpenAPI() {
+	         new Contact().email(null);
+			return new OpenAPI()
+	                .components(new Components())
+	                .info(new Info().title("Contact Application API").description(
+	                        "This is a sample Spring Boot RESTful service using springdoc-openapi and OpenAPI 3.")
+							.version("1.0").termsOfService("http://example.com/terms/")
+							.contact(new Contact().email("tamajit@gmail.com").name("tamajit"))
+							.license(new License().name("Apache 2.0").url("abc.com")))
+	                .addServersItem(new Server().url("dev.example.com").description("DEV env"))
+	                .addServersItem(new Server().url("www.example.com").description("PROD env"));
+	    }
+
+It will generate:
+
+openapi: 3.0.1
+info:
+  title: Contact Application API
+  description: This is a sample Spring Boot RESTful service using springdoc-openapi
+    and OpenAPI 3.
+  termsOfService: http://example.com/terms/
+  contact:
+    name: tamajit
+    email: tamajit@gmail.com
+  license:
+    name: Apache 2.0
+    url: abc.com
+  version: "1.0"
+servers:
+- url: dev.example.com
+  description: DEV env
+- url: www.example.com
+  description: PROD env

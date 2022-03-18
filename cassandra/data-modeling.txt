@@ -21,7 +21,7 @@ These are the two high-level goals for your data model:
 You want every node in the cluster to have roughly the same amount of data. Cassandra makes this easy, but it's not a given. Rows are spread around the cluster 
 based on a hash of the partition key, which is the first element of the PRIMARY KEY. 
 
-2.Minimize the number of partitions read while querying data:
+2.Minimize the number of partitions read while querying data(if all data of a query reside in same partition lesser scan is required):
 Partitions are groups of rows that share the same partition key. When you issue a read query, you want to read rows from as few partitions as possible.
 
 Why is this important? Each partition may reside on a different node. The coordinator will generally need to issue separate commands to separate nodes for each

@@ -1,0 +1,117 @@
+It internally uses producer and consumer api.
+
+Example:
+
+
+public class HelloProducer {
+    private static final Logger logger = LogManager.getLogger();
+
+    public static void main(String[] args) {
+
+        logger.info("Creating Kafka Producer...");
+        Properties props = new Properties();
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, AppConfigs.producerApplicationID);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+
+        KafkaProducer<Integer, String> producer = new KafkaProducer<>(props);
+
+        logger.info("Start sending messages...");
+        for (int i = 1; i <= AppConfigs.numEvents; i++) {
+            producer.send(new ProducerRecord<>(AppConfigs.topicName, i, "Simple Message-" + i));
+        }
+
+        logger.info("Finished - Closing Kafka Producer.");
+        producer.close();
+
+    }
+}
+
+public class HelloStreams {
+    private static final Logger logger = LogManager.getLogger(HelloProducer.class);
+
+    public static void main(String[] args) {
+        Properties props = new Properties();
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, AppConfigs.applicationID);//multiple instances of same app will have same applicationID
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers);
+        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.Integer().getClass());
+        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
+
+        StreamsBuilder streamsBuilder = new StreamsBuilder();
+        KStream<Integer, String> kStream = streamsBuilder.stream(AppConfigs.topicName);
+        kStream.foreach((k, v) -> System.out.println("Key= " + k + " Value= " + v));
+        //kStream.peek((k,v)-> System.out.println("Key= " + k + " Value= " + v));
+
+        Topology topology = streamsBuilder.build();
+        KafkaStreams streams = new KafkaStreams(topology, props);
+        logger.info("Starting stream.");
+        streams.start();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            logger.info("Shutting down stream");
+            streams.close();
+        }));
+    }
+}
+
+
+class AppConfigs {
+    final static String applicationID = "HelloStreams";
+    final static String producerApplicationID = "HelloProducer";
+    final static String bootstrapServers = "localhost:9092,localhost:9093";
+    final static String topicName = "hello-producer-topic";
+    final static int numEvents = 10;
+}
+
+--------------------
+Topology:
+step by step computational logic of a stream processing application.
+It can be representad as a DAG
+
+Every stream application starts by subscribing to some topic.Where each transformation operations are like a processor node.
+KStream is like RDD
+
+Kstream:
+Abstraction of a stream of kafka message records.
+
+Important transformation operations(Returns kstream):
+filter()
+map()
+flatmap()
+
+through() => re-partition
+
+Terminating processors(returns void):
+foreach()
+to()
+
+
+
+
+==========================================
+Kafka Stream Architecture:
+
+Kafka stream is built on top of kafka client APIs
+
+A stream application runs as a single threaded app by default(regadless of No. of partitions the topic have).
+We can make it multi threaded with below configuration:
+props.put( StreamsConfig.NUM_STREAM_THREADS_CONFIG, 3 )  //3 threads will be available
+
+Each thread runs one or more "stream task".
+
+We can vertically scale streams app by increasing No. of treads of an instance. We can horizontally scale it by running multiple instances of streams app(if no NUM_STREAM_THREADS_CONFIG defined by default each instance will be single thtraded).
+If we have two instances of streams app with NUM_STREAM_THREADS_CONFIG = 2 and 3 respectively. Then total available No. of threads will be 5. Kafka will be responsible for distributing "stream tasks" across them, we dont have to worry if stream app instances are running on same or different machines.
+
+Stream Task(topology instance ):
+No. of tasks is max degree of parallelism for a stream task(Ofcourse that many threads should be available ie. NUM_STREAM_THREADS_CONFIG)
+if  total NUM_STREAM_THREADS_CONFIG < No. of tasks. then some tasks will be executed sequentially instead of parallel. 
+A Stream app can accept  multiple topics. The No. of "Stream task"= topic with max partition.
+Each stream task gets responsibility for a partition from each input topic.It basically executes topology logic on its assigned partitions. 
+Each tasks execute the logic of topology independently.
+Kafka tries it best to evenly distribute tasks across total threads(sum of NUM_STREAM_THREADS_CONFIG of all stream app instance).As the total number of NUM_STREAM_THREADS_CONFIG changes it also redistribute load dynamically.
+Each thread can execute one or more "stream task", but same task cannot be executed by atmost one thread.So if total number of NUM_STREAM_THREADS_CONFIG > No. of Stream tasks, then eccess threads are idle. 
+If we are running multiple instances of of a stream app, it is recommended to run them on separate machines but fault tolerance.
+
+
+

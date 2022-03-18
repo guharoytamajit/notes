@@ -1,0 +1,21 @@
+
+Local, Remote and Virtual Repositories
+Artifactory hosts two kinds of repositories: local and remote. Both local and remote repositories can be aggregated under virtual repositories.
+
+
+Local Repositories
+Local repositories are physical locally-managed repositories that one can deploy artifacts into.
+Artifacts under a local repository are directly accessible via a URL pattern of
+http://<host>:<port>/artifactory/<local-repository-name>/<artifact-path>
+
+================================================
+Local repositories: are physical, locally-managed repositories into which you can deploy artifacts.
+
+A remote repository: serves as a caching proxy for a repository managed at a remote URL (which may itself be another Artifactory remote repository).
+Artifacts are stored and updated in remote repositories according to various configuration parameters that control the caching and proxying behavior. You can remove artifacts from a remote repository cache but you cannot actually deploy a new artifact into a remote repository.
+
+A virtual repository: (or "repository group") aggregates several repositories with the same package type under a common URL.
+
+===========================================
+Artifactory comes with integrated tomcat,hence we can interact with it as a web application.
+Artifactory is like a war deployed in tomcat,running in 8081 port by default.

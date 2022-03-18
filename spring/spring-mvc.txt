@@ -1,0 +1,13 @@
+
+https://www.baeldung.com/spring-custom-validation-message-source
+https://www.baeldung.com/spring-boot-internationalization
+
+Messages from MessageSource can be accessed in view as below:
+<h1 th:text="#{greeting}"></h1>
+OR
+<h1><spring:message code="greeting" text="default"/></h1>
+
+
+Validation errors can be shown in view as below:
+<input type="text" th:field="*{datePlanted}" />
+<p th:if="${#fields.hasErrors('datePlanted')}" th:errors="*{datePlanted}">Incorrect date</p>

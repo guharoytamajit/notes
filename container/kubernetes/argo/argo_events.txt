@@ -1,6 +1,6 @@
 
 Event Source:
-consume events from external sources (SNS, SQS, GCP PubSub, Webhooks)
+consume events from external sources (SNS, SQS, GCP PubSub, Webhooks(just like an http endpoint running in k8s))
  transforms the events into the cloudevents
  dispatches them over to the eventbus
  

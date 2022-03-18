@@ -1,0 +1,43 @@
+node:an instance of ES(there are different types of nodes :master-eligible node,data node).
+cluster:one or more instances of ES running on given network,identified by cluster name.
+index:a logical namespace,it stores related data,index is broken into shards for scaling.
+shard: a partition(partitions makes up an index),5 shards per index by default,shards are spread across multiple nodes by ES,It makes it distributed,robust and near real time.
+       shards helps ES to scale,on every addition of nodes shards are redistributed to maintain a balance.
+replicas:Duplication of primary shards,takes over if corresponding primary shard fails.
+
+
+
+****Analogy****
+Database===index
+Table=======Type
+Row=====Document
+Column=====Field
+
+Bank -> index
+  Customers -> type
+    customer  -> document
+	first_name-> field (string)
+	account   -> field  (int) 
+
+
+Add index:
+curl -XPUT localhost:9200/<index_name>
+
+Get all index:
+curl -XGET localhost:9200/_cat/indices?v
+
+Get a specific index:
+curl -XGET localhost:9200/<index_name>?pretty
+
+By default 5 primary shards and 1  shard replica created.
+
+Add record:
+PUT /index_name/type_name/5
+{
+"name":"adaasdadf",
+account:30,
+dob:"1990-03-09"
+}
+
+view fields mapping:
+GET /index_name/_mapping/type_name/fields/name,account,dob

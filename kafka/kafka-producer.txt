@@ -1,0 +1,486 @@
+Ingest:
+
+There are two ways to get data into Kafka
+1)Kafka Producer API
+2)Data integration tools: kafka connect,nifi,talend etc
+
+
+
+Producer:
+
+
+Simple Example:
+--------------------
+public class HelloProducer {
+    private static final Logger logger = LogManager.getLogger();
+
+    public static void main(String[] args) {
+
+        logger.info("Creating Kafka Producer...");
+        Properties props = new Properties();
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, AppConfigs.applicationID);  
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers); 
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+
+        KafkaProducer<Integer, String> producer = new KafkaProducer<>(props);
+
+        logger.info("Start sending messages...");
+		//Producer is sending 1 million message. 
+        for (int i = 1; i <= AppConfigs.numEvents; i++) {
+            producer.send(new ProducerRecord<>(AppConfigs.topicName, i, "Simple Message-" + i));
+			//arg1=>topic name, arg2=>key  ,arg3=>value
+        }
+
+        logger.info("Finished - Closing Kafka Producer.");
+        producer.close();
+		//
+
+    }
+}
+
+class AppConfigs {
+    final static String applicationID = "HelloProducer";
+    final static String bootstrapServers = "localhost:9092,localhost:9093";
+    final static String topicName = "hello-producer-topic";
+    final static int numEvents = 1000000;
+}
+
+-------------------
+CLIENT_ID_CONFIG=>the purpose of CLIENT_ID is track the source of message
+
+BOOTSTRAP_SERVERS_CONFIG=>BOOTSTRAP_SERVERS_CONFIG used for initial connection to any node.After successfully connected it gets the details of all cluster nodes.It is recummended to use more than one node for better fault tolerance. No need to define all nodes.
+
+KEY_SERIALIZER_CLASS_CONFIG=> Kafka messages are needed to be tranmitter over network as bytes.So we need a SERIALIZER for both key and value of message.Producer uses these serialize to serialize kry and value.
+
+Note:
+Kafka message has key value pair. key is uses by partitioner to decide partition of a topic.key can be null.
+
+Default Partitioner Rule:
+if key ==null =>round robin
+else =>hashing on key % No. of partition
+
+We should close the producer at the end(producer.close()) because  producer has some buffer space and a background IO thread.To prevent memory leak it should be closed.
+
+start zookeeper:
+zookeeper-server-start.bat %KAFKA_HOME%\config\zookeeper.properties
+
+Start your cluster:
+kafka-server-start.bat %KAFKA_HOME%\config\server-0.properties
+kafka-server-start.bat %KAFKA_HOME%\config\server-1.properties
+kafka-server-start.bat %KAFKA_HOME%\config\server-2.properties
+
+Create Topic:
+kafka-topics.bat --create --zookeeper localhost:2181 --topic hello-producer-topic --partitions 5 --replication-factor 3
+
+execute producer program.
+
+Execute Consumer:
+kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic hello-producer-topic --from-beginning
+
+
+
+Kafka Message structure:
+The message can have below properties:
+- topic name(required)
+- key: used for partitioning,grouping and joins
+- value(required)
+- Partition:
+- timestamp(not-required): (two options a)create time(default):when message created   b)log append time:when message is received in broker )
+   If not provided kafka will automatically add timestamp of the moment when producer.send() is called.
+   
+   setting timestamp option for a topic:
+   =>message.timestamp.type =0  //create time timestamp will be created,this is default
+   =>message.timestamp.type =1  //log append  time timestamp will be created
+Note this is a topic configuration and has to be set when creating the topic
+
+
+What happens when a producer sends a message(producer.send())?
+When producer.send() is called every record goes through below steps before it is sent to broker:
+1) serialization(thats why specifying kay and value serializer are mandatory)
+
+2) partitioning:
+We can directly pass the partition number in send() method. Other wise default partitioner class will decide which partition to use.
+We can also provide our custom partitioner class. 
+ props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, MyPartitioner.class.getName());  
+ 
+3) Then message is moved in the buffer(eg topi2-partition1). for each partition of a topic there is separate buffer.
+Why buffer is required?
+  There are two reasons:
+  a)Asynchronus:send message will add the message to buffer and can return immediately(no bloking).
+  b)Network optimization:Multiple messages from same buffer are packed together in packets and sent to broker. This makes better use of network bandwidth.But there is a critical consideration here ie. if Producer produces messages in faster rate that it can send to broker over network then buffer space can get exhausted.Then next producer.send() methen will be blocked for few seconds,until buffer is freed by io thread(see next point). 
+  producer.send() can also throw timeout exception if IO thread cannot process fast enough, We can set producer memory to optimize this setting.
+  Default producer memory is 32 Mb. We can overwrite this property be setting "buffer.memory" producer configuration(set it in  props we send in producer).
+  
+4)IO Thread:  producer runs an IO thread in background that takes messages from buffer and send the request to broker in batch.
+When broker receives the message from IO thread it sends an acknowledgement which can be success or error.In case of error IO Thread will retry when message will be added in buffer again(waiting for io thread to resend it again) ,number of retry attempt depends on configuration. If all retry fails an error will be send to the send()method from IO Thread . 
+ example => props.put(ProducerConfig.RETRIES_CONFIG, 2);  
+ 
+ 
+ Scaling Producer:
+ 1)Vertical scaling: Use multiple threads in same machine,One thread per producer.Kafka Producer is thread safe so all threads can re-use same producer object to produce messages in parallel.(So it is not recommended to create multiple Kafka producer  on multi threaded environment.)
+ 2)Horizontal scaling: use multiple producer from different machine.All can point to same topic. 
+
+Multi-threaded producer example:
+----------------
+public class Dispatcher implements Runnable {
+    private static final Logger logger = LogManager.getLogger();
+    private String fileLocation;
+    private String topicName;
+    private KafkaProducer<Integer, String> producer;
+
+    Dispatcher(KafkaProducer<Integer, String> producer, String topicName, String fileLocation) {
+        this.producer = producer;
+        this.topicName = topicName;
+        this.fileLocation = fileLocation;
+    }
+
+    @Override
+    public void run() {
+        logger.info("Start Processing " + fileLocation);
+        File file = new File(fileLocation);
+        int counter = 0;
+
+        try (Scanner scanner = new Scanner(file)) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                producer.send(new ProducerRecord<>(topicName, null, line));
+                counter++;
+            }
+            logger.info("Finished Sending " + counter + " messages from " + fileLocation);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+}
+
+public class DispatcherDemo {
+    private static final Logger logger = LogManager.getLogger();
+    public static void main(String[] args){
+
+        Properties props = new Properties();
+        try{
+            InputStream inputStream = new FileInputStream(AppConfigs.kafkaConfigFileLocation);
+            props.load(inputStream);
+            props.put(ProducerConfig.CLIENT_ID_CONFIG,AppConfigs.applicationID);
+            props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class);
+            props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        }catch (IOException e){
+            throw new RuntimeException(e);
+        }
+
+        KafkaProducer<Integer,String> producer = new KafkaProducer<>(props);
+        Thread[] dispatchers = new Thread[AppConfigs.eventFiles.length];
+        logger.info("Starting Dispatcher threads...");
+        for(int i=0;i<AppConfigs.eventFiles.length;i++){
+            dispatchers[i]=new Thread(new Dispatcher(producer,AppConfigs.topicName,AppConfigs.eventFiles[i]));
+            dispatchers[i].start();
+        }
+
+        try {
+            for (Thread t : dispatchers) t.join();
+        }catch (InterruptedException e){
+            logger.error("Main Thread Interrupted");
+        }finally {
+            producer.close();
+            logger.info("Finished Dispatcher Demo");
+        }
+    }
+}
+
+class AppConfigs {
+    final static String applicationID = "Multi-Threaded-Producer";
+    final static String topicName = "nse-eod-topic";
+    final static String kafkaConfigFileLocation = "kafka.properties";
+    final static String[] eventFiles = {"data/NSE05NOV2018BHAV.csv","data/NSE06NOV2018BHAV.csv"};
+}
+
+-------------------
+Produucer Exactly once delivery:
+
+Kafka is durable in nature ie if a message is acknowledged by broker it will be persisted by broker.
+
+By default kafka producer guarentees atleast once message dilevery,So it can send duplicate message to boker.
+For example after a message is sent by producer, the message is reached but some acknowledgement from broker fails.Now Producer assumes message delivery failed and producer IO thread will resend the same message automatically( because of default producer retry policy).Since by default broker has no way to identify duplicate message, the data will be duplicated.
+
+Atmost once delivery configuration:
+set retry to 0.
+With this approach a message is never resent , hence we may lose date in case of any network issue.
+
+Exactly Once delivery:
+set "enable.idempotence=true" property in  to enable exactly once delivery guarentee.
+
+It will result in below changes:
+1)Internal ID for producer instance:
+Producer during the initial handshake with broker it will ask for its unique id.
+2)Message sequence number:
+Producer API will start assigning a sequence number to each and every outgoung messages(starts with 0).
+ 
+Now each message can be uniquely identified by a producer ID and message sequence number.Now if a message is resent by retry mechanism the broker can detect message duplication and discard duplicate messages.
+
+Note:
+If we are sending duplicate message from application level."enable.idempotence=true" configuration cannot help us. That should be considered as a bug in our application. (Idempotence only works on producer retry level)
+--------------------
+Producer Transaction:
+
+It provides automicity(all or nothing) guarentee across write to several partitions of same or different topics.
+If it is transactional it is also implicitly Idempotent(exactly once)
+
+To implement trancation below conditions must be met:
+Topic Replication factor >= 3
+min.insync.replicas>=2
+
+Lets create topics with above configuration so that it can take part in a trancation:
+>kafka-topics.bat --create --zookeeper localhost:2181 --topic hello-producer-1 --partitions 5 --replication-factor 3 --config min.insync.replicas=2
+>kafka-topics.bat --create --zookeeper localhost:2181 --topic hello-producer-2 --partitions 5 --replication-factor 3 --config min.insync.replicas=2
+
+We also have to set unique TRANSACTIONAL_ID_CONFIG  in producer props(it is mandatory for transaction)
+TRANSACTIONAL_ID_CONFIG must be unique for each producer instance(objecs). We cannot create object of two producer with same TRANSACTIONAL_ID if we do do then one of the transaction will be aborted as two instances of same transaction are illegal.
+The primary purpose of trancation is to rollback unfinished transaction which is identifiedby a TRANSACTIONAL_ID.
+
+We can still have n number of producers sending messages on same topic in parallel but all of the producer object should have unique TRANSACTIONAL_ID.
+----------------
+public class HelloProducer {
+    private static final Logger logger = LogManager.getLogger();
+
+    public static void main(String[] args) {
+
+        logger.info("Creating Kafka Producer...");
+        Properties props = new Properties();
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, AppConfigs.applicationID);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, AppConfigs.transaction_id);
+
+        KafkaProducer<Integer, String> producer = new KafkaProducer<>(props);
+        producer.initTransactions();
+
+        logger.info("Starting First Transaction...");
+        producer.beginTransaction();
+        try {
+            for (int i = 1; i <= AppConfigs.numEvents; i++) {
+                producer.send(new ProducerRecord<>(AppConfigs.topicName1, i, "Simple Message-T1-" + i));
+                producer.send(new ProducerRecord<>(AppConfigs.topicName2, i, "Simple Message-T1-" + i));
+            }
+            logger.info("Committing First Transaction.");
+            producer.commitTransaction();
+        }catch (Exception e){
+            logger.error("Exception in First Transaction. Aborting...");
+            producer.abortTransaction();
+            producer.close();
+            throw new RuntimeException(e);
+        }
+
+        logger.info("Starting Second Transaction...");
+        producer.beginTransaction();
+        try {
+            for (int i = 1; i <= AppConfigs.numEvents; i++) {
+                producer.send(new ProducerRecord<>(AppConfigs.topicName1, i, "Simple Message-T2-" + i));
+                producer.send(new ProducerRecord<>(AppConfigs.topicName2, i, "Simple Message-T2-" + i));
+            }
+            logger.info("Aborting Second Transaction.");
+            producer.abortTransaction();
+
+        }catch (Exception e){
+            logger.error("Exception in Second Transaction. Aborting...");
+            producer.abortTransaction();
+            producer.close();
+            throw new RuntimeException(e);
+        }
+
+        logger.info("Finished - Closing Kafka Producer.");
+        producer.close();
+
+    }
+}
+
+class AppConfigs {
+    final static String applicationID = "HelloProducer";
+    final static String bootstrapServers = "localhost:9092,localhost:9093";
+    final static String topicName1 = "hello-producer-1";
+    final static String topicName2 = "hello-producer-2";
+    final static int numEvents = 2;
+    final static String transaction_id = "Hello-Producer-Trans";
+}
+
+---------------
+Execute producer and check consumer log:
+>kafka-console-consumer.bat --bootstrap-server localhost:9092 --from-beginning --whitelist "hello-producer-1|hello-producer-2"
+In output we will only see 4 messages from 1st transaction. Since 2nd transaction is rolled back no messages should be present in broker.
+
+producer.initTransactions(); => makes sure previous operation with same transaction_id is closed(completed or rollbacked),it also retrieves an internal producer id (from broker) that will be used for idempotence(exactly once delivery)
+
+producer.beginTransaction();producer.commitTransaction(); =>transaction boundary
+
+------------
+Producer send synchronous/asynchronous:
+
+by default producer.send(new ProducerRecord(topic,key,value)) is asynchronous it ust adds message in buffer and returns.I there is any network failure producer will rery depending upon retry cofig.The problem is if all retries fails then we will lose this message.Exception is thrown but this exception never reaches the application as this send() methods returns immediately(non-blocking).
+
+If we cant affort of lose even one message. We can store failed messages in a saparate and process them later.This can be achieved using one of the  following options:
+
+
+1)Make it blocking call(by chaining get() method ),now it will wait for success or error:
+producer.send(new ProducerRecord(topic,key,value)).get()
+
+This get() method will throw an error on failure and we can handle it right then(we can store the message for later process or immediately retry manually)
+
+public class SyncHelloProducer {
+    private static final Logger logger = LogManager.getLogger();
+
+    public static void main(String[] args) {
+
+        logger.trace("Creating Kafka Producer...");
+        Properties props = new Properties();
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, AppConfigs.applicationID);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        //We want to raise an exception - So, do not retry.
+        props.put(ProducerConfig.RETRIES_CONFIG,0);
+        //We want to raise an exception - So, take acknowledgement only when message is persisted to all brokers in ISR
+        props.put(ProducerConfig.ACKS_CONFIG,"all");
+        /*
+            Follow below steps to generate exception.
+            1. Start three node cluster
+            2. Create topic with --config min.insync.replicas=3
+            3. Start producer application
+            4. Shutdown one broker while producer is running - It will cause NotEnoughReplicasException
+        */
+
+        RecordMetadata metadata;
+        try (KafkaProducer<Integer, String> producer = new KafkaProducer<>(props)) {
+            for (int i = 1; i <= AppConfigs.numEvents; i++) {
+                Thread.sleep(1000);
+                metadata = producer.send(new ProducerRecord<>(AppConfigs.topicName, i, "Simple Message-" + i)).get();
+                logger.info("Message " + i + " persisted with offset " + metadata.offset()
+                    + " and timestamp on " + new Timestamp(metadata.timestamp()));
+            }
+        } catch (Exception e) {
+            logger.info("Can't send message - Received exception \n" + e.getMessage());
+        }
+
+    }
+}
+
+With blocking its hard to scale ,so the 2nd method is recommended.
+
+2)Producer callback approach(non-blocking): Where we can supply a callback method to producer which is asynchronous invoke when ack arrives.
+
+public class CallbackHelloProducer {
+    private static final Logger logger = LogManager.getLogger();
+
+    public static void main(String[] args) throws InterruptedException {
+
+        logger.trace("Creating Kafka Producer...");
+        Properties props = new Properties();
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, AppConfigs.applicationID);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        //We want to raise an exception - So, do not retry.
+        props.put(ProducerConfig.RETRIES_CONFIG, 0);
+        //We want to raise an exception - So, take acknowledgement only when message is persisted to all brokers in ISR
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+        /*
+            Follow below steps to generate exception.
+            1. Start three node cluster
+            2. Create topic with --config min.insync.replicas=3
+            3. Start producer application
+            4. Shutdown one broker while producer is running - It will cause NotEnoughReplicasException
+        */
+
+        KafkaProducer<Integer, String> producer = new KafkaProducer<>(props);
+        for (int i = 1; i <= AppConfigs.numEvents; i++) {
+            Thread.sleep(1000);
+            String message = "Simple Message-" + i;
+            producer.send(new ProducerRecord<>(AppConfigs.topicName, i, message),
+                new LoggingCallback(message));
+        }
+        logger.info("Finished Application - Closing Producer.");
+        producer.close();
+    }
+}
+
+public class LoggingCallback implements Callback {
+    private static final Logger logger = LogManager.getLogger();
+    private String message;
+
+    public LoggingCallback(String message){
+        this.message=message;
+    }
+
+    @Override
+    public void onCompletion(RecordMetadata recordMetadata, Exception e) {
+        if(e !=null){
+            logger.error("Error sending message string = " + message);
+        }else {
+            logger.info(message + " persisted with offset " + recordMetadata.offset()
+                + " and timestamp on " + new Timestamp(recordMetadata.timestamp()));
+        }
+    }
+}
+
+public class AppConfigs {
+    public final static String applicationID = "CallbackHelloProducer";
+    public final static String bootstrapServers = "localhost:9092,localhost:9093";
+    public final static String topicName = "callback-hello-producer";
+    public final static int numEvents = 100;
+}
+==============================================
+CustomPartitioner example:
+
+public class PartitionProducer {
+    private static final Logger logger = LogManager.getLogger();
+    public static void main(String[] args) {
+
+        logger.trace("Creating Kafka Producer...");
+        Properties props = new Properties();
+        props.put(ProducerConfig.CLIENT_ID_CONFIG, AppConfigs.applicationID);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, AppConfigs.bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, OddEvenPartitioner.class);
+
+        RecordMetadata metadata;
+        try (KafkaProducer<Integer, String> producer = new KafkaProducer<>(props)) {
+            for (int i = 1; i <= AppConfigs.numEvents; i++) {
+                Thread.sleep(1000);
+                metadata = producer.send(new ProducerRecord<>(AppConfigs.topicName, i, "Simple Message-" + i)).get();
+                logger.info("Message " + i + " persisted with offset " + metadata.offset()
+                    + " in partition " + metadata.partition());
+            }
+        } catch (Exception e) {
+            logger.info("Can't send message - Received exception \n" + e.getMessage());
+        }
+    }
+}
+
+public class OddEvenPartitioner implements Partitioner {
+    @Override
+    public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
+        if ((keyBytes == null) || (!(key instanceof Integer)))
+            throw new InvalidRecordException("Topic Key must have a valid Integer value.");
+
+        if (cluster.partitionsForTopic(topic).size() != 2)
+            throw new InvalidTopicException("Topic must have exactly two partitions");
+
+        return (Integer) key % 2;
+    }
+
+    @Override
+    public void close() {}
+
+    @Override
+    public void configure(Map<String, ?> map) {}
+}
+
+public class AppConfigs {
+    public final static String applicationID = "PartitionProducer";
+    public final static String bootstrapServers = "localhost:9092,localhost:9093";
+    public final static String topicName = "partition-producer";
+    public final static int numEvents = 100;
+}
+===========================

@@ -239,25 +239,7 @@ public void login(HttpServletRequest req, String user, String pass) {
 ----------------------------
 Spring Security Authentication Provider:
 
-@Configuration
-@EnableWebSecurity
-@ComponentScan("com.baeldung.security")
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
- 
-    @Autowired
-    private CustomAuthenticationProvider authProvider;
 
-    @Override
-    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.authenticationProvider(authProvider);
-    }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.authorizeRequests().anyRequest().authenticated()
-            .and().httpBasic();
-    }
-}
 
 @Component
 public class CustomAuthenticationProvider implements AuthenticationProvider {
@@ -286,6 +268,26 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     }
 }
 
+
+@Configuration
+@EnableWebSecurity
+@ComponentScan("com.baeldung.security")
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+ 
+    @Autowired
+    private CustomAuthenticationProvider authProvider;
+
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.authenticationProvider(authProvider);
+    }
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.authorizeRequests().anyRequest().authenticated()
+            .and().httpBasic();
+    }
+}
 -------------
 public class MyUserDetailsService implements UserDetailsService {
 
@@ -326,3 +328,55 @@ public class MyUserDetailsService implements UserDetailsService {
 		return Result;
 	}
 }
+===========================
+----Custom AuthenticationManager----
+public Authentication authenticate(Authentication authentication) throws AuthenticationException {//implementation}
+
+If the principal of the input authentication is valid and verified, AuthenticationManager#authenticate returns an Authentication instance 
+with the authenticated flag set to true. Otherwise, if the principal is not valid, it will throw an AuthenticationException. 
+For the last case, it returns null if it can't decide.
+
+ProviderManager is the default implementation of AuthenticationManager. It delegates the authentication process to a list of 
+AuthenticationProvider instances.
+
+We can set up global or local AuthenticationManager if we extend WebSecurityConfigurerAdapter:
+1.For a local AuthenticationManager, we could override configure(AuthenticationManagerBuilder).
+2.For a global AuthenticationManager, we should define an AuthenticationManager as a bean.
+
+public class CustomAuthenticationManager implements AuthenticationManager{
+
+public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+    String username = authentication.getPrincipal() + "";
+    String password = authentication.getCredentials() + "";
+
+    User user = userRepo.findOne(username);
+    if (user == null) {
+        throw new BadCredentialsException("1000");
+    }
+    if (!encoder.matches(password, user.getPassword())) {
+        throw new BadCredentialsException("1000");
+    }
+    if (user.isDisabled()) {
+        throw new DisabledException("1001");
+    }
+    List<Right> userRights = rightRepo.getUserRights(username);
+    return new UsernamePasswordAuthenticationToken(username, null, userRights.stream().map(x -> new SimpleGrantedAuthority(x.getName())).collect(Collectors.toList()));
+}
+
+}
+
+@Configuration
+@EnableWebMvcSecurity
+public class MySecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+public MySecurityConfiguration() {
+    super(false);
+}
+
+@Override
+protected AuthenticationManager authenticationManager() throws Exception {
+    return new ProviderManager(Arrays.asList((AuthenticationProvider) new AuthProvider()));
+}
+
+}
+==================================

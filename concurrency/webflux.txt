@@ -1,0 +1,107 @@
+Flux:
+
+		Flux<Object> f2 = Flux.create(a -> {
+			a.next(1);
+			a.next("hello");
+			a.next(true);
+			a.complete();
+		});
+
+		f2.subscribe((value) -> System.out.println(value), 
+				(error) -> System.out.println("error occured"),
+				() -> System.out.println("complete"));
+---------------------
+		Flux<Object> f2 = Flux.create((FluxSink<Object> a) -> {
+			int count = 0;
+			while (true) {
+				count++;
+				a.next(count);
+				try {
+					Thread.sleep(1000l);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+
+		});
+
+		f2.subscribe((value) -> System.out.println(value), (error) -> System.out.println("error occured"),
+				() -> System.out.println("complete"));				
+				
+--------------------
+		Map<String,FluxSink> map=new HashMap<>();
+		
+		Flux<Object> f2 = Flux.create((FluxSink<Object> a) -> {
+			map.put("myFluxSink",a);
+		});
+		
+		new Thread(()->{
+			int count = 0;
+			while (true) {
+				System.out.println(Thread.currentThread().getName());
+				count++;
+				FluxSink sink = map.get("myFluxSink");
+				if(sink!=null) {
+					sink.next(count);
+				}
+				try {
+					Thread.sleep(1000l);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}).start();
+
+		
+		f2.subscribe((value) -> System.out.println(value), (error) -> System.out.println("error occured"),
+				() -> System.out.println("complete"));
+
+--------------------
+        Flux<String> flux = Flux.just("A", "B", "C");
+		flux.map(a -> a.toLowerCase()).subscribe(System.out::println);	
+----------------------
+		Flux<String> flux = Flux.just("hello world", "hello how are you");
+		flux.flatMap(a -> Flux.fromArray(a.split(" "))).subscribe(System.out::println);		
+----------------------
+
+Flux.interval publishes on another thread ,but 	Flux.just and most methods publishes on same thread.
+
+		Flux
+		.interval(Duration.ofMillis(100))
+	    .take(2)
+	    .subscribe(i -> System.out.println("Thread: "+Thread.currentThread().getName()));  //Thread: parallel-1
+		
+		Thread.sleep(1000l);	
+		
+		 Flux
+		.just(6,7,8)
+	    .subscribe(i -> System.out.println("Thread: "+Thread.currentThread().getName())); //Thread: main
+		
+		Thread.sleep(1000l);
+----------------------
+Make Flux.just publish on another thread using subscribeOn or publishOn operator.
+		
+		
+		ExecutorService executor = Executors.newFixedThreadPool(10);
+		Scheduler scheduler = Schedulers.fromExecutor(executor);
+
+		Flux<Integer> flux = Flux.just(1, 2)
+		    .subscribeOn(scheduler);
+
+		flux.subscribe(i -> System.out.println(Thread.currentThread().getName()));
+		flux.subscribe(i -> System.out.println(Thread.currentThread().getName()));
+		flux.subscribe(i -> System.out.println(Thread.currentThread().getName()));
+
+Output: //each subscription uses a separate thread		
+pool-1-thread-3
+pool-1-thread-3
+pool-1-thread-1
+pool-1-thread-1
+pool-1-thread-2
+pool-1-thread-2
+----------------------------
+Flux.fromIterable(movieList)
+                .delayElements(Duration.ofSeconds(2))
+                .flatMap(this.repository::save)
+                .doOnComplete(() -> System.out.println("Complete"))
+                .subscribe();

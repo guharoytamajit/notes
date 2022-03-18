@@ -1,0 +1,88 @@
+---fix wsl internet issue----
+wsl --shutdown
+netsh winsock reset
+netsh int ip reset all
+netsh winhttp reset proxy
+ipconfig /flushdns
+netsh winsock reset
+shutdown /r 
+-----------------------
+Start docker service:
+sudo -i
+service docker start
+
+
+---Metallb----
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/master/manifests/namespace.yaml
+kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/master/manifests/metallb.yaml
+
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - 172.18.0.100-172.18.0.200
+EOF	  
+
+
+----------------------
+kind create cluster  --image kindest/node:v1.20.7@sha256:cbeaf907fc78ac97ce7b625e4bf0de16e3ea725daf6b04f930bd14c67c671ff9
+
+istioctl install --set profile=demo
+kubectl label namespace default istio-injection=enabled
+
+kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
+
+kubectl exec "$(kubectl get pod -l app=ratings -o jsonpath='{.items[0].metadata.name}')" -c ratings -- curl -sS productpage:9080/productpage | grep -o "<title>.*</title>"
+
+
+kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
+
+---Nodeport
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+export TCP_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="tcp")].nodePort}')
+----------------
+----Loadbalancer
+export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+export TCP_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="tcp")].port}')
+
+
+export INGRESS_HOST=172.18.0.2
+export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
+
+curl -s "http://${GATEWAY_URL}/productpage" | grep -o "<title>.*</title>"
+
+
+kubectl apply -f samples/bookinfo/networking/destination-rule-all.yaml
+
+
+--------------
+kubectl port-forward  -n istio-system svc/istio-ingressgateway  80:80
+
+open http://localhost/productpage
+
+
+clean up:
+samples/bookinfo/platform/kube/cleanup.sh
+
+===================
+ERROR:
+bash: ./cleanup.sh: /bin/bash^M: bad interpreter: No such file or directory
+
+solution: 
+sed -i -e 's/\r$//' cleanup.sh
+==================
+
+
+

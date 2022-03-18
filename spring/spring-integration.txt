@@ -1,0 +1,101 @@
+Spring Integration provides a lot of powerful components that can greatly enhance the interconnectivity of systems and processes within an enterprise architecture.
+
+1.Endpoints:
+the components that consume messages from an input channel and delivers to an output channel.
+
+
+eg. Service Activator
+
+a)Service Activator:
+The service activator is the endpoint type for connecting any Spring-managed object to an input channel so that it may play the role of a service. 
+
+<int:service-activator input-channel="exampleChannel" ref="somePojo" method="someMethod"/>
+
+when the service method returns a non-null value, the endpoint tries to send the reply message to an appropriate reply channel.
+To determine the reply channel, it first checks whether an output-channel was provided in the endpoint configuration:
+
+<int:service-activator input-channel="exampleChannel" output-channel="replyChannel" ref="somePojo" method="someMethod"/>
+					   
+If the method returns a result and no output-channel is defined, the framework then checks the request message’s replyChannel header value. If the return type is a MessageChannel, the reply message is sent to that channel. If it is a String, the endpoint tries to resolve the channel name to a channel instance. If the channel cannot be resolved, a DestinationResolutionException is thrown.					   
+
+If your method returns a result and you want to discard it and end the flow, you should configure the output-channel to send to a NullChannel. For convenience, the framework registers one with the name, nullChannel.
+
+
+xml vs java config:
+
+    <int:channel id="inputchannel"/>
+    <int:service-activator input-channel="inputchannel" ref="myServiceActivator1"/>
+	<bean id="myServiceActivator1" class="com.MyServiceActivator1">
+---	
+	@Bean
+	@ServiceActivator(inputChannel = "inputchannel")
+	public MyServiceActivator1b myServiceActivator1b() {
+		return new MyServiceActivator1b();
+	}
+
+	@Bean("inputchannel")
+	public MessageChannel inputchannel() {
+		return new DirectChannel();
+	}
+
+
+
+
+
+====================
+Channel
+A channel in Spring Integration (and indeed, EAI) is the basic plumbing in an integration architecture. It's the pipe by which messages are relayed from one system to another.
+
+Channels can of multiple types:
+
+--------------------------------------------------------------------------------------------------------------------------
+Subscribal Cannel(No Buffer)
+--------------------------------------------------------------------------------------------------------------------------
+Pollable channel(With Buffer)
+--------------------------------------------------------------------------------------------------------------------------
+ 
+ public interface MessageChannel {
+    boolean send(Message message);//blocking forever
+    boolean send(Message message, long timeout);//wait to send till timeout,if timeoyt throw error. 0 timeout=>Fire and forget. negative time=> blocking until sent like send(Message message) method
+}
+
+public interface PollableChannel extends MessageChannel {
+    Message<?> receive();//blocking until received
+    Message<?> receive(long timeout);//blocking until timeout. negative timeout =>blocking ultil received ie. same as receive() method.
+}
+
+public interface SubscribableChannel extends MessageChannel {
+    boolean subscribe(MessageHandler handler);
+    boolean unsubscribe(MessageHandler handler);
+}
+public class QueueChannel implements PollableChannel{} 
+public class PriorityChannel extends QueueChannel {}
+public class RendezvousChannel extends QueueChannel {}
+public class NullChannel implements PollableChannel{}
+
+
+public class DirectChannel extends AbstractSubscribableChannel{}
+public class ExecutorSubscribableChannel extends AbstractSubscribableChannel {}
+
+ThreadLocalChannel :
+<int:channel id="threadScopedChannel" scope="thread">
+     <int:queue />
+</int:channel>
+
+
+
+
+
+===============
+MessagingTemplate template = new MessagingTemplate();
+
+Message reply = template.sendAndReceive(someChannel, new GenericMessage("test"));
+
+public boolean send(final MessageChannel channel, final Message<?> message) { ...
+}
+
+public Message<?> sendAndReceive(final MessageChannel channel, final Message<?> request) { ..
+}
+
+public Message<?> receive(final PollableChannel<?> channel) { ...
+}

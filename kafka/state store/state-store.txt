@@ -1,0 +1,2 @@
+State store is not a direct property of topology, each stream tasks(of a topology) has its own instance of state store.
+since state stores are not shared across stream tasks it is easier to scale.

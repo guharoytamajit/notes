@@ -1,0 +1,43 @@
+
+Context menu for right click on folders in left panel of Windows Explorer or on background of a directory in right panel:
+
+    HKEY_CLASSES_ROOT\Directory\Background\shell if you are administrator
+    HKEY_CURRENT_USER\Software\Classes\directory\Background\shell if you are a normal user
+
+Context menu for right click on folders in right panel of Windows Explorer:
+
+    HKEY_CLASSES_ROOT\Directory\shell if you are administrator
+    HKEY_CURRENT_USER\Software\Classes\directory\shell if you are a normal user
+
+Context menu for any file:
+
+    HKEY_CLASSES_ROOT\*\shell if you are administrator
+    HKEY_CURRENT_USER\Software\Classes\*\shell if you are a normal user
+
+In all cases:
+
+    add a new key under "shell", naming it as you want to name the context menu item
+    add a new key inside this key, named command (mandatory name)
+    edit the "default" property in "command" to myprogrampath\path\path\executable.exe %1 to pass the file path and name of the selected file to your custom program
+
+======================================================================
+cascade.reg
+
+[HKEY_CLASSES_ROOT\DesktopBackground\Shell\Menu1]
+"MUIVerb"="Apps"
+"SubCommands"="notepad;calc"
+"icon"="explorer.exe"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\notepad]
+@="Notepad"
+"icon"="notepad.exe"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\notepad\command]
+@="notepad.exe"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\calc]
+@="Calculator"
+"icon"="calc.exe"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\calc\command]
+@="calc.exe"

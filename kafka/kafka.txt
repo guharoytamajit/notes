@@ -33,6 +33,14 @@ Producer can send a key with original message,it can be of any type string,numbe
 If key is set, message with same key will always go to same partition.
 If we want  guarenteed ordering we have to sent data to same partition for example in app like uber producer key can be car number, this way all gps location details  a a particular car will go to same partition this way ordering will also be guarenteed.
 
+Default Partitioner Rule:
+if key ==null =>round robbit
+else =>hashing on key % No. of partition
+
+
+
+
+
 Consumer consumes data from topic.In case of broker faulure it knows how to auto recover. 
 
 Consumer Offsets(Like bookmark for a Consumer):
@@ -45,7 +53,7 @@ There are delivery syntax for updating this offset by consumer:
 3)Exactly once: Can only be achieved for "Kafka to Kafka workflows" using Kafka Streams API. For  "Kafka to External system workflows" use an idempotent consumer.
 
 Kafka Broker Discovery:
-Every kafka broker is also called a "bootstrap server", ie you only need to connect to one broker and you will be connected to the entire cluster.
+Every kafka broker can act as a "bootstrap server", ie you only need to connect to one broker and you will be connected to the entire cluster.
 Each broker knows about all brokers,topics and partitions(metadata), regardlass of it is holding those data or not(because of Zookeeper).
 So a Consumer can connect to any broker and it will get information of all other brokers.Then consumer can directly connect the required broker.
 
@@ -78,33 +86,100 @@ copy server.properties and create server2.properties and change broker.id,port,l
 
 both server must point to the same zookeeper
 
+Note:
+Instead of creating multiple server.properties we can override the values using --override flag
+> kafka-server-start.sh config/server.properties --override broker.id=$1 --override listeners=PLAINTEXT://:909$1  --override port=909$1&
+
 5.create a topic:
 >bin/kafka-topics.sh --zookeeper <host:port in server.properties> --create --topic topic1 --partitions 2 --replication-factor 2(<= No of servers)
+
+We can use auto.create.topics.enable=false  to disable auto topic create.
 
 6.View details of topic:
 >bin/kafka-topics.sh --zookeeper <host:port> --describe --topic topic1
 
+describe all topics
+>bin/kafka-topics.sh --zookeeper <host:port> --describe
+
+list all topics
+>bin/kafka-topics.sh --zookeeper <host:port> --list 
+
 7.produce message:
 >bin/kafka-console-producer.sh --broker-list localhsot:9092 --topic topic1
+
+produce key and value:
+>kafka-console-producer --topic example-topic --bootstrap-server broker:9092 \
+  --property parse.key=true \
+  --property key.separator=":"
+
+A:Apple
 
 8.consume message:
 >bin/kafka-console-consumer.sh --zookeeper <host:port> --topic topic1
 
+Print key while consuming:
+>kafka-console-consumer --topic example-topic --bootstrap-server broker:9092 \
+ --from-beginning \
+ --property print.key=true \
+ --property key.separator="-"
 
 Now if we type something in producer console,all those messages will be updated on consumer console.
 
 Get all message from beginning:
 >bin/kafka-console-consumer.sh --zookeeper <host:port> --topic topic1 --from-beginning
-
-zookeeper-server-start.bat ../../config/zookeeper.properties
-kafka-server-start.bat   ../../config/server.properties
-
-
-kafka-topics.bat --zookeeper localhost:2181 --create --topic topic1 --partitions 1 --replication-factor 1
-kafka-console-producer.bat --broker-list localhost:9092 --topic topic1
-kafka-console-consumer.bat --zookeeper localhost:2181 --topic topic1
 OR
-kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic topic1
+kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic topic1
+
+Create consumer with consumer group:
+>kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic topic1 --group group1
+
+Note:
+We can check list of CG using >kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+If no --group is provided ,for each consumer a new CG will be automatically created.
+
+list consumers of CG:
+>kafka-consumer-groups --bootstrap-server localhost:9092  --group group1 --describe 
+
+Start a console consumer to read from the first partition:
+>kafka-console-consumer --topic example-topic --bootstrap-server broker:9092 \
+ --from-beginning \
+ --property print.key=true \
+ --property key.separator="-" \
+ --partition 0
+
+Use the kafka-console-consumer command with the --partition and --offset flags to read from a specific partition and offset:
+>kafka-console-consumer --topic example-topic --bootstrap-server broker:9092 \
+ --property print.key=true \
+ --property key.separator="-" \
+ --partition 1 \
+ --offset 6
+
+Note:
+Consumer offset is stored in a internal topic called _consumer_offsets
+
+9.Alter min insync replicas
+>./kafka-topics.sh --alter --zookeeper localhost:2181 --topic library-events --config min.insync.replicas=2
+
+
+10.Delete topic:
+>./kafka-topics.sh --zookeeper localhost:2181 --delete --topic test-topic
+
+11.view consumer groups:
+>./kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+
+Consumer Groups and their Offset:
+>./kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group console-consumer-27773
+
+12.Viewing the Commit Log:
+>./kafka-run-class.sh kafka.tools.DumpLogSegments --deep-iteration --files /tmp/kafka-logs/test-topic-0/00000000000000000000.log
+
+Note:
+each partition has its own .log file
+locatio of log file can be configured in server.properties by setting "log.dirs"
+
+13.Setting the Minimum Insync Replica:
+>./kafka-configs.sh --alter --zookeeper localhost:2181 --entity-type topics --entity-name test-topic --add-config min.insync.replicas=2
+
 
 =====================================
 Producer important properties:
@@ -128,3 +203,23 @@ A)producer:
   0=>producers never wait for acknowledgement(very low latency at the cost of duraility)
   1=>producer gets ack after leader replica has received
   -1=>producer gets ack after in-sync replica has received
+ all=> all online in sync replicas must receive the write. If there are less than min.insync.replicas online, then the write won’t be processed.
+min.insync.replicas=X allows acks=all requests to continue to work when at least x replicas of the partition are in sync.
+==============================
+Retention policy:
+By default kafka messages are retained for 7 days.
+We can overwrite it by setting "log.retention.hours" in server.properties.
+
+Insync Replicas(ISR):
+Represents the number of replicas in-sync with each other in the cluster.
+Includes both leader and follower replicas.
+Recommended value is always >1
+Ideal value  is  ISR == replication factor   for a topic.
+ISR can be controlled by "min.insync.replicas" property, it can be set st broker or topic level.
+>bin/kafka-topics.sh --zookeeper <host:port> --describe --topic topic1
+
+min.insync.replicas is a config on the broker that denotes the minimum number of in-sync replicas required to exist for a broker to allow acks=all requests. 
+That is, all requests with acks=all won't be processed and receive an error response if the number of in-sync replicas is below the configured minimum amount.
+
+Caveat of ISR:
+A common misconception is that min.insync.replicas denotes how many replicas need to receive the record in order for the leader to respond to the producer. That’s not true – the config is the minimum number of in-sync replicas required to exist in order for the request to be processed. That is, if there are three in-sync replicas and min.insync.replicas=2, the leader will respond only when all three replicas have the record.

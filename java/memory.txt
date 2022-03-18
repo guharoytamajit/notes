@@ -1,0 +1,363 @@
+
+-XX  =>Means advanced option
+"+" or "-" => enable or disable a flag.
+Flag names are case sensitive
+
+-XX:+PrintCompilation => Print JIT compilation details.JIT compilation is not done by the main thread but a separate thread.
+
+
+
+>java -XX:+PrintCompilation  Main
+
+
+    489   58       3       java.util.KeyValueHolder::<init> (21 bytes)
+    489   61   !   3       java.util.concurrent.ConcurrentHashMap::putVal (432 bytes)
+    490   64     n 0       jdk.internal.misc.Unsafe::compareAndSetLong (native)   
+    490   65     n 0       jdk.internal.misc.Unsafe::compareAndSetObject (native)   
+    494   63       3       java.util.concurrent.ConcurrentHashMap::addCount (289 bytes)
+    496   67  s    3       java.util.concurrent.ConcurrentHashMap$Node::<init> (20 bytes)
+
+
+1st column=>No. of millisecond since the VM started
+2nd column=>the order in which method/code block is compiled
+n=>Native Method
+s=>Synchronized Method
+!=>exception handling
+%=>(Most optimal code possible)It has been natively compiled. Now running from a special part of memory called code cache.
+1-4 number column=>  Degree of JIT compilation(this value will increase  (but cannot decrease) more a instruction is used with time)
+   0=>This instruction is not compiled at all(still bytecode), each time it is executed by interpreter.
+   higher the number more the code closer to native code. "%"=> At the top of highest compilation level the  code is also loaded on code cache. 
+   Having compilation level of 4 does not guarantee the code will also be present on code cache.As code cache has a size limit.
+   Some method can be moved in code cache again move out  again move in and so on, depending upon usage.
+   1-3=> compiled by C1 jit compiler
+    4=>compiled by C2 jit compiler.
+=====================
+There are two types of jit compiler in java:
+
+C1(also called client compiler)=>It can do 1st three level of compilation(shown by PrintCompilation  flag )
+
+C2(also called server compiler)=>It does the 4th level of compilation.
+
+JVM does internal profiling of the code while execution.More a instruction is executed the degree of compilation also increases. 
+
+which compiler to use?
+if only C1 is active application should start quickly.
+For short lived application quick startup is more important then performance optimization in long run.hence C1 s preffered.
+For long running server application performance optimization is more useful hence we can use C2.
+
+Activate C1 or C2:
+activate C1=>-client 
+activate 32bit C2=> -server
+activate 64bit C2=> -d64  
+ 
+
+Print Compilation details in a log file with time:
+>java -XX:+UnlockDiagnosticVMOptions  -XX:+LogCompilation Main   
+
+
+Cache code size:
+When code cache is full you will get warning message:
+VM warning:CodeCache is full.Compiler has been disabled.
+
+-XX:+PrintCodeCache => will print code cache size.
+
+–XX:+PrintCodeCache gives only single output on application exit. According to attached paper there is also –XX:+PrintCodeCacheOnCompilation option 
+that also produces the same output as produced by –XX:+PrintCodeCache, but does so each time a method is compiled.
+
+We can change code cache size in 3 ways:
+1)InitialCodeCacheSize: Size when app starts
+2)ReservedCodeCacheSize: Max size
+3)CodeCacheExpansionSize: How quickly code cache can grow from init to max size.
+
+java -XX:ReservedCodeCacheSize=28m  Main     // (m=>mb  k=>kb  g=>gb)
+
+We acn also remotely monitor the code cache size of a jvm process using jconsole.
+jconsole>memory tab (select memory pool "code cache" in drop down)
+
+or
+
+>jcmd <pid> Compiler.codecache
+
+to see all possible jcmd flags
+>jcmd <pid>
+========================
+32 bit or 64bit jvm:
+
+32bit:
+if heap size <3Gb then 32-bit will most likely run faster(as memory address is smaller in length)
+Max heap cannot be more than 4 gb.
+Only C1 git compiler is available.
+
+64bit:
+if our app makes a huge  use of larger data types like long and double those code will be slower in 32bit machine.
+Mandatory for heap > 4 gb
+===========================
+Skip JIT compilation(C1+C2):
+
+-client =>use c1 compiler
+-server =>use c2 in 32bit
+-d64 =>use c2 in 64bit machine
+=====================
+Disable jit compilation:
+
+>java -XX:-TiredCompilation Main
+
+Now all instructions will be interpreted every time(no native compilation)
+We can verify this by using this together with PrintCompilation flag.
+
+=====================
+Tuning JIT compilation:
+If an instruction will be jit compiled and when it will be compiled depends on two factors:
+1)No. of available threads for jit compilation:
+It again the number of cpu core the machine has.
+
+Lets check jvm flags
+>java -XX:+PrintFlagsFinal   <dont provide any class>
+In the output you need to find value of CICompilerCount.
+if CICompilerCount=3 ie three threads are available for jit compilation.
+
+To get a speific flag value we can also use jinfo:
+>jinfo -flag CICompilerCount <jvm pid>
+
+run with 4 jit compilation threads
+>java -XX:CICompilerCount=4  -XX:+PrintCompilation Main 
+
+Min number of CICompilerCount is 1 in 32bit jvm(1 for C1)
+Min number of CICompilerCount is 2 in 64bit jvm(1 for C1 ,1 for C2)
+
+2)threshold value set to trigger native code compilation
+
+-XX:CompileThreshold=n
+
+check CompileThreshold value:
+>jinfo -flag CompileThreshold <pid>
+10000
+
+
+
+We can reduce this value to trigger faster jit compilation
+>java -XX:CompileThreshold=1000 -XX:PrintCompilation Main
+
+====================================
+Java memory:
+1)Stack
+every thread has a stack.
+It store primitive datatypes(int,double) and object references(original object is in heap).
+each code block/method call results in a stack frame.Note passing primitives as method arguments creates a new copy of data(call by value)
+when a method completes its execution the stack is poped.Local Reference variables are are gone along with primitives(int,double).Objects are available for GC in heap. 
+
+2)Heap:
+Shared by all threads in a jvm.
+Stores objects(primitives are stored in stack).
+String pool is stored in heap as hashmap
+
+3)Metaspace
+stores meta data (class,method)
+stores static primitives and static reference variables
+
+======================================
+create shallow(not deep) immutable collection:
+Collections.unmodifiableMap(map)
+Map.copyOf(map)
+
+
+==========================================
+Print string pool details:
+
+>java -XX:+PrintStringTableStatistics Main
+
+StringTable statistics:
+Number of buckets       :     65536 =    524288 bytes, each 8
+Number of entries       :      1744 =     27904 bytes, each 16
+Number of literals      :      1744 =    112744 bytes, avg  64.647
+Total footprsize_t         :           =    664936 bytes
+Average bucket size     :     0.027
+Variance of bucket size :     0.027
+Std. dev. of bucket size:     0.163
+Maximum bucket size     :         2
+
+
+OR
+
+jcmd <pid> VM.stringtable
+
+StringTable statistics:
+Number of buckets       :     65536 =    524288 bytes, each 8
+Number of entries       :     22861 =    365776 bytes, each 16
+Number of literals      :     22861 =   1638736 bytes, avg  71.683
+Total footprsize_t         :           =   2528800 bytes
+Average bucket size     :     0.349
+Variance of bucket size :     0.350
+Std. dev. of bucket size:     0.591
+Maximum bucket size     :         5
+
+Change string bucket size:
+-XX:StringTableSize=120121   // assign a prime number for better performance
+
+=================================================
+jinfo <option> <pid>
+       (to connect to a running process)
+
+where <option> is one of:
+    -flag <name>         to print the value of the named VM flag
+    -flag [+|-]<name>    to enable or disable the named VM flag
+    -flag <name>=<value> to set the named VM flag to the given value
+    -flags               to print VM flags
+    -sysprops            to print Java system properties
+    <no option>          to print both VM flags and system properties
+    -? | -h | --help | -help to print this help message
+============================================	
+Print all flags:
+
+>java -XX:+AggressiveOpts -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+PrintFlagsFinal -XX:+PrintFlagsWithComments -version
+
+
+How to change JVM arguments at runtime to avoid application restart?
+
+Not all of the available parameters can be changed, for a complete list of settings that can be modified, you can use the command below.
+
+>java -XX:+PrintFlagsFinal -version|grep manageable
+=========================
+
+GC:
+All objects in heap which are not reachable from any stack or metaspace are eligible for GC.
+
+System.gc() //suggests jvm to run gc,but not guarenteed.
+
+Mark and sweep:
+Mark:
+GC identifies the objects that needs to be retained.This results in stop the world.
+It basically follow the references of all stacks and metaspace to identify this.
+
+Sweep:
+Remove remaining objects, and move alive objects in contiguous memory space(prevents fragmentation).
+
+Why Generational GC?(to reduce gc time)
+The stop the world time(during GC)  is propertional to the number of retained objects.
+Most objects are short lived(references inside methods).
+If an objects survives it is likely to live forever.
+
+So we can divide heap in two spaces like young and old.
+We can allocate new objects in young generation space.
+If an object survives a threshold value of gc it can be moved in old generation.
+since we are moving long lived objects in old generation.The thime taken for GC in young generation can be significantly reduced.
+
+minor GC=>young generation gc
+mojor gc=>old generation gc. It can take few seconds as most of the objects are likely to have references.
+
+Young generation:
+Divided into 3 sections(This model is true till java 8):
+Eden: 
+ Newly ceated objects are allocated here.
+ When this is full minor gc takes place.retained objects are moved into s0.
+ Again when eden is full minor gc takes place in eden and s0,retained objects are moved in s1.
+ this way minor gc surviving objects keeps on moving between s0 and s1.
+ after a threshold value the surviving objects are moved in old generation.
+
+Survivor spaces(s0 & s1): keeps objects that survives a minor gc.
+
+
+code example:
+
+class Main{
+	public static void main(String[] args) throws InterruptedException, IOException {
+		List<Emp> list = new ArrayList();
+		Random random = new Random();
+		while (true) {
+			Emp e = new Emp("abc");
+			if (random.nextInt() % 2 == 0) {
+				list.add(e);
+			}
+		}
+	}
+}
+
+check gc events, add the below flag:
+>java -verbose:gc -Xmx20m Main
+
+sample O/P for java8  printed by -verbose:gc: 
+[GC (Allocation Failure)  7610K->1978K(19968K), 0.0004709 secs]
+
+where:
+GC=>Minor GC(other posible value is Full GC)
+Allocation Failure=>reason for gc
+7610K=>heap size before gc
+1978K=>heap size after gc
+19968K=>total heap size
+0.0004709 secs=>time taken by gc
+
+
+sample full gc log for java8:
+
+[GC (Allocation Failure)  5227K->2478K(19968K), 0.0116692 secs]
+[GC (Allocation Failure)  8110K->5047K(19968K), 0.0079653 secs]
+[GC (Allocation Failure)  10369K->8406K(19968K), 0.0088080 secs]
+[GC (Allocation Failure)  14038K->12292K(19968K), 0.0137461 secs]
+[Full GC (Ergonomics)  12292K->9889K(19968K), 0.1778364 secs]
+[Full GC (Ergonomics)  15521K->12176K(19968K), 0.1150747 secs]
+[Full GC (Ergonomics)  17808K->14984K(19968K), 0.1520934 secs]
+[Full GC (Ergonomics)  17454K->16208K(19968K), 0.1397615 secs]
+[Full GC (Allocation Failure)  16208K->16195K(19968K), 0.1550537 secs]
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+
+
+sample full log for java 11  printed by -verbose:gc: 
+
+[0.019s][info][gc] Using G1
+[0.214s][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 11M->5M(20M) 15.210ms
+[0.257s][info][gc] GC(2) Pause Young (Concurrent Start) (G1 Humongous Allocation) 10M->10M(20M) 11.254ms
+[0.260s][info][gc] GC(3) Concurrent Cycle
+[0.266s][info][gc] GC(4) Pause Young (Normal) (G1 Evacuation Pause) 15M->14M(20M) 4.448ms
+[0.274s][info][gc] GC(5) Pause Young (Normal) (G1 Evacuation Pause) 15M->15M(20M) 5.476ms
+[0.279s][info][gc] GC(6) Pause Young (Normal) (G1 Evacuation Pause) 16M->15M(20M) 3.460ms
+[0.286s][info][gc] GC(7) Pause Young (Normal) (G1 Evacuation Pause) 16M->15M(20M) 4.459ms
+[0.291s][info][gc] GC(8) Pause Young (Normal) (G1 Humongous Allocation) 16M->16M(20M) 4.723ms
+[0.333s][info][gc] GC(9) Pause Full (G1 Humongous Allocation) 16M->11M(20M) 40.898ms
+[0.333s][info][gc] GC(3) Concurrent Cycle 73.248ms
+[0.339s][info][gc] GC(10) Pause Young (Normal) (G1 Evacuation Pause) 17M->16M(20M) 3.027ms
+[0.345s][info][gc] GC(11) Pause Young (Concurrent Start) (G1 Evacuation Pause) 17M->17M(20M) 4.195ms
+[0.345s][info][gc] GC(12) Concurrent Cycle
+[0.349s][info][gc] GC(13) Pause Young (Normal) (G1 Evacuation Pause) 18M->17M(20M) 2.142ms
+[0.358s][info][gc] GC(14) To-space exhausted
+[0.358s][info][gc] GC(14) Pause Young (Normal) (G1 Evacuation Pause) 18M->18M(20M) 7.628ms
+[0.372s][info][gc] GC(15) To-space exhausted
+[0.372s][info][gc] GC(15) Pause Young (Normal) (G1 Evacuation Pause) 19M->19M(20M) 12.351ms
+[0.415s][info][gc] GC(16) Pause Full (G1 Evacuation Pause) 19M->15M(20M) 42.906ms
+[0.415s][info][gc] GC(12) Concurrent Cycle 69.511ms
+[0.419s][info][gc] GC(17) Pause Young (Normal) (G1 Evacuation Pause) 16M->16M(20M) 2.398ms
+[0.423s][info][gc] GC(18) Pause Young (Concurrent Start) (G1 Evacuation Pause) 17M->16M(20M) 3.274ms
+[0.423s][info][gc] GC(19) Concurrent Cycle
+[0.429s][info][gc] GC(20) Pause Young (Normal) (G1 Humongous Allocation) 17M->16M(20M) 4.505ms
+[0.468s][info][gc] GC(21) Pause Full (G1 Humongous Allocation) 16M->16M(20M) 38.508ms
+[0.507s][info][gc] GC(22) Pause Full (G1 Humongous Allocation) 16M->16M(20M) 39.159ms
+[0.507s][info][gc] GC(19) Concurrent Cycle 84.108ms
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+
+
+
+GC flags:
+
+-XX:-UseAdaptiveSizePolicy
+
+-XX:NewRatio=4 (Default is 2) =>old genaration size should be 4 times bigger than new generation size.
+                  for 10mb heap 8mb=>old generation  2mb=>new generation
+ (Note check default value => jinfo -flag NewRatio <pid>)
+ 
+-XX:SurvivorRatio=n (Default is 8) =>How much of young generation should be taken by survivor spaces 
+                        SurvivorRatio=8 means s1 and s2 will have 1/8 part of new generation ech and eden will have remaining 6/8 part of new generation.
+
+-XX:MaxTenuringThreshold=n (Default is 15) =>How many GC an object needs to survive to make it to the old generation.
+
+Choosing a GC:
+There are 3 types of Gc:
+1)serial : use a single thread for GC. Use  -XX:+UseSerialGC to enable this GC.
+2)parallel:use multiple threads for GC. Use  -XX:+UseParallelGC to enable this GC. This is Default till java 8. 
+3)mostly concurrent: GC happens simultaneously while program is running, it has minimum stop the world time.
+  There are two options for mostly concurrent:
+  a)Concurrent Mark Sweep: use -XX:+UseConcMarkSweepGC. This is Default in java 9.
+  b)G1:  use -XX:UseG1GC, this is default from java 10.
+  
+  -XX:ConcGCThreads=n => No of concurrent threads available for g1 gc for garbage collection.
+  -XX:InitiatingHeapOccupancePercent=n (Default 45%) =>start concurrent g1 gc simultaneously when 45% of heap is full.
+  -XX:UseStringDeDuplication => only works with g1 gc. if there are two string literals with same content.it removes duplicates and reuse same string.
+						

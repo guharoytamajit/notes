@@ -1,0 +1,2 @@
+>docker-compose up master
+hit http://172.29.1.1:8080/

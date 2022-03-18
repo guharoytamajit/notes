@@ -1,0 +1,18 @@
+
+>ifconfig
+>sudo ifconfig eth0 up
+>ifconfig
+
+list all services:
+>systemctl list-unit-files --type service -all
+OR
+>service --status-all
+
+
+
+start service:
+>systemctl start <service-name>
+OR
+>service <service-name> start
+
+eg. sudo service  docker start

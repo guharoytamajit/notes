@@ -1,0 +1,191 @@
+
+error:
+go: go.mod file not found in current directory or any parent directory; see 'go help modules'
+
+solution 1 disable module:
+>go env -w GO111MODULE=off
+
+solution 2 create go module(we can upgrade non-module based code to modules using below command):
+>go mod init
+==================================================================================
+>go install hello/test.go 
+
+error: GOBIN not set: cannot run go install
+
+solution:
+
+Update 2020: since Go 1.11 and the introduction of Go modules, GOPATH is not needed anymore per project, and defaults to ~/go for global tools/project you would go get.
+
+Go 1.16 (Q1 2020) should default GOBIN to GOPATH[0]/bin.
+
+But for now, for any project using modules, you would not have an error message like "go install: no install location ..." anymore.
+===================================================================================
+go build:
+go build creates an executable in current directory
+for example you have $GOPATH/src/test.com/hello/hello.go
+
+
+For commands (ie. package main):
+
+go build   builds the command and leaves the result in the current working directory.
+
+For library packages:
+
+go build   builds your package then discards the results.
+
+====================================================================================
+go install:
+go install builds then installs the package in your $GOPATH/pkg directory.
+
+For commands (package main):
+go install builds the command in a temporary directory then moves it to $GOPATH/bin.
+
+For library packages:
+go install builds then installs the package in your $GOPATH/pkg directory.
+
+
+example(main package):
+${GOPATH}\src\test.com\hello\test.go
+
+package main
+import "fmt"
+
+func main() {
+	fmt.Println("how are u?")
+}
+
+>cd ${GOPATH}\src\test.com\hello
+>go install .
+It will create:
+
+C:\Users\guhar\go\bin\hello.exe
+---------------
+example2(library package):
+${GOPATH}\src\test.com\hello\test.go
+
+package hello
+import "fmt"
+
+func main() {
+	fmt.Println("how are u?")
+}
+
+>cd ${GOPATH}\src\test.com\hello
+>go install .
+It will create:
+
+C:\Users\guhar\go\pkg\windows_amd64\test.com\hello.a  
+
+.a files are compiled packages. 
+=================================================================
+Import in go:
+Go requires relative paths with respect to your $GOPATH/src or module in import statement.
+
+/
+  - /platform
+      - platform.go
+  - main.go
+  - go.mod
+  
+// platform.go
+package platform
+import "fmt"
+func Print() {
+    fmt.Println("Hi")
+}
+
+// main.go
+package main
+import "platform"
+func main() {
+    platform.Print()
+}  
+
+GOPATH(ie. without modules)
+
+Assume your project resides here:
+$GOPATH/src/github.com/myuser/myproject
+
+Your import path should be:
+import "github.com/myuser/myproject/platform"
+
+
+Go Modules import:
+
+Assume your go.mod file is:
+module example.com/myuser/myproject
+
+Your import path should be:
+import "example.com/myuser/myproject/platform"
+
+
+---------------------
+package import examples(same project reference without module):
+
+${GOPATH}/src/test.com/hello/cal/calculator.go:
+package cal
+func Add(a int, b int) int {
+	return a + b
+}
+
+
+${GOPATH}/src/test.com/hello/test.go:
+package main
+import (
+	"fmt"
+	"test.com/hello/cal"
+)
+
+func main() {
+	fmt.Println(cal.Add(3, 4))
+}
+
+
+>cd ${GOPATH}/src/test.com/hello
+>go run test.go
+7
+---------------------------------------
+refer package from a different project:
+
+${GOPATH}/src/test.com/another/main.go:
+package main
+import (
+	"fmt"
+	"test.com/hello/cal"
+)
+func main() {
+	fmt.Println(cal.Add(10, 4))
+}
+
+>cd ${GOPATH}/src/test.com/another
+>go run main.go
+
+============================================================
+Go Modules:
+
+>md go-modules
+>cd go-modules
+>go mod init github.com/guharoytamajit/go-modules   #this will add go.mod file in our workspace
+we name go modules in this convention to make it compatible with older go projects which has no modules.
+Now if we add any dependency in current module another file named sum.go will be created
+>go get github.com/julienschmidt/httprouter
+
+Note go.sum is a generated file used by go,so we dont have to modify it manually.It actually holds transitive dependencies.
+
+create main.go(with main package) and run
+
+>go run main.go
+
+>go mod tidy   // get rid of unused things, or add new dependencies which are reffered from code.
+
+Download all dependencies of current project(may or may not be module)
+>go get ./...   or  >go build
+
+delete local dependencies
+>go clean -cache -modcache -i -r
+
+re download dependencies:
+>go build
+
+List available versions for a library:
+>go list -m -version go.uber.org/zap

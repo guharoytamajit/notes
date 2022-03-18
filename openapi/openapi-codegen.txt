@@ -1,0 +1,16 @@
+npm install @openapitools/openapi-generator-cli -g
+
+
+>openapi-generator-cli help
+
+Get list of generators
+>openapi-generator-cli  list    
+
+>openapi-generator-cli help generate
+
+>openapi-generator-cli generate -i test.yaml -o target -g spring
+
+>openapi-generator-cli generate -i test.yaml -o angular -g typescript-angular
+>openapi-generator-cli generate -i test.yaml -o protobuf -g protobuf-schema
+>openapi-generator-cli generate -i test.yaml -o graphql -g graphql-schema
+>openapi-generator-cli generate -i test.yaml -o mysql -g mysql-schema
